@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "under_writing"
+version = "0.1.0"
+description = "A project for underwriting model development using OptBinning, SHAP, MLflow, and XGBoost."
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+numpy = "^1.21.0"
+pandas = "^1.3.0"
+matplotlib = "^3.4.0"
+seaborn = "^0.11.0"
+scikit-learn = "^0.24.0"
+xgboost = "^1.4.0"
+optuna = "^2.10.0"
+shap = "^0.39.0"
+optbinning = "^0.14.0"
+mlflow = "^1.20.0"
+statsmodels = "^0.12.0"
+scipy = "^1.7.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
