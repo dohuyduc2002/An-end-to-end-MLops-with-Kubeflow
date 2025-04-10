@@ -1,8 +1,11 @@
+from pathlib import Path
 import pandas as pd
 import numpy as np
 from optbinning import BinningProcess
-from sklearn.feature_selection import SequentialFeatureSelector, RFE
+from sklearn.feature_selection import SequentialFeatureSelector
 from xgboost import XGBClassifier
+from tqdm import tqdm
+from src.config import logging
 
 # =============================================================================
 # Preprocess Class
@@ -16,15 +19,14 @@ class Preprocess:
     def __init__(self, X_train, X_test, y_train, categorical_cols, numerical_cols):
         """
         Parameters:
-        - X_train (pd.DataFrame): Training features.
-        - X_test (pd.DataFrame): Test features.
-        - y_train (np.array): Training target labels.
-        - categorical_cols (list): List of categorical column names.
-        - numerical_cols (list): List of numerical column names.
+          - X_train (pd.DataFrame): Training features.
+          - X_test (pd.DataFrame): Test features.
+          - y_train (np.array): Training target labels.
+          - categorical_cols (list): List of categorical column names.
+          - numerical_cols (list): List of numerical column names.
         """
-        # Store copies of original data for missing ratio and deduplication checks
         self.X_train_orig = X_train.copy()
-        self.X_test_orig = X_test.copy()  # if needed later
+        self.X_test_orig = X_test.copy()
         self.X_train = X_train.copy()
         self.X_test = X_test.copy()
         self.y_train = y_train
@@ -35,7 +37,7 @@ class Preprocess:
         self.binning_process = None
 
     def run(self):
-        # Impute numerical columns with median (in-place)
+        # Impute numerical columns with median
         for col in self.numerical_cols:
             if col in self.X_train.columns:
                 median_val = self.X_train[col].median()
@@ -50,7 +52,7 @@ class Preprocess:
                 self.X_train[col].fillna(fill_val, inplace=True)
                 if col in self.X_test.columns:
                     self.X_test[col].fillna(fill_val, inplace=True)
-        # Fit optimal binning process on all features (order matters for subsequent IV computation)
+        # Fit optimal binning on all features
         all_features = self.categorical_cols + self.numerical_cols
         self.binning_process = BinningProcess(variable_names=all_features,
                                               categorical_variables=self.categorical_cols)
@@ -67,14 +69,6 @@ class Preprocess:
 
     @staticmethod
     def compute_iv(series, y):
-        """
-        Compute the Information Value (IV) for a given binned series.
-        Parameters:
-        - series (pd.Series): Binned variable (e.g., as produced by BinningProcess).
-        - y (array-like): Binary target (assumed 0/1).
-        Returns:
-        - iv (float): The Information Value.
-        """
         df = pd.DataFrame({"bin": series, "target": y})
         total_good = (df["target"] == 0).sum()
         total_bad = (df["target"] == 1).sum()
@@ -94,31 +88,18 @@ class Preprocess:
         return iv
 
     def filter_features(self):
-        """
-        Calculates the Information Value (IV) for each processed feature and
-        excludes features based on these rules:
-         - IV > 0.5 or IV < 0.02
-         - Missing value rate (from original data) is above 30%
-         - For categorical features: if the ratio of unique values (uniqueness) is above 40%
-        
-        Drops the flagged features from both the processed training and test sets.
-        
-        Returns:
-        - iv_dict (dict): Dictionary of {feature: IV_value}.
-        - features_to_exclude (list): List of feature names that were excluded.
-        """
         if self.X_train_processed is None:
             raise RuntimeError("Processed data not available. Run the 'run()' method first.")
         features_to_exclude = []
         iv_dict = {}
-        for col in self.X_train_processed.columns:
+        for col in tqdm(self.X_train_processed.columns, desc="Filtering Features"):
             iv = Preprocess.compute_iv(self.X_train_processed[col], self.y_train)
             iv_dict[col] = iv
             if iv > 0.5 or iv < 0.02:
                 features_to_exclude.append(col)
                 continue
             missing_ratio = self.X_train_orig[col].isnull().mean()
-            if missing_ratio > 0.3:
+            if missing_ratio > 0.1:
                 features_to_exclude.append(col)
                 continue
         self.X_train_processed = self.X_train_processed.drop(columns=features_to_exclude)
@@ -127,126 +108,94 @@ class Preprocess:
         return iv_dict, features_to_exclude
 
 # =============================================================================
-# FeatureSelectionWrapper Class
-# =============================================================================
-class FeatureSelectionWrapper:
-    """
-    A wrapper for feature selection using Sequential Feature Selector (SFS) 
-    or Recursive Feature Elimination (RFE).
-    """
-    def __init__(self, estimator, method="sfs", n_features_to_select=None, **kwargs):
-        """
-        Parameters:
-        - estimator: A scikit-learn estimator used to score features.
-        - method (str): "sfs" or "rfe".
-        - n_features_to_select (int or None): Number of features to select (default: half).
-        - kwargs: Additional arguments for the feature selector.
-        """
-        self.estimator = estimator
-        self.method = method.lower()
-        self.n_features_to_select = n_features_to_select
-        self.kwargs = kwargs
-        self.selector = None
-        self.selected_features = None
-        self.excluded_features = None
-
-    def fit(self, X, y):
-        if self.n_features_to_select is None:
-            self.n_features_to_select = X.shape[1] // 2
-        if self.method == "sfs":
-            self.selector = SequentialFeatureSelector(
-                self.estimator,
-                n_features_to_select=self.n_features_to_select,
-                direction='forward',
-                **self.kwargs
-            )
-        elif self.method == "rfe":
-            self.selector = RFE(self.estimator, n_features_to_select=self.n_features_to_select, **self.kwargs)
-        else:
-            raise ValueError("Method must be 'sfs' or 'rfe'")
-        self.selector.fit(X, y)
-        mask = self.selector.get_support()
-        if hasattr(X, "columns"):
-            self.selected_features = list(X.columns[mask])
-            self.excluded_features = list(X.columns[~mask])
-        else:
-            self.selected_features = None
-            self.excluded_features = None
-        return self
-
-    def transform(self, X):
-        return self.selector.transform(X)
-    
-    def fit_transform(self, X, y):
-        self.fit(X, y)
-        return self.transform(X)
-
-# =============================================================================
 # PreprocessFeatureSelector Wrapper Class
 # =============================================================================
 class PreprocessFeatureSelector:
     """
-    A wrapper class that runs both preprocessing and feature selection.
+    A wrapper class that runs two steps:
+      1. Preprocessing (missing value imputation and optimal binning, plus filtering based on IV and missing value rate).
+      2. Feature Selection using SequentialFeatureSelector.
     
-    It performs missing value imputation and optimal binning via the Preprocess class,
-    optionally filters features using IV rules, then applies feature selection using
-    FeatureSelectionWrapper.
+    After processing and selection, the wrapper appends the target values to the
+    selected training DataFrame as a column named "TARGET".
     
-    Parameters:
-      - X_train (pd.DataFrame): Raw training features.
-      - X_test (pd.DataFrame): Raw test features.
-      - y_train (np.array): Training target labels.
-      - categorical_cols (list): List of categorical feature names.
-      - numerical_cols (list): List of numerical feature names.
-      - estimator: Estimator used for feature selection (default: XGBClassifier).
-      - fs_method (str): Feature selection method ("sfs" or "rfe").
-      - n_features_to_select (int): Number of features to select.
-      - fs_kwargs (dict): Additional keyword arguments for the feature selector.
+    Additionally, the processed training and test data are saved to CSV files in the 
+    specified paths with filenames based on the provided data_version.
     
     Returns:
-      - selected_train (pd.DataFrame): Final processed training data.
+      - selected_train (pd.DataFrame): Final processed training data with the TARGET column.
       - selected_test (pd.DataFrame): Final processed test data.
       - selected_features (list): List of features that were retained.
-      - excluded_features (list): List of features dropped during preprocessing and feature selection.
+      - excluded_features (list): Combined list of features excluded during filtering and SFS.
     """
     def __init__(self, X_train, X_test, y_train, categorical_cols, numerical_cols,
-                 estimator=None, fs_method="sfs", n_features_to_select=None, fs_kwargs=None):
+                 data_version, save_train_data_path, save_test_data_path, n_features_to_select=None, fs_kwargs=None):
         self.X_train = X_train.copy()
         self.X_test = X_test.copy()
         self.y_train = y_train
         self.categorical_cols = categorical_cols
         self.numerical_cols = numerical_cols
-        if estimator is None:
-            self.estimator = XGBClassifier(use_label_encoder=False, eval_metric='auc')
-        else:
-            self.estimator = estimator
-        self.fs_method = fs_method
+        self.data_version = data_version
+        self.save_train_data_path = save_train_data_path
+        self.save_test_data_path = save_test_data_path
         self.n_features_to_select = n_features_to_select
+        if self.n_features_to_select is None:
+            self.n_features_to_select = 'auto'
         self.fs_kwargs = fs_kwargs if fs_kwargs is not None else {}
         self.preprocess_obj = None
-        self.fs_wrapper = None
-        self.excluded_features = []  # to store features excluded at any stage
+        self.selected_features = None
+        self.fs_excluded_features = []
+        self.iv_excluded_features = []
 
     def run(self):
-        # Step 1: Preprocessing
+        logging.info("Starting preprocessing and filtering...")
         self.preprocess_obj = Preprocess(self.X_train, self.X_test, self.y_train,
                                           self.categorical_cols, self.numerical_cols)
         X_train_proc, X_test_proc = self.preprocess_obj.run()
-        # Optionally filter features based on IV/missing ratio rules
-        _, iv_excluded = self.preprocess_obj.filter_features()
-        self.excluded_features.extend(iv_excluded)
+        logging.info("Preprocessing complete.")
+        logging.info("Features before filtering: %s", list(self.preprocess_obj.X_train_processed.columns))
+        iv_dict, iv_excluded = self.preprocess_obj.filter_features()
+        self.iv_excluded_features.extend(iv_excluded)
+        logging.info("Filtering complete.")
+        logging.info("IV Values: %s", iv_dict)
+        logging.info("Features excluded during filtering: %s", iv_excluded)
+        filtered_features = list(self.preprocess_obj.X_train_processed.columns)
         
-        # Step 2: Feature Selection
-        self.fs_wrapper = FeatureSelectionWrapper(self.estimator, method=self.fs_method,
-                                                   n_features_to_select=self.n_features_to_select,
-                                                   **self.fs_kwargs)
-        self.fs_wrapper.fit(X_train_proc, self.y_train)
-        selected_train = pd.DataFrame(self.fs_wrapper.transform(X_train_proc),
-                                      columns=self.fs_wrapper.selected_features)
-        if X_test_proc is not None and not X_test_proc.empty:
-            selected_test = pd.DataFrame(self.fs_wrapper.transform(X_test_proc),
-                                         columns=self.fs_wrapper.selected_features)
-        else:
-            selected_test = None
-        self.excluded_features.extend(self.fs_wrapper.excluded_features)
-        return selected_train, selected_test, self.fs_wrapper.selected_features, self.excluded_features
+        logging.info("Starting Sequential Feature Selection (SFS)...")
+        sfs = SequentialFeatureSelector(XGBClassifier(use_label_encoder=False, eval_metric='auc'),
+                                          n_features_to_select=self.n_features_to_select,
+                                          direction='forward',
+                                          **self.fs_kwargs)
+        sfs.fit(self.preprocess_obj.X_train_processed, self.y_train)
+        self.selected_features = list(self.preprocess_obj.X_train_processed.columns[sfs.get_support()])
+        self.fs_excluded_features = list(set(filtered_features) - set(self.selected_features))
+        logging.info("Sequential Feature Selection complete.")
+        logging.info("Final selected features: %s", self.selected_features)
+        logging.info("Features excluded by SFS: %s", self.fs_excluded_features)
+        
+        selected_train = pd.DataFrame(sfs.transform(self.preprocess_obj.X_train_processed),
+                                      columns=self.selected_features)
+        selected_train["TARGET"] = self.y_train
+        
+        selected_test = None
+        if self.preprocess_obj.X_test_processed is not None and not self.preprocess_obj.X_test_processed.empty:
+            selected_test = pd.DataFrame(sfs.transform(self.preprocess_obj.X_test_processed),
+                                         columns=self.selected_features)
+        
+        combined_excluded = self.iv_excluded_features + self.fs_excluded_features
+        
+        train_path = Path(self.save_train_data_path)
+        test_path = Path(self.save_test_data_path)
+        train_path.mkdir(parents=True, exist_ok=True)
+        test_path.mkdir(parents=True, exist_ok=True)
+        
+        train_filename = train_path / f"processed_train_{self.data_version}.csv"
+        test_filename = test_path / f"processed_test_{self.data_version}.csv"
+        
+        selected_train.to_csv(train_filename, index=False)
+        if selected_test is not None:
+            selected_test.to_csv(test_filename, index=False)
+        logging.info("Saved processed training data to %s", train_filename)
+        logging.info("Saved processed test data to %s", test_filename)
+        
+        return selected_train, selected_test, self.selected_features, combined_excluded
