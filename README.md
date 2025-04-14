@@ -98,5 +98,28 @@ admin - KRvofPXWF7sooLZCK5gSdS
 kubectl port-forward svc/cicd-jenkins 6060:6060 -n cicd
 
 # mlflow
-helm install mlflow community-charts/mlflow --namespace mlflow --create-namespace 
-kubectl port-forward svc/mlflow 5000:5000 -n mlflow
+helm install mlflow community-charts/mlflow \
+  --namespace mlflow \
+  --create-namespace
+
+helm uninstall mlflow -n mlflow
+kubectl delete pods -n mlflow --selector=app.kubernetes.io/name=mlflow
+
+kubectl port-forward svc/mlflow -n mlflow 5003:5000
+
+# upload data to mino and add dvc 
+mc config host add localMinio http://localhost:9000/minio minio minio123
+mc ls localMinio
+mc cp --recursive data localMinio/sample-data/
+mc ls --recursive localMinio/sample-data
+
+dvc init
+dvc remote add -d myminio s3://sample-data/data
+dvc remote modify myminio endpointurl http://localhost:9000
+dvc remote modify myminio access_key_id minio
+dvc remote modify myminio secret_access_key minio123
+
+# delete pvc workspace
+kubectl get pvc -n kubeflow-user-example-com
+
+kubectl delete pvc mlops-test-workspace -n kubeflow-user-example-com
