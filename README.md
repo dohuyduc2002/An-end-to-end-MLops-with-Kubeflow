@@ -58,3 +58,45 @@ Contributions are welcome! Please submit a pull request or open an issue for any
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for more details.
+
+## To-Do
+- [ ] Add unit tests for `UnderWritingModel` and `utils.py`
+- [ ] Refractor hardcode value in model_name in api.py 
+- [ ] Integrate cross-validation into the training workflow
+- [x] Add support for other models (e.g., LightGBM, CatBoost)
+- [x] Create automated pipeline for model training and evaluation
+- [ ] Enhance documentation with usage examples and API reference
+- [ ] Add CI/CD pipeline using Jenkins
+- [ ] Implement feature selection methods before model training
+- [ ] Implement monitoring services with Grafana, Prometheus, Evidently, ELK 
+- [ ] Insantiate Terraform for IaC to deploy in GCP k8s
+- [ ] Move data in to GCP and using DVC for versioning
+
+kubectl -n kubeflow port-forward pod/minio-6748f5ff9d-bx6v5 9000:9000
+kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80
+kubectl port-forward -n monitoring prometheus-kps-kube-prometheus-stack-prometheus-0 9090
+
+# K8s - grafana - prometheus
+kubectl --namespace monitoring get secrets kps-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo (admin - pwd: prom-operator)
+kubectl --namespace monitoring port-forward $POD_NAME 3000
+
+helm install kps prometheus-community/kube-prometheus-stack \
+  --namespace monitoring --create-namespace
+
+# jenkins helm
+helm install cicd jenkins/jenkins \
+  --namespace cicd \
+  --create-namespace \
+  --set controller.servicePort=6060 \
+  --set controller.targetPort=6060
+
+helm uninstall cicd --namespace cicd
+kubectl delete namespace cicd
+
+admin - KRvofPXWF7sooLZCK5gSdS
+
+kubectl port-forward svc/cicd-jenkins 6060:6060 -n cicd
+
+# mlflow
+helm install mlflow community-charts/mlflow --namespace mlflow --create-namespace 
+kubectl port-forward svc/mlflow 5000:5000 -n mlflow

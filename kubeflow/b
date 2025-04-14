@@ -1,0 +1,27 @@
+#!/bin/bash
+
+NAMESPACE="kubeflow"
+
+echo "🔍 Searching for CrashLoopBackOff pods in namespace: $NAMESPACE"
+kubectl get pods -n $NAMESPACE | grep CrashLoopBackOff | awk '{print $1}' | while read pod; do
+  echo -e "\n🚨 Pod: $pod"
+
+  # Get container(s) name(s)
+  containers=$(kubectl get pod "$pod" -n "$NAMESPACE" -o jsonpath='{.spec.containers[*].name}')
+  
+  for container in $containers; do
+    echo -e "\n📦 Logs for container: $container"
+    kubectl logs "$pod" -n "$NAMESPACE" -c "$container" --tail=50 || echo "⚠️ Failed to fetch logs"
+
+    echo -e "\n📦 Previous logs (if any):"
+    kubectl logs "$pod" -n "$NAMESPACE" -c "$container" --previous --tail=50 || echo "⚠️ No previous logs"
+  done
+
+  echo -e "\n📄 Description of pod: $pod"
+  kubectl describe pod "$pod" -n "$NAMESPACE"
+  echo "============================================================"
+done
+
+
+kubectl -n kubeflow describe pod katib-controller-b8cdb7c9d-nbp7l
+kubectl -n kubeflow logs katib-controller-b8cdb7c9d-nbp7l

@@ -1,0 +1,38 @@
+cd kubeflow
+git clone --branch master https://github.com/kubeflow/manifests.git
+cd manifests
+# minikube version: v1.34.0
+# Client Version: v1.32.3
+# Kustomize kubectl Version: v5.5.0
+# Kustomize Version: v5.0.0
+# cert-manager -> isto -> dex -> full
+
+minikube start --kubernetes-version=v1.32.0 --cpus=32 --memory=128g --disk-size=80g
+minikube stop
+minikube status 
+k config current-context
+minikube delete 
+minikube profile list
+
+
+k get storageclass
+k version
+
+while ! kustomize build example | kubectl apply -f -; do echo "Retrying to apply resources"; sleep 20; done
+
+kubectl krew install ctx
+kubectl krew install ns
+echo 'alias "kubectl ctx"="kubectx"' >> ~/.bashrc
+echo 'alias "kubectl ns"="kubens"' >> ~/.bashrc
+source ~/.bashrc
+
+
+sudo apt install fzf
+
+#install all as sudo, move in to root terminal to install 
+# install krew, kubens, kubectx 
+# alias kubectl = k, kubens, kubectx
+
+# kustomize alrd
+# krew alrd
+# alrd alias

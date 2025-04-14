@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  mlflow:
+    image: mlflow:v1
+    container_name: mlow_cont
+    build:
+      context: .
+      dockerfile: mlflow/Dockerfile
+      args:
+        MLFLOW_VERSION: "2.3.2"
+    environment:
+      - BACKEND_STORE_URI=sqlite:///mlflow.db
+    ports:
+      - "5002:5000"  # maps host port 5002 to container port 5000
+    volumes:
+      - mlflow-data:/mlflow
+    networks:
+      - mlops
+
+networks:
+  mlops:
+    external: true
+
+volumes:
+  mlflow-data:

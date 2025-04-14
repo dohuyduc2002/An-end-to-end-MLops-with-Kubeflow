@@ -1,0 +1,12 @@
+[
+    {
+        "registered_model_name": "v1_XGBoost",
+        "model_artifact_uri": "mlflow-artifacts:/2/bf61854df9334c3c97465d22e7d1cd9c/artifacts/model",
+        "version": "2"
+    },
+    {
+        "registered_model_name": "v3_XGBoost",
+        "model_artifact_uri": "mlflow-artifacts:/4/26b1b47ddd4d472b9c854e99123e031d/artifacts/model",
+        "version": "1"
+    }
+]

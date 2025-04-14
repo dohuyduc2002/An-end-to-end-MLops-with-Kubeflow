@@ -17,3 +17,4 @@ logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=lo
 class Config:
     MLFLOW_URI = os.environ.get("MLFLOW_URI")
     PREDICTOR_API_PORT = os.environ.get("PREDICTOR_API_PORT") 
+    SERVICE_NAME_TELEMETRY = os.environ.get("SERVICE_NAME")
