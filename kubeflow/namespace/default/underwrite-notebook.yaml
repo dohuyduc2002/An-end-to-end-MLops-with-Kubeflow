@@ -1,0 +1,33 @@
+apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  name: underwrite
+  namespace: kubeflow-user-example-com
+spec:
+  template:
+    spec:
+      serviceAccountName: default-editor
+      automountServiceAccountToken: true
+
+      containers:
+      - name: notebook
+        image: ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter:v1.10.0
+        env:
+        - name: KF_PIPELINES_SA_TOKEN_PATH
+          value: /var/run/secrets/kubeflow/pipelines/token
+        ports:
+        - containerPort: 8888
+          name: notebook-port
+        volumeMounts:
+        - name: pipelines-token
+          mountPath: /var/run/secrets/kubeflow/pipelines
+          readOnly: true
+
+      volumes:
+      - name: pipelines-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: token
+              expirationSeconds: 31536000
+              audience: pipelines

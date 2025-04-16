@@ -40,3 +40,9 @@ echo "🧹 Removing local data to save space"
 rm -rf "$LOCAL_PATH"
 
 echo "✅ Done! Tracked and pushed '$REMOTE_PATH' via DVC, only MinIO stores the data now."
+
+# Kubeflow → MinIO (sample-data/data/)
+#             ↓
+#     ./track_minio_data.sh
+#             ↓
+#  Git: data.dvc       MinIO: DVC cache

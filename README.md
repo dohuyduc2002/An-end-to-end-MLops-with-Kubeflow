@@ -31,28 +31,6 @@ pip install -r requirements.txt
 3. **Model Evaluation**: Evaluate the model's performance using metrics logged with MLflow.
 4. **Model Interpretation**: Use SHAP to explain the model's predictions and gain insights into feature importance.
 
-## Example
-Here is a brief example of how to use the `UnderWritingModel`:
-
-```python
-from src.UnderWritingModel import UnderWritingModel
-
-# Initialize the model
-model = UnderWritingModel()
-
-# Fit the model
-model.fit(X_train, y_train)
-
-# Make predictions
-predictions = model.predict(X_test)
-
-# Log metrics
-model.log_metrics()
-
-# Explain predictions
-model.explain_predictions(X_test)
-```
-
 ## Contributing
 Contributions are welcome! Please submit a pull request or open an issue for any enhancements or bug fixes.
 
@@ -77,8 +55,9 @@ kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80
 kubectl port-forward -n monitoring prometheus-kps-kube-prometheus-stack-prometheus-0 9090
 
 # K8s - grafana - prometheus
-kubectl --namespace monitoring get secrets kps-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo (admin - pwd: prom-operator)
-kubectl --namespace monitoring port-forward $POD_NAME 3000
+kubectl --namespace monitoring get secrets kps-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo 
+kubectl --namespace monitoring port-forward kps-grafana-6f79cb6d98-ph54q 3000
+(admin - pwd: prom-operator)
 
 helm install kps prometheus-community/kube-prometheus-stack \
   --namespace monitoring --create-namespace
@@ -123,3 +102,6 @@ dvc remote modify myminio secret_access_key minio123
 kubectl get pvc -n kubeflow-user-example-com
 
 kubectl delete pvc mlops-test-workspace -n kubeflow-user-example-com
+kubectl port-forward svc/minio-service -n kubeflow 9000:9000
+
+

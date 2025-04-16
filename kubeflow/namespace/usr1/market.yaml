@@ -1,0 +1,23 @@
+apiVersion: kubeflow.org/v1
+kind: Profile
+metadata:
+  ## the profile name will be the namespace name
+  ## WARNING: unexpected behavior may occur if the namespace already exists
+  name: market
+spec:
+  ## the owner of the profile
+  ## NOTE: you may wish to make a global super-admin the owner of all profiles
+  ##       and only give end-users view or modify access to profiles to prevent
+  ##       them from adding/removing contributors
+  owner:
+    kind: User
+    name: market-admin@example.com
+
+  ## plugins extend the functionality of the profile
+  ## https://github.com/kubeflow/kubeflow/tree/master/components/profile-controller#plugins
+  plugins: []
+  
+  ## optionally create a ResourceQuota for the profile
+  ## https://github.com/kubeflow/kubeflow/tree/master/components/profile-controller#resourcequotaspec
+  ## https://kubernetes.io/docs/reference/kubernetes-api/policy-resources/resource-quota-v1/#ResourceQuotaSpec
+  resourceQuotaSpec: {}
