@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prediction-api-monitor
+  namespace: monitoring
+  labels:
+    release: kps  # ⚠️ Cần đúng label để Prometheus chọn
+spec:
+  selector:
+    matchLabels:
+      app: prediction-api  # label của service
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics

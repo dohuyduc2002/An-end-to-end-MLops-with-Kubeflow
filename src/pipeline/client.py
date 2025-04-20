@@ -1,27 +1,33 @@
 import kfp
 import kfp.compiler as compiler
 from utils import KFPClientManager
+from dotenv import load_dotenv
+import os
+
+# Load the .env file
+load_dotenv(dotenv_path=".env")
+
 
 if __name__ == "__main__":
     # 1️⃣ Compile the pipeline
 
     # 2️⃣ Setup KFP client
     kfp_client_manager = KFPClientManager(
-        api_url="http://localhost:8080/pipeline",
-        skip_tls_verify=True,
-        dex_username="user@example.com",
-        dex_password="12341234",
-        dex_auth_type="local",
+        api_url=os.getenv("KFP_API_URL"),
+        skip_tls_verify=os.getenv("KFP_SKIP_TLS_VERIFY", "False").lower() == "true",
+        dex_username=os.getenv("KFP_DEX_USERNAME"),
+        dex_password=os.getenv("KFP_DEX_PASSWORD"),
+        dex_auth_type=os.getenv("KFP_DEX_AUTH_TYPE"),
     )
     kfp_client = kfp_client_manager.create_kfp_client()
     print("✅ Authenticated KFP client created successfully.")
 
     # 3️⃣ Define pipeline input parameters
     pipeline_arguments = {
-        "minio_endpoint":    "minio-service.kubeflow.svc.cluster.local:9000",
-        "minio_access_key":  "minio",
-        "minio_secret_key":  "minio123",
-        "bucket_name":       "sample-data",
+        "minio_endpoint":    os.getenv("MINIO_ENDPOINT"),
+        "minio_access_key":  os.getenv("MINIO_ACCESS_KEY"),
+        "minio_secret_key":  os.getenv("MINIO_SECRET_KEY"),
+        "bucket_name":       os.getenv("MINIO_BUCKET_NAME"),
 
         "train_object_name": "data/data/application_train.csv",
         "test_object_name":  "data/data/application_test.csv",

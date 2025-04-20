@@ -23,3 +23,8 @@ minio
 evidently
 dvc
 lightgbm
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi
+opentelemetry-exporter-prometheus
+opentelemetry-instrumentation-asgi
+prometheus_client
