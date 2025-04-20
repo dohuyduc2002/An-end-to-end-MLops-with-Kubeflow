@@ -175,3 +175,5 @@ cython_debug/
 /data
 src/observability/data/application_train.csv
 src/observability/data/application_test.csv
+src/observability/data/application_train.csv
+src/observability/data/application_test.csv
