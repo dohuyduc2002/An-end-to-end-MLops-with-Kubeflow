@@ -173,3 +173,5 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 /data
+src/observability/data/application_train.csv
+src/observability/data/application_test.csv
