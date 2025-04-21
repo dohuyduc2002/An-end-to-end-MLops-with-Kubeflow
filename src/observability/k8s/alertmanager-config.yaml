@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: underwriting-amconfig
+  namespace: monitoring
+spec:
+  route:
+    receiver: discord
+    groupWait: 10s
+    groupInterval: 30s
+    repeatInterval: 1h
+  receivers:
+    - name: discord
+      webhookConfigs:
+        - url: "https://discord.com/api/webhooks/1362697322852778105/zKSadmnhZrhx-k8J8j8rND1PBpfedn-87joOgUuiDMHnKnXfuOVIypnI_lMYP29ASIm2"
+          sendResolved: true
+          httpConfig:
+            headers:
+              Content-Type: application/json
+          message: |
+            {
+              "content": "🚨 Alert: {{ range .Alerts }}**{{ .Labels.alertname }}** - {{ .Annotations.summary }}\n{{ end }}"
+            }

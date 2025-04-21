@@ -1,144 +1,232 @@
-import os
+from typing import List, Dict, Any, Optional
 from time import time
-from typing import List, Dict, Any
 
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, Body
-from pydantic import BaseModel
+from pydantic import BaseModel, Extra
 
 import mlflow
 from mlflow.tracking import MlflowClient
 import mlflow.xgboost
 
-from app.config import logging, Config
-
-# ─── OpenTelemetry Metrics for Prometheus ──────────────────
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.exporter.prometheus import PrometheusMetricReader, start_http_server
 
-# Init Prometheus OTEL export
+import joblib
+from app.config import logging 
+
+transformer = joblib.load("/app/joblib/transformer.joblib")
+
+mlflow.set_tracking_uri("http://mlflow.mlflow.svc:5000")
+client = MlflowClient()
+versions = (
+    client.get_latest_versions("v2_XGB", stages=["Production"])
+    or client.get_latest_versions("v2_XGB", stages=["None"])
+)
+xgb_model = mlflow.xgboost.load_model(f"models:/v2_XGB/{versions[0].version}")
+logging.info(f"Loaded model from registry")
+
+# ========== OpenTelemetry gauges ===========================
 reader = PrometheusMetricReader()
 provider = MeterProvider(metric_readers=[reader])
 metrics.set_meter_provider(provider)
 meter = metrics.get_meter_provider().get_meter("prediction_api")
 start_http_server(port=8001, addr="0.0.0.0")
 
-# Metrics holder
 last_avg_entropy = 0.0
 last_avg_confidence = 0.0
 
-# Observable gauges
 meter.create_observable_gauge(
     name="api_prediction_entropy",
-    callbacks=[lambda options: [metrics.Observation(last_avg_entropy)]],
-    description="Average prediction entropy"
+    callbacks=[lambda opts: [metrics.Observation(last_avg_entropy)]],
+    description="Average prediction entropy",
 )
 meter.create_observable_gauge(
     name="api_avg_confidence",
-    callbacks=[lambda options: [metrics.Observation(last_avg_confidence)]],
-    description="Average model confidence"
+    callbacks=[lambda opts: [metrics.Observation(last_avg_confidence)]],
+    description="Average model confidence",
 )
 
-# ─── ENV ────────────────────────────────────────────────────
-os.environ['AWS_ACCESS_KEY_ID'] = os.getenv("AWS_ACCESS_KEY_ID", "minio")
-os.environ['AWS_SECRET_ACCESS_KEY'] = os.getenv("AWS_SECRET_ACCESS_KEY", "minio123")
-os.environ['MLFLOW_S3_ENDPOINT_URL'] = os.getenv("MLFLOW_S3_ENDPOINT_URL", "http://minio-service.kubeflow.svc.cluster.local:9000")
-
-# ─── Load Model ─────────────────────────────────────────────
-mlflow.set_tracking_uri(Config.MLFLOW_URI)
-client = MlflowClient()
-versions = client.get_latest_versions("v1_XGB", stages=["Production"]) or client.get_latest_versions("v1_XGB", stages=["None"])
-model_uri = f"models:/v1_XGB/{versions[0].version}"
-logging.info(f"Loading model: {model_uri}")
-xgb_model = mlflow.xgboost.load_model(model_uri)
-
-# ─── FastAPI ────────────────────────────────────────────────
+# ========== FastAPI ========================================
 app = FastAPI()
 
-# ─── Feature Schema ─────────────────────────────────────────
-FEATURES = [
-    "CODE_GENDER", "NAME_INCOME_TYPE", "NAME_EDUCATION_TYPE", "NAME_FAMILY_STATUS",
-    "ORGANIZATION_TYPE", "AMT_CREDIT", "AMT_ANNUITY", "AMT_GOODS_PRICE",
-    "REGION_POPULATION_RELATIVE", "DAYS_BIRTH", "DAYS_EMPLOYED", "DAYS_REGISTRATION",
-    "DAYS_ID_PUBLISH", "FLAG_EMP_PHONE", "REGION_RATING_CLIENT",
-    "REGION_RATING_CLIENT_W_CITY", "REG_CITY_NOT_LIVE_CITY", "REG_CITY_NOT_WORK_CITY",
-    "EXT_SOURCE_2", "DAYS_LAST_PHONE_CHANGE", "FLAG_DOCUMENT_3"
-]
+class RawItem(BaseModel):
+    SK_ID_CURR: Optional[int] = None
+    NAME_CONTRACT_TYPE: Optional[str] = None
+    CODE_GENDER: Optional[str] = None
+    FLAG_OWN_CAR: Optional[str] = None
+    FLAG_OWN_REALTY: Optional[str] = None
+    CNT_CHILDREN: Optional[int] = None
+    AMT_INCOME_TOTAL: Optional[float] = None
+    AMT_CREDIT: Optional[float] = None
+    AMT_ANNUITY: Optional[float] = None
+    AMT_GOODS_PRICE: Optional[float] = None
+    NAME_TYPE_SUITE: Optional[str] = None
+    NAME_INCOME_TYPE: Optional[str] = None
+    NAME_EDUCATION_TYPE: Optional[str] = None
+    NAME_FAMILY_STATUS: Optional[str] = None
+    NAME_HOUSING_TYPE: Optional[str] = None
+    REGION_POPULATION_RELATIVE: Optional[float] = None
+    DAYS_BIRTH: Optional[int] = None
+    DAYS_EMPLOYED: Optional[float] = None
+    DAYS_REGISTRATION: Optional[float] = None
+    DAYS_ID_PUBLISH: Optional[int] = None
+    OWN_CAR_AGE: Optional[int] = None
+    FLAG_MOBIL: Optional[int] = None
+    FLAG_EMP_PHONE: Optional[int] = None
+    FLAG_WORK_PHONE: Optional[int] = None
+    FLAG_CONT_MOBILE: Optional[int] = None
+    FLAG_PHONE: Optional[int] = None
+    FLAG_EMAIL: Optional[int] = None
+    OCCUPATION_TYPE: Optional[str] = None
+    CNT_FAM_MEMBERS: Optional[float] = None
+    REGION_RATING_CLIENT: Optional[int] = None
+    REGION_RATING_CLIENT_W_CITY: Optional[int] = None
+    WEEKDAY_APPR_PROCESS_START: Optional[str] = None
+    HOUR_APPR_PROCESS_START: Optional[int] = None
+    REG_REGION_NOT_LIVE_REGION: Optional[int] = None
+    REG_REGION_NOT_WORK_REGION: Optional[int] = None
+    LIVE_REGION_NOT_WORK_REGION: Optional[int] = None
+    REG_CITY_NOT_LIVE_CITY: Optional[int] = None
+    REG_CITY_NOT_WORK_CITY: Optional[int] = None
+    LIVE_CITY_NOT_WORK_CITY: Optional[int] = None
+    ORGANIZATION_TYPE: Optional[str] = None
+    EXT_SOURCE_1: Optional[float] = None
+    EXT_SOURCE_2: Optional[float] = None
+    EXT_SOURCE_3: Optional[float] = None
+    APARTMENTS_AVG: Optional[float] = None
+    BASEMENTAREA_AVG: Optional[float] = None
+    YEARS_BEGINEXPLUATATION_AVG: Optional[float] = None
+    YEARS_BUILD_AVG: Optional[float] = None
+    COMMONAREA_AVG: Optional[float] = None
+    ELEVATORS_AVG: Optional[float] = None
+    ENTRANCES_AVG: Optional[float] = None
+    FLOORSMAX_AVG: Optional[float] = None
+    FLOORSMIN_AVG: Optional[float] = None
+    LANDAREA_AVG: Optional[float] = None
+    LIVINGAPARTMENTS_AVG: Optional[float] = None
+    LIVINGAREA_AVG: Optional[float] = None
+    NONLIVINGAPARTMENTS_AVG: Optional[float] = None
+    NONLIVINGAREA_AVG: Optional[float] = None
+    APARTMENTS_MODE: Optional[float] = None
+    BASEMENTAREA_MODE: Optional[float] = None
+    YEARS_BEGINEXPLUATATION_MODE: Optional[float] = None
+    YEARS_BUILD_MODE: Optional[float] = None
+    COMMONAREA_MODE: Optional[float] = None
+    ELEVATORS_MODE: Optional[float] = None
+    ENTRANCES_MODE: Optional[float] = None
+    FLOORSMAX_MODE: Optional[float] = None
+    FLOORSMIN_MODE: Optional[float] = None
+    LANDAREA_MODE: Optional[float] = None
+    LIVINGAPARTMENTS_MODE: Optional[float] = None
+    LIVINGAREA_MODE: Optional[float] = None
+    NONLIVINGAPARTMENTS_MODE: Optional[float] = None
+    NONLIVINGAREA_MODE: Optional[float] = None
+    APARTMENTS_MEDI: Optional[float] = None
+    BASEMENTAREA_MEDI: Optional[float] = None
+    YEARS_BEGINEXPLUATATION_MEDI: Optional[float] = None
+    YEARS_BUILD_MEDI: Optional[float] = None
+    COMMONAREA_MEDI: Optional[float] = None
+    ELEVATORS_MEDI: Optional[float] = None
+    ENTRANCES_MEDI: Optional[float] = None
+    FLOORSMAX_MEDI: Optional[float] = None
+    FLOORSMIN_MEDI: Optional[float] = None
+    LANDAREA_MEDI: Optional[float] = None
+    LIVINGAPARTMENTS_MEDI: Optional[float] = None
+    LIVINGAREA_MEDI: Optional[float] = None
+    NONLIVINGAPARTMENTS_MEDI: Optional[float] = None
+    NONLIVINGAREA_MEDI: Optional[float] = None
+    FONDKAPREMONT_MODE: Optional[str] = None
+    HOUSETYPE_MODE: Optional[float] = None
+    TOTALAREA_MODE: Optional[str] = None
+    WALLSMATERIAL_MODE: Optional[str] = None
+    EMERGENCYSTATE_MODE: Optional[float] = None
+    OBS_30_CNT_SOCIAL_CIRCLE: Optional[float] = None
+    DEF_30_CNT_SOCIAL_CIRCLE: Optional[float] = None
+    OBS_60_CNT_SOCIAL_CIRCLE: Optional[float] = None
+    DEF_60_CNT_SOCIAL_CIRCLE: Optional[float] = None
+    DAYS_LAST_PHONE_CHANGE: Optional[float] = None
+    FLAG_DOCUMENT_2: Optional[int] = None
+    FLAG_DOCUMENT_3: Optional[int] = None
+    FLAG_DOCUMENT_4: Optional[int] = None
+    FLAG_DOCUMENT_5: Optional[int] = None
+    FLAG_DOCUMENT_6: Optional[int] = None
+    FLAG_DOCUMENT_7: Optional[int] = None
+    FLAG_DOCUMENT_8: Optional[int] = None
+    FLAG_DOCUMENT_9: Optional[int] = None
+    FLAG_DOCUMENT_10: Optional[int] = None
+    FLAG_DOCUMENT_11: Optional[int] = None
+    FLAG_DOCUMENT_12: Optional[int] = None
+    FLAG_DOCUMENT_13: Optional[int] = None
+    FLAG_DOCUMENT_14: Optional[int] = None
+    FLAG_DOCUMENT_15: Optional[int] = None
+    FLAG_DOCUMENT_16: Optional[int] = None
+    FLAG_DOCUMENT_17: Optional[int] = None
+    FLAG_DOCUMENT_18: Optional[int] = None
+    FLAG_DOCUMENT_19: Optional[int] = None
+    FLAG_DOCUMENT_20: Optional[int] = None
+    FLAG_DOCUMENT_21: Optional[int] = None
+    AMT_REQ_CREDIT_BUREAU_HOUR: Optional[float] = None
+    AMT_REQ_CREDIT_BUREAU_DAY: Optional[float] = None
+    AMT_REQ_CREDIT_BUREAU_WEEK: Optional[float] = None
+    AMT_REQ_CREDIT_BUREAU_MON: Optional[float] = None
+    AMT_REQ_CREDIT_BUREAU_QRT: Optional[float] = None
+    AMT_REQ_CREDIT_BUREAU_YEAR: Optional[float] = None
 
-class DataItem(BaseModel):
-    CODE_GENDER: float
-    NAME_INCOME_TYPE: float
-    NAME_EDUCATION_TYPE: float
-    NAME_FAMILY_STATUS: float
-    ORGANIZATION_TYPE: float
-    AMT_CREDIT: float
-    AMT_ANNUITY: float
-    AMT_GOODS_PRICE: float
-    REGION_POPULATION_RELATIVE: float
-    DAYS_BIRTH: float
-    DAYS_EMPLOYED: float
-    DAYS_REGISTRATION: float
-    DAYS_ID_PUBLISH: float
-    FLAG_EMP_PHONE: float
-    REGION_RATING_CLIENT: float
-    REGION_RATING_CLIENT_W_CITY: float
-    REG_CITY_NOT_LIVE_CITY: float
-    REG_CITY_NOT_WORK_CITY: float
-    EXT_SOURCE_2: float
-    DAYS_LAST_PHONE_CHANGE: float
-    FLAG_DOCUMENT_3: float
+    class Config:
+        extra = "ignore"
 
-def compute_entropy(probs: np.ndarray) -> float:
-    return float(-np.sum(probs * np.log2(probs + 1e-10)))
+def entropy(p: np.ndarray) -> float:
+    return float(-np.sum(p * np.log2(p + 1e-10)))
 
-def compute_confidence(probs: np.ndarray) -> float:
-    return float(np.max(probs))
+def confidence(p: np.ndarray) -> float:
+    return float(p.max())
 
 @app.get("/")
-def home() -> Dict[str, str]:
-    return {"status": "ok", "message": "API is working."}
+def health() -> Dict[str, str]:
+    return {"status": "ok"}
 
 @app.post("/Prediction")
-async def underwrite_predict(input: List[DataItem] = Body(...)) -> Dict[str, Any]:
+async def predict(items: List[RawItem] = Body(...)) -> Dict[str, Any]:
     global last_avg_entropy, last_avg_confidence
+    t0 = time()
+    df_raw = pd.DataFrame([i.dict() for i in items]).replace({None: np.nan})
 
-    start = time()
-    df = pd.DataFrame([i.dict() for i in input])
-    X = df[FEATURES]
+    binning = transformer["binning_process"]
+    selector = transformer["selector"]
+
+    df_raw = df_raw[[col for col in df_raw.columns if col in binning.variable_names]]
+
+    # pipeline
+    X_binned = binning.transform(df_raw)
+    X = selector.transform(X_binned)
 
     proba = xgb_model.predict_proba(X)
+
     preds = np.argmax(proba, axis=1)
 
-    results = []
-    entropies, confidences = [], []
+    entropies = [entropy(p) for p in proba]
+    confidences = [confidence(p) for p in proba]
 
-    for p, pr in zip(preds, proba):
-        entropy = compute_entropy(pr)
-        confidence = compute_confidence(pr)
-
-        entropies.append(entropy)
-        confidences.append(confidence)
-
-        results.append({
-            "result": "Accept" if p == 0 else "Decline",
-            "prob_accept": float(pr[0]),
-            "prob_decline": float(pr[1]),
-            "entropy": round(entropy, 4),
-            "confidence": round(confidence, 4)
-        })
-
-    # Record metrics for Prometheus
     last_avg_entropy = float(np.mean(entropies))
     last_avg_confidence = float(np.mean(confidences))
 
-    logging.info(f"[Prediction] Entropy={last_avg_entropy:.4f}, Confidence={last_avg_confidence:.3f}")
-
     return {
-        "predictions": results,
+        "inference_time_ms": round((time() - t0) * 1000, 2),
+        "predictions": [
+            {
+                "result": "Accept" if y == 0 else "Decline",
+                "prob_accept": float(p[0]),
+                "prob_decline": float(p[1]),
+                "entropy": round(e, 4),
+                "confidence": round(c, 4),
+            }
+            for y, p, e, c in zip(preds, proba, entropies, confidences)
+        ],
         "metrics": {
             "avg_entropy": last_avg_entropy,
-            "avg_confidence": last_avg_confidence
-        }
+            "avg_confidence": last_avg_confidence,
+        },
     }

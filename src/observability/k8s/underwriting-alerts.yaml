@@ -32,14 +32,14 @@ spec:
       annotations:
         summary: "🚨 Prediction entropy CRITICAL: {{$value}}"
     - alert: ConfidenceTooLow
-      expr: api_avg_confidence < 0.6
+      expr: api_avg_confidence < 0.9
       for: 1m
       labels:
         severity: warning
       annotations:
         summary: "⚠️ Model confidence low: {{$value}}"
     - alert: ConfidenceCritical
-      expr: api_avg_confidence < 0.4
+      expr: api_avg_confidence < 0.7
       for: 1m
       labels:
         severity: critical

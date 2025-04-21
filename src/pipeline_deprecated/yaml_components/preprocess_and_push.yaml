@@ -1,0 +1,205 @@
+# PIPELINE DEFINITION
+# Name: preprocess-and-push
+# Inputs:
+#    bucket_name: str
+#    data_version: str [Default: 'v1']
+#    dest_test_object: str
+#    dest_train_object: str
+#    minio_access_key: str
+#    minio_endpoint: str
+#    minio_secret_key: str
+#    n_features_to_select: str [Default: 'auto']
+#    test_object_name: str
+#    train_object_name: str
+# Outputs:
+#    test_key: str
+#    train_key: str
+components:
+  comp-preprocess-and-push:
+    executorLabel: exec-preprocess-and-push
+    inputDefinitions:
+      parameters:
+        bucket_name:
+          parameterType: STRING
+        data_version:
+          defaultValue: v1
+          isOptional: true
+          parameterType: STRING
+        dest_test_object:
+          parameterType: STRING
+        dest_train_object:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        n_features_to_select:
+          defaultValue: auto
+          isOptional: true
+          parameterType: STRING
+        test_object_name:
+          parameterType: STRING
+        train_object_name:
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        test_key:
+          parameterType: STRING
+        train_key:
+          parameterType: STRING
+deploymentSpec:
+  executors:
+    exec-preprocess-and-push:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - preprocess_and_push
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef preprocess_and_push(\n    minio_endpoint: str,\n    minio_access_key:\
+          \ str,\n    minio_secret_key: str,\n    bucket_name: str,\n    train_object_name:\
+          \ str,\n    test_object_name: str,\n    dest_train_object: str,\n    dest_test_object:\
+          \ str,\n    n_features_to_select: str = \"auto\",\n    data_version: str\
+          \ = \"v1\",\n) -> NamedTuple(\"OutputKeys\", [(\"train_key\", str), (\"\
+          test_key\", str)]):\n    import os, pandas as pd, numpy as np\n    from\
+          \ pathlib import Path\n    from minio import Minio\n    from optbinning\
+          \ import BinningProcess\n    from sklearn.feature_selection import SelectKBest,\
+          \ f_classif\n\n    client = Minio(minio_endpoint, access_key=minio_access_key,\n\
+          \                   secret_key=minio_secret_key, secure=False)\n\n    tmp\
+          \ = \"/tmp/data\"\n    Path(tmp).mkdir(exist_ok=True)\n    local_tr = Path(tmp)\
+          \ / Path(train_object_name).name\n    local_te = Path(tmp) / Path(test_object_name).name\n\
+          \    client.fget_object(bucket_name, train_object_name, str(local_tr))\n\
+          \    client.fget_object(bucket_name, test_object_name, str(local_te))\n\n\
+          \    df_tr = pd.read_csv(local_tr)\n    df_te = pd.read_csv(local_te)\n\n\
+          \    def get_feature_lists(df):\n        num_cols = df.select_dtypes(include=[\"\
+          int64\", \"float64\"]).columns.tolist()\n        cat_cols = df.select_dtypes(include=[\"\
+          object\"]).columns.tolist()\n        for c in (\"SK_ID_CURR\", \"TARGET\"\
+          ):\n            if c in num_cols: num_cols.remove(c)\n        return cat_cols,\
+          \ num_cols\n\n    def compute_iv(bins, target):\n        df = pd.DataFrame({\"\
+          b\": bins, \"t\": target})\n        tot_g, tot_b = (df.t == 0).sum(), (df.t\
+          \ == 1).sum()\n        iv = 0\n        for _, g in df.groupby(\"b\"):\n\
+          \            good, bad = (g.t == 0).sum() or 0.5, (g.t == 1).sum() or 0.5\n\
+          \            iv += (good/tot_g - bad/tot_b) * np.log((good/tot_g) / (bad/tot_b))\n\
+          \        return iv\n\n    cat, num = get_feature_lists(df_tr)\n    y_tr\
+          \ = df_tr[\"TARGET\"]\n    X_tr, X_te = df_tr.drop(\"TARGET\", axis=1),\
+          \ df_te.copy()\n\n    survivors = []\n    for feat in cat + num:\n     \
+          \   bp1 = BinningProcess([feat], categorical_variables=[feat] if feat in\
+          \ cat else [])\n        bp1.fit(X_tr[[feat]].values, y_tr)\n        bins\
+          \ = bp1.transform(X_tr[[feat]].values).flatten()\n        if 0.02 <= compute_iv(bins,\
+          \ y_tr) <= 0.5 and X_tr[feat].isna().mean() <= 0.1:\n            survivors.append(feat)\n\
+          \n    bp = BinningProcess(variable_names=survivors,\n                  \
+          \      categorical_variables=[c for c in survivors if c in cat])\n    bp.fit(X_tr[survivors].values,\
+          \ y_tr)\n    df_tr_b = pd.DataFrame(bp.transform(X_tr[survivors].values),\
+          \ columns=survivors)\n    df_te_b = pd.DataFrame(bp.transform(X_te[survivors].values),\
+          \ columns=survivors)\n\n    k = len(survivors) if n_features_to_select ==\
+          \ \"auto\" else int(n_features_to_select)\n    selector = SelectKBest(f_classif,\
+          \ k=k)\n    selector.fit(df_tr_b.fillna(0), y_tr)\n\n    keep = df_tr_b.columns[selector.get_support()]\n\
+          \    out_tr = pd.DataFrame(selector.transform(df_tr_b), columns=keep)\n\
+          \    out_te = pd.DataFrame(selector.transform(df_te_b), columns=keep)\n\
+          \    out_tr[\"TARGET\"] = y_tr\n\n    train_key = dest_train_object.replace(\"\
+          .csv\", f\"_{data_version}.csv\")\n    test_key = dest_test_object.replace(\"\
+          .csv\", f\"_{data_version}.csv\")\n    out_tr_path, out_te_path = f\"/tmp/{Path(train_key).name}\"\
+          , f\"/tmp/{Path(test_key).name}\"\n    out_tr.to_csv(out_tr_path, index=False)\n\
+          \    out_te.to_csv(out_te_path, index=False)\n    client.fput_object(bucket_name,\
+          \ train_key, out_tr_path)\n    client.fput_object(bucket_name, test_key,\
+          \ out_te_path)\n\n    return (train_key, test_key)\n\n"
+        image: microwave1005/scipy-img:latest
+pipelineInfo:
+  name: preprocess-and-push
+root:
+  dag:
+    outputs:
+      parameters:
+        test_key:
+          valueFromParameter:
+            outputParameterKey: test_key
+            producerSubtask: preprocess-and-push
+        train_key:
+          valueFromParameter:
+            outputParameterKey: train_key
+            producerSubtask: preprocess-and-push
+    tasks:
+      preprocess-and-push:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-preprocess-and-push
+        inputs:
+          parameters:
+            bucket_name:
+              componentInputParameter: bucket_name
+            data_version:
+              componentInputParameter: data_version
+            dest_test_object:
+              componentInputParameter: dest_test_object
+            dest_train_object:
+              componentInputParameter: dest_train_object
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            n_features_to_select:
+              componentInputParameter: n_features_to_select
+            test_object_name:
+              componentInputParameter: test_object_name
+            train_object_name:
+              componentInputParameter: train_object_name
+        taskInfo:
+          name: preprocess-and-push
+  inputDefinitions:
+    parameters:
+      bucket_name:
+        parameterType: STRING
+      data_version:
+        defaultValue: v1
+        isOptional: true
+        parameterType: STRING
+      dest_test_object:
+        parameterType: STRING
+      dest_train_object:
+        parameterType: STRING
+      minio_access_key:
+        parameterType: STRING
+      minio_endpoint:
+        parameterType: STRING
+      minio_secret_key:
+        parameterType: STRING
+      n_features_to_select:
+        defaultValue: auto
+        isOptional: true
+        parameterType: STRING
+      test_object_name:
+        parameterType: STRING
+      train_object_name:
+        parameterType: STRING
+  outputDefinitions:
+    parameters:
+      test_key:
+        parameterType: STRING
+      train_key:
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1
