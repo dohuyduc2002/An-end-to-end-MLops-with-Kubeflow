@@ -282,100 +282,66 @@ To run the pipeline, you should following these steps
 2. Create pipeline yaml
 3. Upload pipeline to Kubeflow
 
-### Testing CICD with Jenkins
-After Kubeflow pipeline run is complete, pull the artifact from Minio under `mlflow` and `mlpipeline` bucket. I already added code to pull these artifacts 
-
-Before using Jenkins to CICD, you can test the function in the pipeline localy in `src/client/test` folder using pytest. 
-### Serve model with FastAPI and collect log 
-There are 2 way 
-
-### Monitoring with Grafana, Prometheus and Evidently
-
-
-# K8s - grafana - prometheus
-kubectl --namespace monitoring get secrets kps-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo 
-kubectl --namespace monitoring port-forward kps-grafana-6f79cb6d98-ph54q 3000
-(admin - pwd: prom-operator)
-
-helm install kps prometheus-community/kube-prometheus-stack \
-  --namespace monitoring --create-namespace
-
-# jenkins helm
-helm install cicd jenkins/jenkins \
-  --namespace cicd \
-  --create-namespace \
-  --set controller.servicePort=6060 \
-  --set controller.targetPort=6060
-
-helm uninstall cicd --namespace cicd
-kubectl delete namespace cicd
-
-# get username, pass
-kubectl get secret kps-grafana -n monitoring -o jsonpath="{.data.admin-user}" | base64 --decode && echo
-kubectl get secret kps-grafana -n monitoring -o jsonpath="{.data.admin-password}" | base64 --decode && echo
-
-kubectl port-forward svc/cicd-jenkins 6060:6060 -n cicd
-
-# mlflow
-helm repo add community-charts https://community-charts.github.io/helm-charts
-helm repo update
-
-
-
-
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Service
-metadata:
-  name: minio
-  namespace: mlflow
-spec:
-  ports:
-    - port: 9000
----
-apiVersion: v1
-kind: Endpoints
-metadata:
-  name: minio
-  namespace: mlflow
-subsets:
-  - addresses:
-      - ip: 10.96.108.10
-    ports:
-      - port: 9000
-EOF
-
-
-
-# upload data to mino and add dvc 
+### Tracking data with DVC 
+In this project, I'm tracking all data under `sample-data` bucket in Minio for simplicity. To track data with DVC, you can follow these steps:
+1. Install DVC by running the following command:
+```bash
+pip install dvc
+```
+2. Initialize DVC in your project by running the following command:
+```bash
 mc config host add localMinio http://localhost:9000/minio minio minio123
-mc ls localMinio
-mc cp --recursive data localMinio/sample-data/
-mc ls --recursive localMinio/sample-data
 
 dvc init
 dvc remote add -d myminio s3://sample-data/data
 dvc remote modify myminio endpointurl http://localhost:9000
 dvc remote modify myminio access_key_id minio
 dvc remote modify myminio secret_access_key minio123
+```
+if you want to push data from local to Minio, you can run the following command:
+```bash
+mc ls localMinio
+mc cp --recursive <yourpath> localMinio/sample-data/
+mc ls --recursive localMinio/sample-data
+```
 
-# delete pvc workspace
-kubectl get pvc -n kubeflow-user-example-com
+3. After that, you can track data by running the following command:
+```bash
+dvc import-url s3://sample-data/ data/sample-data/ --external
+```
 
-kubectl delete pvc a-workspace -n kubeflow-user-example-com
-kubectl port-forward svc/minio-service -n kubeflow 9000:9000
+4. Commit the changes to DVC by running the following command:
+```bash
+git add data/sample-data.dvc
+git commit -m "......."
+```
+
+### Testing CICD with Jenkins
+
+Under fixing bug due to using Jenkins on a VM outside of Kind, if using inside Kind, Jenkins can not find docker daemon.
+
+### Serve model with FastAPI and collect log 
+In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow`. The model joblib is stored in `mlpieline` bucket. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 
+
+I'm also collecting prediction log using OpenTelemetry and send it back to Prometheus. The metrics dashboard is created in Grafana throguh a configmap that created above .
+
+There are 2 ways to deploy endpoint api
+1. CICD : The endpoint is automatically deployed when the Jenkins pipeline run success 
+2. Manual: You can deploy the endpoint manually by using the following command:
+
+```bash
+k port-forward -n monitoring deployment/prediction-api 8000:8000 8001:8001
+```
+
+**Note**: You can also use `ngrok` to expose the endpoint to the internet, instruction can be found in this [ngrok](https://ngrok.com/docs/getting-started/installation) page. 
 
 
-#app.py
-uvicorn api:app --host 0.0.0.0 --port 8000
-ngrok http --url pheasant-crack-curiously.ngrok-free.app 8000
+### Monitoring with Grafana, Prometheus and Evidently
 
+To access Prometheus and Grafana, you can use the following command:
 
-# monitoring svc 
-kubectl create secret generic minio-creds \
-  --from-literal=access_key=minio \
-  --from-literal=secret_key=minio123 \
-  --namespace=monitoring
+```bash
+k port-forward -n monitoring deployment/prediction-api 8000:8000 8001:8001
+k port-forward -n monitoring prometheus-kps-kube-prometheus-stack-prometheus-0 9090:9090
+``` 
 
-
-kubectl label svc prediction-api app=prediction-api -n monitoring --overwrite

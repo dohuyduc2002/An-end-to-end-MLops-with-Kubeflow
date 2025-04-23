@@ -1,0 +1,22 @@
+services:
+  jenkins:
+    image: microwave1005/custom-jenkins:latest
+    container_name: jenkins
+    user: root
+    privileged: true
+    ports:
+      - 6060:8080
+      - 50000:50000
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - kind-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  kind-net:
+    external: true
+volumes:
+  jenkins_home:
