@@ -70,5 +70,4 @@ def test_preprocess_real(tmp_path):
     client.remove_object(bucket, te_key)
     logger.info("Deleted test and train objects from MinIO after test")
     transformer_path.unlink(missing_ok=True)
-    os.remove(transformer_path)
     logger.info("transformer.joblib deleted after test")
