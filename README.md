@@ -1,4 +1,4 @@
-# README.md is under implementation
+# An unified platform for Credit modeling Version 1
 
 * Contents:
   * [Introduction](#introduction)
