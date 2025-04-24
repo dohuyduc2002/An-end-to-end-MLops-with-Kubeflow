@@ -1,0 +1,75 @@
+# ==== Custom project-specific ignore ====
+.dvc/
+*.env
+__pycache__/
+**/__pycache__/
+src/client/data/application_test.csv
+src/client/data/application_train.csv
+
+# ==== Python standard ignore ====
+# Byte-compiled / optimized / DLL files
+*.py[cod]
+*$py.class
+
+# Cython debug symbols
+cython_debug/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# Pytype
+.pytype/
+
+# Caches
+__pypackages__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
