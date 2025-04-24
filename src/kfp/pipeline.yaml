@@ -1,0 +1,700 @@
+# PIPELINE DEFINITION
+# Name: underwritingworkflow
+# Description: Download raw → preprocess → download processed → train & register
+# Inputs:
+#    bucket_name: str
+#    data_version: str [Default: 'v1']
+#    dest_test_object: str [Default: 'processed/test.csv']
+#    dest_train_object: str [Default: 'processed/train.csv']
+#    experiment_name: str [Default: 'UnderwritingPipeline']
+#    minio_access_key: str
+#    minio_endpoint: str
+#    minio_secret_key: str
+#    model_name: str [Default: 'xgb']
+#    n_features_to_select: str [Default: 'auto']
+#    raw_test_object: str
+#    raw_train_object: str
+#    version: str [Default: 'v1']
+components:
+  comp-dataloader:
+    executorLabel: exec-dataloader
+    inputDefinitions:
+      parameters:
+        bucket_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        object_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-dataloader-2:
+    executorLabel: exec-dataloader-2
+    inputDefinitions:
+      parameters:
+        bucket_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        object_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-dataloader-3:
+    executorLabel: exec-dataloader-3
+    inputDefinitions:
+      parameters:
+        bucket_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        object_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-dataloader-4:
+    executorLabel: exec-dataloader-4
+    inputDefinitions:
+      parameters:
+        bucket_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        object_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-modeling:
+    executorLabel: exec-modeling
+    inputDefinitions:
+      artifacts:
+        test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        experiment_name:
+          defaultValue: UnderwritingPipeline
+          isOptional: true
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        model_name:
+          defaultValue: xgb
+          isOptional: true
+          parameterType: STRING
+        version:
+          defaultValue: v1
+          isOptional: true
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        model_joblib:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+      parameters:
+        registered_model:
+          parameterType: STRING
+  comp-preprocess:
+    executorLabel: exec-preprocess
+    inputDefinitions:
+      artifacts:
+        test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        bucket_name:
+          parameterType: STRING
+        data_version:
+          defaultValue: v1
+          isOptional: true
+          parameterType: STRING
+        dest_test_object:
+          parameterType: STRING
+        dest_train_object:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        n_features_to_select:
+          defaultValue: auto
+          isOptional: true
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        transformer_joblib:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+      parameters:
+        test_key:
+          parameterType: STRING
+        train_key:
+          parameterType: STRING
+deploymentSpec:
+  executors:
+    exec-dataloader:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - dataloader
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef dataloader(\n    minio_endpoint: str,\n    minio_access_key:\
+          \ str,\n    minio_secret_key: str,\n    bucket_name: str,\n    object_name:\
+          \ str,\n    output: Output[Dataset],    # <-- \u0111\xE2y l\xE0 artifact\
+          \ (Dataset), kh\xF4ng ph\u1EA3i OutputPath\n):\n    \"\"\"\n    Download\
+          \ a single object from MinIO into a KFP Dataset artifact.\n    \"\"\"\n\
+          \    from minio import Minio\n    import os\n\n    os.makedirs(os.path.dirname(output.path),\
+          \ exist_ok=True)\n    client = Minio(\n        minio_endpoint,\n       \
+          \ access_key=minio_access_key,\n        secret_key=minio_secret_key,\n \
+          \       secure=False,\n    )\n    client.fget_object(bucket_name, object_name,\
+          \ output.path)\n    print(f\"Downloaded {object_name} to {output.path}\"\
+          )\n\n"
+        image: microwave1005/scipy-img:latest
+    exec-dataloader-2:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - dataloader
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef dataloader(\n    minio_endpoint: str,\n    minio_access_key:\
+          \ str,\n    minio_secret_key: str,\n    bucket_name: str,\n    object_name:\
+          \ str,\n    output: Output[Dataset],    # <-- \u0111\xE2y l\xE0 artifact\
+          \ (Dataset), kh\xF4ng ph\u1EA3i OutputPath\n):\n    \"\"\"\n    Download\
+          \ a single object from MinIO into a KFP Dataset artifact.\n    \"\"\"\n\
+          \    from minio import Minio\n    import os\n\n    os.makedirs(os.path.dirname(output.path),\
+          \ exist_ok=True)\n    client = Minio(\n        minio_endpoint,\n       \
+          \ access_key=minio_access_key,\n        secret_key=minio_secret_key,\n \
+          \       secure=False,\n    )\n    client.fget_object(bucket_name, object_name,\
+          \ output.path)\n    print(f\"Downloaded {object_name} to {output.path}\"\
+          )\n\n"
+        image: microwave1005/scipy-img:latest
+    exec-dataloader-3:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - dataloader
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef dataloader(\n    minio_endpoint: str,\n    minio_access_key:\
+          \ str,\n    minio_secret_key: str,\n    bucket_name: str,\n    object_name:\
+          \ str,\n    output: Output[Dataset],    # <-- \u0111\xE2y l\xE0 artifact\
+          \ (Dataset), kh\xF4ng ph\u1EA3i OutputPath\n):\n    \"\"\"\n    Download\
+          \ a single object from MinIO into a KFP Dataset artifact.\n    \"\"\"\n\
+          \    from minio import Minio\n    import os\n\n    os.makedirs(os.path.dirname(output.path),\
+          \ exist_ok=True)\n    client = Minio(\n        minio_endpoint,\n       \
+          \ access_key=minio_access_key,\n        secret_key=minio_secret_key,\n \
+          \       secure=False,\n    )\n    client.fget_object(bucket_name, object_name,\
+          \ output.path)\n    print(f\"Downloaded {object_name} to {output.path}\"\
+          )\n\n"
+        image: microwave1005/scipy-img:latest
+    exec-dataloader-4:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - dataloader
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef dataloader(\n    minio_endpoint: str,\n    minio_access_key:\
+          \ str,\n    minio_secret_key: str,\n    bucket_name: str,\n    object_name:\
+          \ str,\n    output: Output[Dataset],    # <-- \u0111\xE2y l\xE0 artifact\
+          \ (Dataset), kh\xF4ng ph\u1EA3i OutputPath\n):\n    \"\"\"\n    Download\
+          \ a single object from MinIO into a KFP Dataset artifact.\n    \"\"\"\n\
+          \    from minio import Minio\n    import os\n\n    os.makedirs(os.path.dirname(output.path),\
+          \ exist_ok=True)\n    client = Minio(\n        minio_endpoint,\n       \
+          \ access_key=minio_access_key,\n        secret_key=minio_secret_key,\n \
+          \       secure=False,\n    )\n    client.fget_object(bucket_name, object_name,\
+          \ output.path)\n    print(f\"Downloaded {object_name} to {output.path}\"\
+          )\n\n"
+        image: microwave1005/scipy-img:latest
+    exec-modeling:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - modeling
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef modeling(\n    train_csv: InputPath(Dataset),\n    test_csv:\
+          \ InputPath(Dataset),\n    model_joblib: Output[Model],\n    registered_model:\
+          \ OutputPath(str),\n    minio_endpoint: str,\n    minio_access_key: str,\n\
+          \    minio_secret_key: str,\n    model_name: str = \"xgb\",\n    version:\
+          \ str = \"v1\",\n    experiment_name: str = \"UnderwritingPipeline\",\n\
+          ):\n    import os, json, optuna, shap, matplotlib.pyplot as plt, joblib\n\
+          \    import pandas as pd, mlflow, xgboost as xgb\n    from lightgbm import\
+          \ LGBMClassifier\n    from pathlib import Path\n    from sklearn.model_selection\
+          \ import train_test_split\n    from sklearn.metrics import (\n        accuracy_score,\
+          \ classification_report,\n        roc_auc_score, roc_curve, auc,\n    )\n\
+          \    import mlflow.xgboost, mlflow.lightgbm\n\n    # Configure MLflow \u2192\
+          \ MinIO\n    os.environ[\"MLFLOW_S3_ENDPOINT_URL\"] = f\"http://{minio_endpoint}\"\
+          \n    os.environ[\"AWS_ACCESS_KEY_ID\"]      = minio_access_key\n    os.environ[\"\
+          AWS_SECRET_ACCESS_KEY\"]  = minio_secret_key\n\n    # Load processed CSV\n\
+          \    df = pd.read_csv(train_csv)\n    X, y = df.drop(\"TARGET\", axis=1),\
+          \ df[\"TARGET\"]\n\n    # Optuna tuning\n    def objective(trial):\n   \
+          \     params = {\n            \"max_depth\": trial.suggest_int(\"max_depth\"\
+          , 2, 8),\n            \"learning_rate\": trial.suggest_float(\"learning_rate\"\
+          , 1e-3, 0.3, log=True),\n            \"n_estimators\": trial.suggest_int(\"\
+          n_estimators\", 100, 300),\n            \"subsample\": trial.suggest_float(\"\
+          subsample\", 0.5, 1.0),\n            \"colsample_bytree\": trial.suggest_float(\"\
+          colsample_bytree\", 0.5, 1.0),\n        }\n        clf = (\n           \
+          \ xgb.XGBClassifier(use_label_encoder=False, eval_metric=\"auc\", **params)\n\
+          \            if model_name == \"xgb\"\n            else LGBMClassifier(**params)\n\
+          \        )\n        X_tr, X_val, y_tr, y_val = train_test_split(X, y, test_size=0.2,\
+          \ random_state=42)\n        clf.fit(X_tr, y_tr)\n        return accuracy_score(y_val,\
+          \ clf.predict(X_val))\n\n    study = optuna.create_study(direction=\"maximize\"\
+          )\n    study.optimize(objective, n_trials=5)\n    best_params = study.best_params\n\
+          \n    # Final train\n    clf = (\n        xgb.XGBClassifier(use_label_encoder=False,\
+          \ eval_metric=\"auc\", **best_params)\n        if model_name == \"xgb\"\n\
+          \        else LGBMClassifier(**best_params)\n    )\n    clf.fit(X, y)\n\n\
+          \    # Dump model artifact\n    Path(model_joblib.path).parent.mkdir(parents=True,\
+          \ exist_ok=True)\n    joblib.dump(clf, model_joblib.path)\n\n    # Evaluate\
+          \ & prepare artifacts\n    preds  = clf.predict(X)\n    acc    = accuracy_score(y,\
+          \ preds)\n    report = classification_report(y, preds)\n    try:\n     \
+          \   proba      = clf.predict_proba(X)[:, 1]\n        roc        = roc_auc_score(y,\
+          \ proba)\n        fpr, tpr, _ = roc_curve(y, proba)\n        roc_manual\
+          \ = auc(fpr, tpr)\n    except:\n        roc = roc_manual = None\n\n    art_dir\
+          \ = \"/tmp/artifacts\"\n    Path(art_dir).mkdir(parents=True, exist_ok=True)\n\
+          \    (Path(art_dir) / \"report.txt\").write_text(report)\n\n    explainer\
+          \ = shap.Explainer(clf)\n    shap_vals = explainer(X)\n    plt.figure()\n\
+          \    shap.summary_plot(shap_vals, X, show=False)\n    plt.savefig(f\"{art_dir}/shap.png\"\
+          )\n    plt.close()\n\n    (Path(art_dir) / \"schema.json\").write_text(\n\
+          \        json.dumps(X.dtypes.apply(str).to_dict(), indent=2)\n    )\n\n\
+          \    # Log & register via MLflow\n    mlflow.set_tracking_uri(\"http://mlflow.mlflow.svc.cluster.local:5000\"\
+          )\n    mlflow.set_experiment(experiment_name)\n    run_name = f\"{version}_{model_name.upper()}\"\
+          \n    with mlflow.start_run(run_name=run_name):\n        mlflow.log_params(best_params)\n\
+          \        mlflow.log_metric(\"accuracy\", acc)\n        if roc is not None:\n\
+          \            mlflow.log_metric(\"roc_auc\", roc)\n        if roc_manual\
+          \ is not None:\n            mlflow.log_metric(\"roc_auc_manual\", roc_manual)\n\
+          \n        mlflow.log_artifacts(art_dir, artifact_path=\"metrics\")\n\n \
+          \       # log model (no need to capture return value)\n        if model_name\
+          \ == \"xgb\":\n            mlflow.xgboost.log_model(clf, \"model\")\n  \
+          \      else:\n            mlflow.lightgbm.log_model(clf, \"model\")\n\n\
+          \        # now register using the artifact URI string\n        model_uri\
+          \ = mlflow.get_artifact_uri(\"model\")\n        mlflow.register_model(model_uri,\
+          \ run_name)\n\n    # Emit registered model name\n    Path(registered_model).write_text(run_name)\n\
+          \n"
+        image: microwave1005/scipy-img:latest
+    exec-preprocess:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - preprocess
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef preprocess(\n    train_csv: InputPath(Dataset),       \n    test_csv:\
+          \  InputPath(Dataset),   \n    transformer_joblib: Output[Model],    \n\
+          \    minio_endpoint: str,\n    minio_access_key: str,\n    minio_secret_key:\
+          \ str,\n    bucket_name: str,\n    dest_train_object: str,\n    dest_test_object:\
+          \ str,\n    n_features_to_select: str = \"auto\",\n    data_version: str\
+          \ = \"v1\",\n) -> NamedTuple(\"Keys\", [(\"train_key\", str), (\"test_key\"\
+          , str)]):\n    import pandas as pd, numpy as np, joblib\n    from pathlib\
+          \ import Path\n    from minio import Minio\n    from optbinning import BinningProcess\n\
+          \    from sklearn.feature_selection import SelectKBest, f_classif\n\n  \
+          \  # Load artifact CSVs\n    df_tr = pd.read_csv(train_csv)\n    df_te =\
+          \ pd.read_csv(test_csv)\n\n    # 2) IV\u2011based filter & binning\n   \
+          \ def get_lists(df):\n        num = df.select_dtypes(include=[\"int64\"\
+          ,\"float64\"]).columns.tolist()\n        cat = df.select_dtypes(include=[\"\
+          object\"]).columns.tolist()\n        for c in (\"SK_ID_CURR\",\"TARGET\"\
+          ):\n            if c in num: num.remove(c)\n        return cat, num\n\n\
+          \    def iv_score(bins, y):\n        tmp = pd.DataFrame({\"b\": bins, \"\
+          t\": y})\n        tot_g, tot_b = (tmp.t==0).sum(), (tmp.t==1).sum()\n  \
+          \      s = 0\n        for _, g in tmp.groupby(\"b\"):\n            good\
+          \ = (g.t==0).sum() or 0.5\n            bad  = (g.t==1).sum() or 0.5\n  \
+          \          s += (good/tot_g - bad/tot_b)*np.log((good/tot_g)/(bad/tot_b))\n\
+          \        return s\n\n    cat_cols, num_cols = get_lists(df_tr)\n    y =\
+          \ df_tr[\"TARGET\"]\n    X_tr, X_te = df_tr.drop(\"TARGET\", axis=1), df_te.copy()\n\
+          \n    survivors = []\n    for f in cat_cols+num_cols:\n        bp_tmp =\
+          \ BinningProcess([f], categorical_variables=[f] if f in cat_cols else [])\n\
+          \        bp_tmp.fit(X_tr[[f]].values, y)\n        b = bp_tmp.transform(X_tr[[f]].values).flatten()\n\
+          \        if 0.02 <= iv_score(b,y) <= 0.5 and X_tr[f].isna().mean()<=0.1:\n\
+          \            survivors.append(f)\n\n    bp = BinningProcess(variable_names=survivors,\n\
+          \                        categorical_variables=[c for c in survivors if\
+          \ c in cat_cols])\n    bp.fit(X_tr[survivors].values, y)\n\n    df_tr_b\
+          \ = pd.DataFrame(bp.transform(X_tr[survivors].values), columns=survivors)\n\
+          \    df_te_b = pd.DataFrame(bp.transform(X_te[survivors].values), columns=survivors)\n\
+          \n    # 3) SelectKBest\n    k = len(survivors) if n_features_to_select==\"\
+          auto\" else int(n_features_to_select)\n    sel = SelectKBest(f_classif,\
+          \ k=k)\n    sel.fit(df_tr_b.fillna(0), y)\n\n    keep = df_tr_b.columns[sel.get_support()]\n\
+          \    out_tr = pd.DataFrame(sel.transform(df_tr_b), columns=keep)\n    out_te\
+          \ = pd.DataFrame(sel.transform(df_te_b), columns=keep)\n    out_tr[\"TARGET\"\
+          ] = y\n\n    # Dump transformer\n    Path(transformer_joblib.path).parent.mkdir(parents=True,\
+          \ exist_ok=True)\n    joblib.dump({\"binning_process\": bp, \"selector\"\
+          : sel}, transformer_joblib.path)\n\n    # Push processed CSVs back to MinIO\n\
+          \    client = Minio(\n        minio_endpoint,\n        access_key=minio_access_key,\n\
+          \        secret_key=minio_secret_key,\n        secure=False,\n    )\n  \
+          \  tr_key = dest_train_object.replace(\".csv\", f\"_{data_version}.csv\"\
+          )\n    te_key = dest_test_object.replace(\".csv\", f\"_{data_version}.csv\"\
+          )\n    tmp_tr = f\"/tmp/{Path(tr_key).name}\"\n    tmp_te = f\"/tmp/{Path(te_key).name}\"\
+          \n    out_tr.to_csv(tmp_tr, index=False)\n    out_te.to_csv(tmp_te, index=False)\n\
+          \    client.fput_object(bucket_name, tr_key, tmp_tr)\n    client.fput_object(bucket_name,\
+          \ te_key, tmp_te)\n\n    return (tr_key, te_key)\n\n"
+        image: microwave1005/scipy-img:latest
+pipelineInfo:
+  description: "Download raw \u2192 preprocess \u2192 download processed \u2192 train\
+    \ & register"
+  name: underwritingworkflow
+root:
+  dag:
+    tasks:
+      dataloader:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-dataloader
+        inputs:
+          parameters:
+            bucket_name:
+              componentInputParameter: bucket_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            object_name:
+              componentInputParameter: raw_train_object
+        taskInfo:
+          name: dataloader
+      dataloader-2:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-dataloader-2
+        inputs:
+          parameters:
+            bucket_name:
+              componentInputParameter: bucket_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            object_name:
+              componentInputParameter: raw_test_object
+        taskInfo:
+          name: dataloader-2
+      dataloader-3:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-dataloader-3
+        dependentTasks:
+        - preprocess
+        inputs:
+          parameters:
+            bucket_name:
+              componentInputParameter: bucket_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            object_name:
+              taskOutputParameter:
+                outputParameterKey: train_key
+                producerTask: preprocess
+        taskInfo:
+          name: dataloader-3
+      dataloader-4:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-dataloader-4
+        dependentTasks:
+        - preprocess
+        inputs:
+          parameters:
+            bucket_name:
+              componentInputParameter: bucket_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            object_name:
+              taskOutputParameter:
+                outputParameterKey: test_key
+                producerTask: preprocess
+        taskInfo:
+          name: dataloader-4
+      modeling:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-modeling
+        dependentTasks:
+        - dataloader-3
+        - dataloader-4
+        inputs:
+          artifacts:
+            test_csv:
+              taskOutputArtifact:
+                outputArtifactKey: output
+                producerTask: dataloader-4
+            train_csv:
+              taskOutputArtifact:
+                outputArtifactKey: output
+                producerTask: dataloader-3
+          parameters:
+            experiment_name:
+              componentInputParameter: experiment_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            model_name:
+              componentInputParameter: model_name
+            version:
+              componentInputParameter: version
+        taskInfo:
+          name: modeling
+      preprocess:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-preprocess
+        dependentTasks:
+        - dataloader
+        - dataloader-2
+        inputs:
+          artifacts:
+            test_csv:
+              taskOutputArtifact:
+                outputArtifactKey: output
+                producerTask: dataloader-2
+            train_csv:
+              taskOutputArtifact:
+                outputArtifactKey: output
+                producerTask: dataloader
+          parameters:
+            bucket_name:
+              componentInputParameter: bucket_name
+            data_version:
+              componentInputParameter: data_version
+            dest_test_object:
+              componentInputParameter: dest_test_object
+            dest_train_object:
+              componentInputParameter: dest_train_object
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            n_features_to_select:
+              componentInputParameter: n_features_to_select
+        taskInfo:
+          name: preprocess
+  inputDefinitions:
+    parameters:
+      bucket_name:
+        parameterType: STRING
+      data_version:
+        defaultValue: v1
+        isOptional: true
+        parameterType: STRING
+      dest_test_object:
+        defaultValue: processed/test.csv
+        isOptional: true
+        parameterType: STRING
+      dest_train_object:
+        defaultValue: processed/train.csv
+        isOptional: true
+        parameterType: STRING
+      experiment_name:
+        defaultValue: UnderwritingPipeline
+        isOptional: true
+        parameterType: STRING
+      minio_access_key:
+        parameterType: STRING
+      minio_endpoint:
+        parameterType: STRING
+      minio_secret_key:
+        parameterType: STRING
+      model_name:
+        defaultValue: xgb
+        isOptional: true
+        parameterType: STRING
+      n_features_to_select:
+        defaultValue: auto
+        isOptional: true
+        parameterType: STRING
+      raw_test_object:
+        parameterType: STRING
+      raw_train_object:
+        parameterType: STRING
+      version:
+        defaultValue: v1
+        isOptional: true
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1

@@ -1,0 +1,65 @@
+suite: test servicemonitor
+
+templates:
+  - servicemonitor.yaml
+
+tests:
+  - it: should be empty when serviceMonitor is not enabled
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should be empty when capability has not required api version
+    set:
+      serviceMonitor.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should use the desired service name as the target endpoint
+    set:
+      serviceMonitor.enabled: true
+      service.name: myendpoint
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    asserts:
+      - contains:
+          path: spec.endpoints
+          content:
+            targetPort: myendpoint
+          any: true
+
+  - it: should use a service endpoint rather than a pod endpoint
+    set:
+      serviceMonitor:
+        enabled: true
+        useServicePort: true
+      service.name: anothermyendpoint
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    asserts:
+      - contains:
+          path: spec.endpoints
+          content:
+            port: anothermyendpoint
+          any: true
+
+  - it: should match snapshot of default values
+    set:
+      serviceMonitor.enabled: true
+    release:
+      name: mlflow
+      namespace: mlflow
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    chart:
+      version: 1.0.0
+      appVersion: 1.0.0
+    asserts:
+      - matchSnapshot: { }

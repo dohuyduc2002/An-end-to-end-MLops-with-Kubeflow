@@ -1,0 +1,467 @@
+# yaml-language-server: $schema=values.schema.json
+# Default values for mlflow.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- (int) Numbers of replicas
+replicaCount: 1
+
+# Image of mlflow
+image:
+  # -- The docker image repository to use
+  repository: burakince/mlflow
+  # -- The docker image pull policy
+  pullPolicy: IfNotPresent
+  # -- The docker image tag to use. Default app version
+  tag: ""
+
+# -- This will set the deployment strategy more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
+strategy:
+  type: "RollingUpdate"
+  rollingUpdate:
+    maxSurge: "100%"
+    maxUnavailable: 0
+
+# -- Image pull secrets for private docker registry usages
+imagePullSecrets: []
+
+# -- String to override the default generated name
+nameOverride: ""
+
+# -- String to override the default generated fullname
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Specifies whether a ServiceAccount should be created
+  create: true
+
+  # -- Automatically mount a ServiceAccount's API credentials?
+  automount: true
+
+  # -- Annotations to add to the service account. AWS EKS users can assign role arn from here.
+  # Please find more information from here:
+  # https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html
+  annotations: {}
+    # eks.amazonaws.com/role-arn: ""
+
+  # -- The name of the ServiceAccount to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# -- Annotations for the pod
+podAnnotations: {}
+
+# -- This is for setting Security Context to a Pod. For more information checkout: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# -- This is for setting Security Context to a Container. For more information checkout: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# -- This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+service:
+  # -- This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+  type: ClusterIP
+  # -- This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
+  port: 5000
+  # -- Default Service name
+  name: http
+  # -- Additional service annotations
+  annotations: {}
+
+# -- Mlflow database connection settings
+backendStore:
+  # -- Specifies if you want to run database migration
+  databaseMigration: false
+
+  # -- Add an additional init container, which checks for database availability
+  databaseConnectionCheck: false
+
+  postgres:
+    # -- Specifies if you want to use postgres backend storage
+    enabled: false
+    # -- Postgres host address. e.g. your RDS or Azure Postgres Service endpoint
+    host: "" # required
+    # -- Postgres service port
+    port: 5432 # required
+    # -- mlflow database name created before in the postgres instance
+    database: "" # required
+    # -- postgres database user name which can access to mlflow database
+    user: "" # required
+    # -- postgres database user password which can access to mlflow database
+    password: "" # required
+    # -- postgres database connection driver. e.g.: "psycopg2"
+    driver: ""
+
+  mysql:
+    # -- Specifies if you want to use mysql backend storage
+    enabled: false
+    # -- MySQL host address. e.g. your Amazon RDS for MySQL
+    host: "" # required
+    # -- MySQL service port
+    port: 3306 # required
+    # -- mlflow database name created before in the mysql instance
+    database: "" # required
+    # -- mysql database user name which can access to mlflow database
+    user: "" # required
+    # -- mysql database user password which can access to mlflow database
+    password: "" # required
+    # -- mysql database connection driver. e.g.: "pymysql"
+    driver: "pymysql"
+
+  # -- Specifies if you want to use an existing database secret.
+  existingDatabaseSecret:
+    # -- The name of the existing database secret.
+    name: ""
+    # -- The key of the username in the existing database secret.
+    usernameKey: "username"
+    # -- The key of the password in the existing database secret.
+    passwordKey: "password"
+
+# -- Bitnami PostgreSQL configuration. For more information checkout: https://github.com/bitnami/charts/tree/main/bitnami/postgresql
+postgresql:
+  # -- Enable postgresql
+  enabled: false
+  architecture: standalone
+
+  primary:
+    service:
+      ports:
+        postgresql: 5432
+
+    persistence:
+      enabled: true
+      existingClaim: ""
+
+  auth:
+    username: ""
+    password: ""
+    # -- The name of the PostgreSQL database.
+    database: "mlflow"
+
+# -- Bitnami MySQL configuration. For more information checkout: https://github.com/bitnami/charts/tree/main/bitnami/mysql
+mysql:
+  # -- Enable mysql
+  enabled: false
+  architecture: standalone
+
+  primary:
+    service:
+      ports:
+        mysql: 3306
+
+    persistence:
+      enabled: true
+      existingClaim: ""
+
+  auth:
+    username: ""
+    password: ""
+    # -- The name of the MySQL database.
+    database: "mlflow"
+
+# Mlflow blob storage settings
+artifactRoot:
+  # -- Specifies if you want to enable proxied artifact storage access
+  proxiedArtifactStorage: false
+
+  # -- Specifies if you want to use Azure Blob Storage Mlflow Artifact Root
+  azureBlob:
+    # -- Specifies if you want to use Azure Blob Storage Mlflow Artifact Root
+    enabled: false
+    # -- Azure blob container name
+    container: "" # required
+    # -- Azure storage account name
+    storageAccount: "" # required
+    # -- Azure blob container folder. If you want to use root level, please don't set anything.
+    path: "" # optional
+    # -- Azure Cloud Connection String for the container. Only onnectionString or accessKey required
+    connectionString: "" # connectionString or accessKey required
+    # -- Azure Cloud Storage Account Access Key for the container
+    accessKey: "" # connectionString or accessKey required. Only onnectionString or accessKey required
+
+  # -- Specifies if you want to use AWS S3 Mlflow Artifact Root
+  s3:
+    # -- Specifies if you want to use AWS S3 Mlflow Artifact Root
+    enabled: false
+    # -- S3 bucket name
+    bucket: "" # required
+    # -- S3 bucket folder. If you want to use root level, please don't set anything.
+    path: "" # optional
+    # -- AWS IAM user AWS_ACCESS_KEY_ID which has attached policy for access to the S3 bucket
+    awsAccessKeyId: "" # (awsAccessKeyId and awsSecretAccessKey) or roleArn serviceaccount annotation required
+    # -- AWS IAM user AWS_SECRET_ACCESS_KEY which has attached policy for access to the S3 bucket
+    awsSecretAccessKey: "" # (awsAccessKeyId and awsSecretAccessKey) or roleArn serviceaccount annotation required
+
+  # -- Specifies if you want to use Google Cloud Storage Mlflow Artifact Root
+  gcs:
+    # -- Specifies if you want to use Google Cloud Storage Mlflow Artifact Root
+    enabled: false
+    # -- Google Cloud Storage bucket name
+    bucket: "" # required
+    # -- Google Cloud Storage bucket folder. If you want to use root level, please don't set anything.
+    path: "" # optional
+
+# -- Mlflow Flask Server Secret Key. Default: Will be auto generated.
+flaskServerSecretKey: ""
+
+# -- Mlflow authentication settings
+auth:
+  # -- Specifies if you want to enable mlflow authentication. auth and ldapAuth can't be enabled at same time.
+  enabled: false
+  # -- Mlflow admin user username
+  adminUsername: ""
+  # -- Mlflow admin user password
+  adminPassword: ""
+  # -- Default permission for all users. More details: https://mlflow.org/docs/latest/auth/index.html#permissions
+  defaultPermission: READ
+  # -- Default registered authentication app name. If you want to use your custom authentication function, please look at: https://mlflow.org/docs/latest/auth/index.html#custom-authentication
+  appName: "basic-auth"
+  # -- Default authentication function
+  authorizationFunction: "mlflow.server.auth:authenticate_request_basic_auth"
+  # -- SQLite database file
+  sqliteFile: "basic_auth.db"
+  # -- SQLite database folder. Default is user home directory.
+  sqliteFullPath: ""
+  # -- Mlflow authentication INI configuration file path.
+  configPath: "/etc/mlflow/auth/"
+  # -- Mlflow authentication INI file
+  configFile: "basic_auth.ini"
+  # -- PostgreSQL based centrilised authentication database
+  postgres:
+    # -- Specifies if you want to use postgres auth backend storage
+    enabled: false
+    # -- Postgres host address. e.g. your RDS or Azure Postgres Service endpoint
+    host: "" # required
+    # -- Postgres service port
+    port: 5432 # required
+    # -- mlflow authorization database name created before in the postgres instance
+    database: "" # required
+    # -- postgres database user name which can access to mlflow authorization database
+    user: "" # required
+    # -- postgres database user password which can access to mlflow authorization database
+    password: "" # required
+    # -- postgres database connection driver. e.g.: "psycopg2"
+    driver: ""
+
+# -- Basic Authentication with LDAP backend
+ldapAuth:
+  # -- Specifies if you want to enable mlflow LDAP authentication. auth and ldapAuth can't be enabled at same time.
+  enabled: false
+  # -- LDAP URI. e.g.: "ldap://lldap:3890/dc=mlflow,dc=test"
+  uri: ""
+  # -- TLS verification mode. Options: required, optional, none
+  tlsVerification: required
+  # -- LDAP Loopup Bind. e.g.: "uid=%s,ou=people,dc=mlflow,dc=test"
+  lookupBind: ""
+  # -- LDAP group attribute.
+  groupAttribute: "dn"
+  # -- LDAP base DN for the search. e.g.: "ou=groups,dc=mlflow,dc=test"
+  searchBaseDistinguishedName: ""
+  # -- LDAP query filter for search
+  searchFilter: "(&(objectclass=groupOfUniqueNames)(uniquemember=%s))"
+  # -- LDAP DN for the admin group. e.g.: "cn=test-admin,ou=groups,dc=mlflow,dc=test"
+  adminGroupDistinguishedName: ""
+  # -- LDAP DN for the user group. e.g.: "cn=test-user,ou=groups,dc=mlflow,dc=test"
+  userGroupDistinguishedName: ""
+  # -- Base64 encoded trusted CA certificate for LDAP server connection.
+  encodedTrustedCACertificate: ""
+  # -- External secret name for trusted CA certificate for LDAP server connection.
+  externalSecretForTrustedCACertificate: ""
+
+# -- Autoscaling settings. Can be enabled only when backendStore is not sqlite and artifactRoot is one of blob storage systems.
+autoscaling:
+  # -- If true, the number of replicas will be automatically scaled based on default metrics. On default, it will scale based on CPU and memory. For more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/"
+  enabled: false
+
+  # -- The minimum number of replicas.
+  minReplicas: 1
+
+  # -- The maximum number of replicas.
+  maxReplicas: 5
+
+  # -- The metrics to use for autoscaling.
+  metrics:
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+  # -- The behavior of the autoscaler. Only supported on K8s 1.18.0 or later.
+  behavior: {}
+    # scaleDown:
+    #   stabilizationWindowSeconds: 300
+    #   policies:
+    #   - type: Percent
+    #     value: 100
+    #     periodSeconds: 15
+    # scaleUp:
+    #   stabilizationWindowSeconds: 0
+    #   policies:
+    #   - type: Percent
+    #     value: 100
+    #     periodSeconds: 15
+    #   - type: Pods
+    #     value: 4
+    #     periodSeconds: 15
+    #   selectPolicy: Max
+
+# -- A map of arguments and values to pass to the `mlflow server` command. Keys must be camelcase. Helm will turn them to kebabcase style.
+extraArgs: {}
+# Number of gunicorn worker processes to handle requests (default: 4).
+  # workers: TEXT
+# A prefix which will be prepended to the path of all static paths.
+# It must always start with slash `/`
+# e.g. /mlflow
+  # staticPrefix: TEXT
+# Additional command line options forwarded to gunicorn processes.
+  # gunicornOpts: TEXT
+# Additional command line options for waitress-serve.
+  # waitressOpts: TEXT
+
+# -- A list of flags to pass to `mlflow server` command. Items must be camelcase. Helm will turn them to kebabcase style.
+extraFlags: []
+# If specified, enables serving of artifact uploads, downloads, and list requests by routing these requests
+# to the storage location that is specified by ‘–artifact-destination’ directly through a proxy.
+  # serveArtifacts
+# If specified, configures the mlflow server to be used only for proxied artifact serving.
+  # artifactsOnly
+
+# -- Extra environment variables
+extraEnvVars: {}
+  # MLFLOW_S3_IGNORE_TLS: true
+  # MLFLOW_S3_UPLOAD_EXTRA_ARGS: '{"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": "1234"}'
+  # AWS_DEFAULT_REGION: my_region
+  # MLFLOW_S3_ENDPOINT_URL: http://1.2.3.4:9000
+  # AWS_CA_BUNDLE: /some/ca/bundle.pem
+  # MLFLOW_GCS_DEFAULT_TIMEOUT - Sets the standard timeout for transfer operations in seconds (Default: 60). Use -1 for indefinite timeout.
+  # MLFLOW_GCS_UPLOAD_CHUNK_SIZE - Sets the standard upload chunk size for bigger files in bytes (Default: 104857600 ≙ 100MiB), must be multiple of 256 KB.
+  # MLFLOW_GCS_DOWNLOAD_CHUNK_SIZE - Sets the standard download chunk size for bigger files in bytes (Default: 104857600 ≙ 100MiB), must be multiple of 256 K
+
+# -- Extra secrets for environment variables
+extraSecretNamesForEnvFrom: []
+# - my-mlflow-secrets
+
+ingress:
+  # -- Specifies if you want to create an ingress access
+  enabled: false
+  # -- New style ingress class name. Only possible if you use K8s 1.18.0 or later version
+  className: ""
+  # -- Additional ingress annotations
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          # -- Ingress path type
+          pathType: ImplementationSpecific
+  # -- Ingress tls configuration for https access
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# -- This block is for setting up the resource management for the pod more information can be found here: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+serviceMonitor:
+  # -- When set true then use a ServiceMonitor to configure scraping
+  enabled: false
+  # -- When set true then use a service port. On default use a pod port.
+  useServicePort: false
+  # -- Set the namespace the ServiceMonitor should be deployed
+  namespace: monitoring
+  # -- Set how frequently Prometheus should scrape
+  interval: 30s
+  # -- Set path to mlflow telemetry-path
+  telemetryPath: /metrics
+  # -- Set labels for the ServiceMonitor, use this to define your scrape label for Prometheus Operator
+  labels:
+    # -- default `kube prometheus stack` helm chart serviceMonitor selector label
+    # Mostly it's your prometheus helm release name. Please find more information from here:
+    # https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/platform/troubleshooting.md#troubleshooting-servicemonitor-changes
+    release: prometheus
+  # -- Set timeout for scrape
+  timeout: 10s
+  # -- Set of labels to transfer on the Kubernetes Service onto the target.
+  targetLabels: []
+
+  # -- Set of rules to relabel your exist metric labels
+  metricRelabelings: []
+    # - sourceLabels: [prometheus_replica]
+    #   regex: (.*)
+    #   targetLabel: another_prometheus_replica
+    #   action: replace
+    # - regex: prometheus_replica
+    #   action: labeldrop
+
+# -- For more information checkout: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+nodeSelector: {}
+
+# -- For more information checkout: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+tolerations: []
+
+# -- For more information checkout: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+affinity: {}
+
+# -- Init Containers for Mlflow Pod
+initContainers: []
+
+# -- Extra containers for the mlflow pod
+extraContainers: []
+
+# -- Extra Volumes for the pod
+extraVolumes: []
+# - name: mlflow-volume
+#   persistentVolumeClaim:
+#     claimName: mlflow-pv-volume
+# - name: example
+#   configMap:
+#     name: example
+
+# -- Extra Volume Mounts for the mlflow container
+extraVolumeMounts: []
+# - name: mlflow-volume
+#   mountPath: /mlflow/data
+# - name: example
+#   mountPath: /example
+
+# -- Liveness probe configurations. Please look to [here](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes).
+livenessProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 3
+  failureThreshold: 5
+
+# -- Readiness probe configurations. Please look to [here](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes).
+readinessProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 3
+  failureThreshold: 5

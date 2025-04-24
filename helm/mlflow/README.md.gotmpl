@@ -1,0 +1,501 @@
+{{ template "chart.header" . }}
+
+![mlflow](https://raw.githubusercontent.com/mlflow/mlflow/master/docs/source/_static/MLflow-logo-final-black.png)
+
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+## Get Helm Repository Info
+
+```console
+helm repo add community-charts https://community-charts.github.io/helm-charts
+helm repo update
+```
+
+_See [`helm repo`](https://helm.sh/docs/helm/helm_repo/) for command documentation._
+
+## Installing the Chart
+
+```console
+helm install [RELEASE_NAME] community-charts/{{ template "chart.name" . }}
+```
+
+_See [configuration](#configuration) below._
+
+_See [helm install](https://helm.sh/docs/helm/helm_install/) for command documentation._
+
+> **Tip**: Search all available chart versions using `helm search repo community-charts -l`. Please don't forget to run `helm repo update` before the command.
+
+## Supported Databases
+
+Currently, we support the following two databases as a backend repository for Mlflow.
+
+* [PostgreSQL](https://www.postgresql.org/)
+* [MySQL](https://www.mysql.com/)
+
+## Supported Cloud Providers
+
+We currently support the following three cloud providers for [BLOB](https://de.wikipedia.org/wiki/Binary_Large_Object) storage integration.
+
+* [AWS (S3)](https://aws.amazon.com/s3/)
+* [Google Cloud Platform (Cloud Storage)](https://cloud.google.com/storage)
+* [Azure Cloud (Azure Blob Storage)](https://azure.microsoft.com/en-us/services/storage/blobs/)
+
+## Values Files Examples
+
+## Postgres Database Migration Values Files Example
+
+```yaml
+backendStore:
+  databaseMigration: true
+  postgres:
+    enabled: true
+    host: "postgresql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 5432
+    database: "mlflow"
+    user: "mlflowuser"
+    password: "Pa33w0rd!"
+```
+
+## Postgres Database with Existing Database Secret Example
+
+```yaml
+backendStore:
+  postgres:
+    enabled: true
+    host: "postgresql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 5432
+    database: "mlflow"
+
+  existingDatabaseSecret:
+    name: "postgres-database-secret"
+    usernameKey: "username"
+    passwordKey: "password"
+```
+
+## Bitnami's Postgres Database Migration Values Files Example
+
+```yaml
+backendStore:
+  databaseMigration: true
+postgres:
+  enabled: true
+```
+
+## MySQL Database Migration Values Files Example
+
+```yaml
+backendStore:
+  databaseMigration: true
+  mysql:
+    enabled: true
+    host: "mysql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 3306
+    database: "mlflow"
+    user: "mlflowuser"
+    password: "Pa33w0rd!"
+```
+
+## MySQL Database with Existing Database Secret Example
+
+```yaml
+backendStore:
+  mysql:
+    enabled: true
+    host: "mysql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 3306
+    database: "mlflow"
+
+  existingDatabaseSecret:
+    name: "mysql-database-secret"
+    usernameKey: "username"
+    passwordKey: "password"
+```
+
+## Bitnami's MySQL Database Migration Values Files Example
+
+```yaml
+backendStore:
+  databaseMigration: true
+mysql:
+  enabled: true
+```
+
+## Postgres Database Connection Check Values Files Example
+
+```yaml
+backendStore:
+  databaseConnectionCheck: true
+  postgres:
+    enabled: true
+    host: "postgresql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 5432
+    database: "mlflow"
+    user: "mlflowuser"
+    password: "Pa33w0rd!"
+```
+
+## Bitnami's Postgres Database Connection Check Values Files Example
+
+```yaml
+backendStore:
+  databaseConnectionCheck: true
+postgres:
+  enabled: true
+```
+
+## MySQL Database Connection Check Values Files Example
+
+```yaml
+backendStore:
+  databaseConnectionCheck: true
+  mysql:
+    enabled: true
+    host: "mysql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 3306
+    database: "mlflow"
+    user: "mlflowuser"
+    password: "Pa33w0rd!"
+```
+
+## Bitnami's MySQL Database Connection Check Values Files Example
+
+```yaml
+backendStore:
+  databaseConnectionCheck: true
+mysql:
+  enabled: true
+```
+
+## AWS Installation Examples
+
+You can use 2 different way to connect your S3 backend. 
+
+- First way, you can access to your S3 with IAM user's awsAccessKeyId and awsSecretAccessKey.
+- Second way, you can create an aws role for your service account. And you can assign your role ARN from serviceAccount annotation. You don't need to create or manage IAM user anymore. Please find more information from [here](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html).
+
+> **Tip**: Please follow [this tutorial](https://aws.amazon.com/getting-started/hands-on/create-connect-postgresql-db/) to create your own RDS postgres cluster.
+
+## S3 (Minio) and PostgreSQL DB Configuration on Helm Upgrade Command Example
+
+```console
+helm upgrade --install mlflow community-charts/mlflow \
+  --set backendStore.databaseMigration=true \
+  --set backendStore.postgres.enabled=true \
+  --set backendStore.postgres.host=postgres-service \
+  --set backendStore.postgres.port=5432 \
+  --set backendStore.postgres.database=postgres \
+  --set backendStore.postgres.user=postgres \
+  --set backendStore.postgres.password=postgres \
+  --set artifactRoot.s3.enabled=true \
+  --set artifactRoot.s3.bucket=mlflow \
+  --set artifactRoot.s3.awsAccessKeyId=minioadmin \
+  --set artifactRoot.s3.awsSecretAccessKey=minioadmin \
+  --set extraEnvVars.MLFLOW_S3_ENDPOINT_URL=http://minio-service:9000 \
+  --set serviceMonitor.enabled=true
+```
+
+## S3 (Minio) and MySQL DB Configuration on Helm Upgrade Command Example
+
+```console
+helm upgrade --install mlflow community-charts/mlflow \
+  --set backendStore.databaseMigration=true \
+  --set backendStore.mysql.enabled=true \
+  --set backendStore.mysql.host=mysql-service \
+  --set backendStore.mysql.port=3306 \
+  --set backendStore.mysql.database=mlflow \
+  --set backendStore.mysql.user=mlflow \
+  --set backendStore.mysql.password=mlflow \
+  --set artifactRoot.s3.enabled=true \
+  --set artifactRoot.s3.bucket=mlflow \
+  --set artifactRoot.s3.awsAccessKeyId=minioadmin \
+  --set artifactRoot.s3.awsSecretAccessKey=minioadmin \
+  --set extraEnvVars.MLFLOW_S3_ENDPOINT_URL=http://minio-service:9000 \
+  --set serviceMonitor.enabled=true
+```
+
+## S3 Access with awsAccessKeyId and awsSecretAccessKey Values Files Example
+
+```yaml
+backendStore:
+  postgres:
+    enabled: true
+    host: "postgresql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 5432
+    database: "mlflow"
+    user: "mlflowuser"
+    password: "Pa33w0rd!"
+
+artifactRoot:
+  s3:
+    enabled: true
+    bucket: "my-mlflow-artifact-root-backend"
+    awsAccessKeyId: "a1b2c3d4"
+    awsSecretAccessKey: "a1b2c3d4"
+```
+
+## S3 Access with AWS EKS Role ARN Values Files Example
+
+> **Tip**: [Associate an IAM role to a service account](https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html)
+
+```yaml
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::account-id:role/iam-role-name"
+  name: "mlflow"
+
+backendStore:
+  postgres:
+    enabled: true
+    host: "postgresql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 5432
+    database: "mlflow"
+    user: "mlflowuser"
+    password: "Pa33w0rd!"
+
+artifactRoot:
+  s3:
+    enabled: true
+    bucket: "my-mlflow-artifact-root-backend"
+```
+
+## Azure Cloud Installation Example
+
+> **Tip**: Please follow [this tutorial](https://docs.microsoft.com/en-us/azure/postgresql/tutorial-design-database-using-azure-portal) to create your own postgres database.
+> **Tip**: Please follow [this tutorial](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction) to create your azure blob storage and container.
+
+```yaml
+backendStore:
+  postgres:
+    enabled: true
+    host: "mydemoserver.postgres.database.azure.com"
+    port: 5432
+    database: "mlflow"
+    user: "mlflowuser"
+    password: "Pa33w0rd!"
+
+artifactRoot:
+  azureBlob:
+    enabled: true
+    container: "mlflow"
+    storageAccount: "mystorageaccount"
+    accessKey: "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+```
+
+## Authentication Example
+
+> **Tip**: auth and ldapAuth can not be enabled at same time!
+
+```yaml
+auth:
+  enabled: true
+  adminUsername: "admin"
+  adminPassword: "S3cr3+"
+```
+
+Use following configuration for centralised PosgreSQL DB backend for authentication backend.
+
+```yaml
+auth:
+  enabled: true
+  adminUsername: "admin"
+  adminPassword: "S3cr3+"
+  postgres:
+    enabled: true
+    host: "postgresql--auth-instance1.abcdef1234.eu-central-1.rds.amazonaws.com"
+    port: 5432
+    database: "auth"
+    user: "mlflowauth"
+    password: "A4m1nPa33w0rd!"
+```
+
+## Basic Authentication with LDAP Backend
+
+> **Tip**: auth and ldapAuth can not be enabled at same time!
+
+```yaml
+ldapAuth:
+  enabled: true
+  uri: "ldap://lldap:3890/dc=mlflow,dc=test"
+  tlsVerification: required
+  lookupBind: "uid=%s,ou=people,dc=mlflow,dc=test"
+  groupAttribute: "dn"
+  searchBaseDistinguishedName: "ou=groups,dc=mlflow,dc=test"
+  searchFilter: "(&(objectclass=groupOfUniqueNames)(uniquemember=%s))"
+  adminGroupDistinguishedName: "cn=test-admin,ou=groups,dc=mlflow,dc=test"
+  userGroupDistinguishedName: "cn=test-user,ou=groups,dc=mlflow,dc=test"
+```
+
+## Basic Authentication with LDAP Backend and self-signed CA certificate
+
+If you use self-signed certificate for your LDAP server, you can pass your self-signed CA certificate from `encodedTrustedCACertificate` variable by encoding it.
+
+```yaml
+ldapAuth:
+  enabled: true
+  uri: "ldap://lldap:3890/dc=mlflow,dc=test"
+  tlsVerification: required
+  lookupBind: "uid=%s,ou=people,dc=mlflow,dc=test"
+  groupAttribute: "dn"
+  searchBaseDistinguishedName: "ou=groups,dc=mlflow,dc=test"
+  searchFilter: "(&(objectclass=groupOfUniqueNames)(uniquemember=%s))"
+  adminGroupDistinguishedName: "cn=test-admin,ou=groups,dc=mlflow,dc=test"
+  userGroupDistinguishedName: "cn=test-user,ou=groups,dc=mlflow,dc=test"
+  encodedTrustedCACertificate: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURoRENDQW15Z0F3SUJBZ0lSQUx1a3VyZnlCMFF0Z1FtbnphZDlMNWN3RFFZSktvWklodmNOQVFFTEJRQXcKU3pFZ01CNEdBMVVFQXd3WFRVeEdiRzkzSUV4RVFWQXRVMU5NTFZSbGMzUWdRMEV4RHpBTkJnTlZCQW9NQmsxTQpSbXh2ZHpFV01CUUdBMVVFQ3d3TlRFUkJVQzFUVTB3dFZHVnpkREFlRncweU5UQXpNRE14TnpJMU1qVmFGdzB5Ck5UQXpNRFF4TnpJMU1qVmFNRXN4SURBZUJnTlZCQU1NRjAxTVJteHZkeUJNUkVGUUxWTlRUQzFVWlhOMElFTkIKTVE4d0RRWURWUVFLREFaTlRFWnNiM2N4RmpBVUJnTlZCQXNNRFV4RVFWQXRVMU5NTFZSbGMzUXdnZ0VpTUEwRwpDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHNBNDc1NkRrZlVXRThZZjRHN0Z4ZFJkL0pnNXNkCjRJUVp1K3ZQcDRMTm5uM3E5VWlZeUtHZkVFRDJTMnRvYUVTS1VNakJyYWVRd3crUDV0dDVHcjNMQ3JQUmpjZTUKQ2xuMEh3NE5pRGJ5bkhWcDkxWXRjdHJObWtGMFRGdUYxNVE5OUMyR1lpbmNYUW93THduMWZXN2pTZjFuU3N1Kwpvek0veHFUa2FyQndtcVFkYTRlcW56cG5Xa2ZqL2ZHQTNVcnpwMHV6ZG1ZdnNhcmtiTkt0aGZSWTJ4UDhQZGc0Cm15dDJ6SmlycjN2MEo1OFNHeFN6ZWlab0tYUTNtTW5hRDZGTUVTcEg5THUydDVTRUVPZjlubFJLS2l4UzF0aWMKVHJUMDkzUVNKcWNRRkMyNTNwWmF1ZkpQNWR2SlVIR0NvcHFzVU5xc0Jkd2Ivd1grNnJFQm5YYUJBZ01CQUFHagpZekJoTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3RGdZRFZSMFBBUUgvQkFRREFnRUdNQjBHQTFVZERnUVdCQlJsCnZVRmphb0c5NU1sWmxBSUs2SDRsaVlvMUNqQWZCZ05WSFNNRUdEQVdnQlJsdlVGamFvRzk1TWxabEFJSzZINGwKaVlvMUNqQU5CZ2txaGtpRzl3MEJBUXNGQUFPQ0FRRUFCNy96YWtlOHB6QWF3eHhvUW5mV3N1MkpSNWhyZkpjcQpjdCt1UEVnSWdnc3lFSmRGbndvbSt2UUV3a3NnT2tEYk10UGZnWTdRUVdUeHo4d1pQOXJDZVZaVUJ0T1FrdytKCjZCR2NLc1gwVnl5bUx5a1VOWUF5U2pEUE1Ma0NES2ZsRyt2eWFPWTZQbFdkZVJJTTVRMVZRL1B1SmQrbCtobEgKd2dFbU1RK2VjeVB2Wkhnd0t3cE41Zzh3YzI3bjI3RURqS29wUHpFMXpzRFN0MjFwUnMvcUdnZXZ6QTl2RlB5eAprWXdXdWJkblQ5NkwyTUUrVjcwTmJzbWt5ekl2T2NzajBlRnE0Z2EyNUQxQ2FhLzlyUnVOSlhwanYyQndYUm1tClNDNnBIV1dRWnh3NDRLQnJCM09EM1hLS25rMU94RFBDUzVwMzN2SHo4ZEZOMHNzb3EwV1VPUT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"
+```
+
+Or if you already stored your self-signed CA certifica in an external secret, you can pass secret name from `externalSecretForTrustedCACertificate` variable. The secret must keep CA certificate with `ca.crt` key.
+
+```yaml
+ldapAuth:
+  enabled: true
+  uri: "ldap://lldap:3890/dc=mlflow,dc=test"
+  tlsVerification: required
+  lookupBind: "uid=%s,ou=people,dc=mlflow,dc=test"
+  groupAttribute: "dn"
+  searchBaseDistinguishedName: "ou=groups,dc=mlflow,dc=test"
+  searchFilter: "(&(objectclass=groupOfUniqueNames)(uniquemember=%s))"
+  adminGroupDistinguishedName: "cn=test-admin,ou=groups,dc=mlflow,dc=test"
+  userGroupDistinguishedName: "cn=test-user,ou=groups,dc=mlflow,dc=test"
+  externalSecretForTrustedCACertificate: "external-ca-certificate-secret"
+```
+
+## Auto Scaling Example
+
+This Helm chart supports Horizontal Pod Autoscaling (HPA) to dynamically scale the MLflow `Deployment` based on metrics. The HPA resource is created when `autoscaling.enabled` is `true` and specific conditions are met (see Prerequisites).
+
+### Prerequisites
+
+The HPA is created only if:
+
+- `autoscaling.enabled: true`
+- A backend store is enabled (`backendStore.postgres.enabled` or `backendStore.mysql.enabled`).
+- An artifact store is enabled (`artifactRoot.azureBlob.enabled`, `artifactRoot.s3.enabled`, or `artifactRoot.gcs.enabled`).
+- Auth is either enabled with Postgres (`auth.enabled` and `auth.postgres.enabled`) or disabled (`auth.enabled: false`).
+
+A metrics source (e.g., Metrics Server) is required for scaling.
+
+### Example 1: Basic CPU Scaling
+
+Scale between 1 and 5 replicas based on CPU usage:
+
+```yaml
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+backendStore:
+  postgres:
+    enabled: true
+    host: "postgresql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 5432
+    database: "mlflow"
+    user: "mlflowuser"
+    password: "Pa33w0rd!"
+
+artifactRoot:
+  s3:
+    enabled: true
+    bucket: "my-mlflow-artifact-root-backend"
+    awsAccessKeyId: "a1b2c3d4"
+    awsSecretAccessKey: "a1b2c3d4"
+```
+
+### Example 2: Custom Scaling Behavior
+
+Scale with custom behavior (1.18+):
+
+```yaml
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+
+backendStore:
+  postgres:
+    enabled: true
+    host: "postgresql-instance1.cg034hpkmmjt.eu-central-1.rds.amazonaws.com"
+    port: 5432
+    database: "mlflow"
+    user: "mlflowuser"
+    password: "Pa33w0rd!"
+
+artifactRoot:
+  s3:
+    enabled: true
+    bucket: "my-mlflow-artifact-root-backend"
+    awsAccessKeyId: "a1b2c3d4"
+    awsSecretAccessKey: "a1b2c3d4"
+
+auth:
+  enabled: true
+  adminUsername: "admin"
+  adminPassword: "S3cr3+"
+  postgres:
+    enabled: true
+    host: "postgresql--auth-instance1.abcdef1234.eu-central-1.rds.amazonaws.com"
+    port: 5432
+    database: "auth"
+    user: "mlflowauth"
+    password: "A4m1nPa33w0rd!"
+```
+
+{{ template "chart.requirementsSection" . }}
+
+## Uninstall Helm Chart
+
+```console
+helm uninstall [RELEASE_NAME]
+```
+
+This removes all the Kubernetes components associated with the chart and deletes the release.
+
+_See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall/) for command documentation._
+
+## Upgrading Chart
+
+```console
+helm upgrade [RELEASE_NAME] community-charts/{{ template "chart.name" . }}
+```
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "chart.homepageLine" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+## Chart Development
+
+Please install unittest helm plugin with `helm plugin install https://github.com/helm-unittest/helm-unittest.git` command and use following command to run helm unit tests.
+
+```console
+helm unittest --strict --file 'unittests/**/*.yaml' charts/{{ template "chart.name" . }}
+```
+
+{{ template "chart.maintainersSection" . }}

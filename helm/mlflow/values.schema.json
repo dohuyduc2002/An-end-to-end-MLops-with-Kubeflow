@@ -1,0 +1,2064 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "affinity": {
+      "additionalProperties": true,
+      "description": "For more information checkout: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity",
+      "required": [],
+      "title": "affinity",
+      "type": "object"
+    },
+    "artifactRoot": {
+      "additionalProperties": false,
+      "properties": {
+        "azureBlob": {
+          "additionalProperties": false,
+          "properties": {
+            "accessKey": {
+              "default": "",
+              "description": "Azure Cloud Storage Account Access Key for the container",
+              "required": [],
+              "title": "accessKey",
+              "type": "string"
+            },
+            "connectionString": {
+              "default": "",
+              "description": "Azure Cloud Connection String for the container. Only onnectionString or accessKey required",
+              "required": [],
+              "title": "connectionString",
+              "type": "string"
+            },
+            "container": {
+              "default": "",
+              "description": "Azure blob container name",
+              "required": [],
+              "title": "container",
+              "type": "string"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Specifies if you want to use Azure Blob Storage Mlflow Artifact Root",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "path": {
+              "default": "",
+              "description": "Azure blob container folder. If you want to use root level, please don't set anything.",
+              "required": [],
+              "title": "path",
+              "type": "string"
+            },
+            "storageAccount": {
+              "default": "",
+              "description": "Azure storage account name",
+              "required": [],
+              "title": "storageAccount",
+              "type": "string"
+            }
+          },
+          "required": [
+            "enabled",
+            "container",
+            "storageAccount",
+            "path",
+            "connectionString",
+            "accessKey"
+          ],
+          "title": "azureBlob",
+          "type": "object"
+        },
+        "gcs": {
+          "additionalProperties": false,
+          "properties": {
+            "bucket": {
+              "default": "",
+              "description": "Google Cloud Storage bucket name",
+              "required": [],
+              "title": "bucket",
+              "type": "string"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Specifies if you want to use Google Cloud Storage Mlflow Artifact Root",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "path": {
+              "default": "",
+              "description": "Google Cloud Storage bucket folder. If you want to use root level, please don't set anything.",
+              "required": [],
+              "title": "path",
+              "type": "string"
+            }
+          },
+          "required": ["enabled", "bucket", "path"],
+          "title": "gcs",
+          "type": "object"
+        },
+        "proxiedArtifactStorage": {
+          "default": false,
+          "description": "Specifies if you want to enable proxied artifact storage access",
+          "required": [],
+          "title": "proxiedArtifactStorage",
+          "type": "boolean"
+        },
+        "s3": {
+          "additionalProperties": false,
+          "properties": {
+            "awsAccessKeyId": {
+              "default": "",
+              "description": "AWS IAM user AWS_ACCESS_KEY_ID which has attached policy for access to the S3 bucket",
+              "required": [],
+              "title": "awsAccessKeyId",
+              "type": "string"
+            },
+            "awsSecretAccessKey": {
+              "default": "",
+              "description": "AWS IAM user AWS_SECRET_ACCESS_KEY which has attached policy for access to the S3 bucket",
+              "required": [],
+              "title": "awsSecretAccessKey",
+              "type": "string"
+            },
+            "bucket": {
+              "default": "",
+              "description": "S3 bucket name",
+              "required": [],
+              "title": "bucket",
+              "type": "string"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Specifies if you want to use AWS S3 Mlflow Artifact Root",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "path": {
+              "default": "",
+              "description": "S3 bucket folder. If you want to use root level, please don't set anything.",
+              "required": [],
+              "title": "path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "enabled",
+            "bucket",
+            "path",
+            "awsAccessKeyId",
+            "awsSecretAccessKey"
+          ],
+          "title": "s3",
+          "type": "object"
+        }
+      },
+      "required": ["proxiedArtifactStorage", "azureBlob", "s3", "gcs"],
+      "title": "artifactRoot",
+      "type": "object"
+    },
+    "backendStore": {
+      "additionalProperties": false,
+      "properties": {
+        "databaseConnectionCheck": {
+          "default": false,
+          "description": "Add an additional init container, which checks for database availability",
+          "required": [],
+          "title": "databaseConnectionCheck",
+          "type": "boolean"
+        },
+        "databaseMigration": {
+          "default": false,
+          "description": "Specifies if you want to run database migration",
+          "required": [],
+          "title": "databaseMigration",
+          "type": "boolean"
+        },
+        "mysql": {
+          "additionalProperties": false,
+          "properties": {
+            "database": {
+              "default": "",
+              "description": "mlflow database name created before in the mysql instance",
+              "required": [],
+              "title": "database",
+              "type": "string"
+            },
+            "driver": {
+              "default": "pymysql",
+              "description": "mysql database connection driver. e.g.: \"pymysql\"",
+              "required": [],
+              "title": "driver",
+              "type": "string"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Specifies if you want to use mysql backend storage",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "host": {
+              "default": "",
+              "description": "MySQL host address. e.g. your Amazon RDS for MySQL",
+              "required": [],
+              "title": "host",
+              "type": "string"
+            },
+            "password": {
+              "default": "",
+              "description": "mysql database user password which can access to mlflow database",
+              "required": [],
+              "title": "password",
+              "type": "string"
+            },
+            "port": {
+              "default": 3306,
+              "description": "MySQL service port",
+              "required": [],
+              "title": "port",
+              "type": "integer"
+            },
+            "user": {
+              "default": "",
+              "description": "mysql database user name which can access to mlflow database",
+              "required": [],
+              "title": "user",
+              "type": "string"
+            }
+          },
+          "required": [
+            "enabled",
+            "host",
+            "port",
+            "database",
+            "user",
+            "password",
+            "driver"
+          ],
+          "title": "mysql",
+          "type": "object"
+        },
+        "postgres": {
+          "additionalProperties": false,
+          "properties": {
+            "database": {
+              "default": "",
+              "description": "mlflow database name created before in the postgres instance",
+              "required": [],
+              "title": "database",
+              "type": "string"
+            },
+            "driver": {
+              "default": "",
+              "description": "postgres database connection driver. e.g.: \"psycopg2\"",
+              "required": [],
+              "title": "driver",
+              "type": "string"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Specifies if you want to use postgres backend storage",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "host": {
+              "default": "",
+              "description": "Postgres host address. e.g. your RDS or Azure Postgres Service endpoint",
+              "required": [],
+              "title": "host",
+              "type": "string"
+            },
+            "password": {
+              "default": "",
+              "description": "postgres database user password which can access to mlflow database",
+              "required": [],
+              "title": "password",
+              "type": "string"
+            },
+            "port": {
+              "default": 5432,
+              "description": "Postgres service port",
+              "required": [],
+              "title": "port",
+              "type": "integer"
+            },
+            "user": {
+              "default": "",
+              "description": "postgres database user name which can access to mlflow database",
+              "required": [],
+              "title": "user",
+              "type": "string"
+            }
+          },
+          "required": [
+            "enabled",
+            "host",
+            "port",
+            "database",
+            "user",
+            "password",
+            "driver"
+          ],
+          "title": "postgres",
+          "type": "object"
+        },
+        "existingDatabaseSecret": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "default": "",
+              "description": "The name of the existing database secret.",
+              "required": [],
+              "title": "name",
+              "type": "string"
+            },
+            "usernameKey": {
+              "default": "username",
+              "description": "The key of the username in the existing database secret.",
+              "required": [],
+              "title": "usernameKey",
+              "type": "string"
+            },
+            "passwordKey": {
+              "default": "password",
+              "description": "The key of the password in the existing database secret.",
+              "required": [],
+              "title": "passwordKey",
+              "type": "string"
+            }
+          },
+          "required": ["name", "usernameKey", "passwordKey"],
+          "title": "existingDatabaseSecret",
+          "type": "object"
+        }
+      },
+      "required": [
+        "databaseMigration",
+        "databaseConnectionCheck",
+        "postgres",
+        "mysql",
+        "existingDatabaseSecret"
+      ],
+      "title": "backendStore",
+      "type": "object"
+    },
+    "postgresql": {
+      "additionalProperties": true,
+      "description": "Bitnami PostgreSQL configuration",
+      "properties": {
+        "architecture": {
+          "default": "standalone",
+          "required": [],
+          "title": "architecture",
+          "type": "string"
+        },
+        "auth": {
+          "additionalProperties": true,
+          "properties": {
+            "database": {
+              "default": "mlflow",
+              "description": "The name of the PostgreSQL database.",
+              "required": [],
+              "title": "database",
+              "type": "string"
+            },
+            "password": {
+              "default": "",
+              "required": [],
+              "title": "password",
+              "type": "string"
+            },
+            "username": {
+              "default": "",
+              "required": [],
+              "title": "username",
+              "type": "string"
+            }
+          },
+          "required": ["username", "password", "database"],
+          "title": "auth",
+          "type": "object"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Enable postgresql",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "primary": {
+          "additionalProperties": true,
+          "properties": {
+            "persistence": {
+              "additionalProperties": true,
+              "properties": {
+                "enabled": {
+                  "default": true,
+                  "required": [],
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "existingClaim": {
+                  "default": "",
+                  "required": [],
+                  "title": "existingClaim",
+                  "type": "string"
+                }
+              },
+              "required": ["enabled", "existingClaim"],
+              "title": "persistence",
+              "type": "object"
+            },
+            "service": {
+              "additionalProperties": true,
+              "properties": {
+                "ports": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "postgresql": {
+                      "default": 5432,
+                      "required": [],
+                      "title": "postgresql",
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["postgresql"],
+                  "title": "ports",
+                  "type": "object"
+                }
+              },
+              "required": ["ports"],
+              "title": "service",
+              "type": "object"
+            }
+          },
+          "required": ["service", "persistence"],
+          "title": "primary",
+          "type": "object"
+        }
+      },
+      "required": ["enabled", "architecture", "primary", "auth"],
+      "title": "postgresql",
+      "type": "object"
+    },
+    "mysql": {
+      "additionalProperties": true,
+      "description": "Bitnami MySQL configuration",
+      "properties": {
+        "architecture": {
+          "default": "standalone",
+          "required": [],
+          "title": "architecture",
+          "type": "string"
+        },
+        "auth": {
+          "additionalProperties": true,
+          "properties": {
+            "database": {
+              "default": "mlflow",
+              "description": "The name of the MySQL database.",
+              "required": [],
+              "title": "database",
+              "type": "string"
+            },
+            "password": {
+              "default": "",
+              "required": [],
+              "title": "password",
+              "type": "string"
+            },
+            "username": {
+              "default": "",
+              "required": [],
+              "title": "username",
+              "type": "string"
+            }
+          },
+          "required": ["username", "password", "database"],
+          "title": "auth",
+          "type": "object"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Enable mysql",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "primary": {
+          "additionalProperties": true,
+          "properties": {
+            "persistence": {
+              "additionalProperties": true,
+              "properties": {
+                "enabled": {
+                  "default": true,
+                  "required": [],
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "existingClaim": {
+                  "default": "",
+                  "required": [],
+                  "title": "existingClaim",
+                  "type": "string"
+                }
+              },
+              "required": ["enabled", "existingClaim"],
+              "title": "persistence",
+              "type": "object"
+            },
+            "service": {
+              "additionalProperties": true,
+              "properties": {
+                "ports": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "mysql": {
+                      "default": 3306,
+                      "required": [],
+                      "title": "mysql",
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["mysql"],
+                  "title": "ports",
+                  "type": "object"
+                }
+              },
+              "required": ["ports"],
+              "title": "service",
+              "type": "object"
+            }
+          },
+          "required": ["service", "persistence"],
+          "title": "primary",
+          "type": "object"
+        }
+      },
+      "required": ["enabled", "architecture", "primary", "auth"],
+      "title": "mysql",
+      "type": "object"
+    },
+    "extraArgs": {
+      "additionalProperties": true,
+      "description": "A map of arguments and values to pass to the `mlflow server` command. Keys must be camelcase. Helm will turn them to kebabcase style.",
+      "properties": {
+        "workers": {
+          "default": "4",
+          "required": [],
+          "title": "workers",
+          "type": "string"
+        },
+        "staticPrefix": {
+          "default": "/mlflow",
+          "required": [],
+          "title": "staticPrefix",
+          "type": "string"
+        },
+        "gunicornOpts": {
+          "default": "",
+          "required": [],
+          "title": "gunicornOpts",
+          "type": "string"
+        },
+        "waitressOpts": {
+          "default": "",
+          "required": [],
+          "title": "waitressOpts",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "title": "extraArgs",
+      "type": "object"
+    },
+    "extraContainers": {
+      "description": "Extra containers for the mlflow pod",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "extraContainers",
+      "type": "array"
+    },
+    "extraEnvVars": {
+      "additionalProperties": true,
+      "description": "Extra environment variables",
+      "properties": {
+        "MLFLOW_S3_IGNORE_TLS": {
+          "default": "true",
+          "required": [],
+          "title": "MLFLOW_S3_IGNORE_TLS",
+          "type": ["boolean", "string"]
+        },
+        "MLFLOW_S3_UPLOAD_EXTRA_ARGS": {
+          "default": "{\"ServerSideEncryption\": \"aws:kms\", \"SSEKMSKeyId\": \"1234\"}",
+          "required": [],
+          "title": "MLFLOW_S3_UPLOAD_EXTRA_ARGS",
+          "type": ["object", "string"]
+        },
+        "AWS_DEFAULT_REGION": {
+          "default": "us-east-1",
+          "required": [],
+          "title": "AWS_DEFAULT_REGION",
+          "type": "string"
+        },
+        "MLFLOW_S3_ENDPOINT_URL": {
+          "default": "http://1.2.3.4:9000",
+          "required": [],
+          "title": "MLFLOW_S3_ENDPOINT_URL",
+          "type": "string"
+        },
+        "AWS_CA_BUNDLE": {
+          "default": "/some/ca/bundle.pem",
+          "required": [],
+          "title": "AWS_CA_BUNDLE",
+          "type": "string"
+        },
+        "MLFLOW_GCS_DEFAULT_TIMEOUT": {
+          "default": "60",
+          "description": "Sets the standard timeout for transfer operations in seconds (Default: 60). Use -1 for indefinite timeout.",
+          "required": [],
+          "title": "MLFLOW_GCS_DEFAULT_TIMEOUT",
+          "type": "string"
+        },
+        "MLFLOW_GCS_UPLOAD_CHUNK_SIZE": {
+          "default": "104857600",
+          "description": "Sets the standard upload chunk size for bigger files in bytes (Default: 104857600 ≙ 100MiB), must be multiple of 256 KB.",
+          "required": [],
+          "title": "MLFLOW_GCS_UPLOAD_CHUNK_SIZE",
+          "type": "string"
+        },
+        "MLFLOW_GCS_DOWNLOAD_CHUNK_SIZE": {
+          "default": "104857600",
+          "description": "Sets the standard download chunk size for bigger files in bytes (Default: 104857600 ≙ 100MiB), must be multiple of 256 K",
+          "required": [],
+          "title": "MLFLOW_GCS_DOWNLOAD_CHUNK_SIZE",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "title": "extraEnvVars",
+      "type": "object"
+    },
+    "extraFlags": {
+      "description": "A list of flags to pass to `mlflow server` command\nItems must be camelcase. Helm will turn them to kebabcase style.",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "extraFlags",
+      "type": "array"
+    },
+    "extraSecretNamesForEnvFrom": {
+      "description": "Extra secrets for environment variables",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "extraSecretNamesForEnvFrom",
+      "type": "array"
+    },
+    "extraVolumeMounts": {
+      "description": "Extra Volume Mounts for the mlflow container",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "extraVolumeMounts",
+      "type": "array"
+    },
+    "extraVolumes": {
+      "description": "Extra Volumes for the pod",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "extraVolumes",
+      "type": "array"
+    },
+    "fullnameOverride": {
+      "default": "",
+      "description": "String to override the default generated fullname",
+      "required": [],
+      "title": "fullnameOverride",
+      "type": "string"
+    },
+    "global": {
+      "additionalProperties": true,
+      "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
+      "required": [],
+      "title": "global",
+      "type": "object"
+    },
+    "image": {
+      "additionalProperties": false,
+      "description": "Image of mlflow",
+      "properties": {
+        "pullPolicy": {
+          "default": "IfNotPresent",
+          "description": "The docker image pull policy",
+          "required": [],
+          "title": "pullPolicy",
+          "type": "string",
+          "enum": ["IfNotPresent", "Never", "Always"]
+        },
+        "repository": {
+          "default": "burakince/mlflow",
+          "description": "The docker image repository to use",
+          "required": [],
+          "title": "repository",
+          "type": "string"
+        },
+        "tag": {
+          "default": "",
+          "description": "The docker image tag to use. Default app version",
+          "required": [],
+          "title": "tag",
+          "type": "string"
+        }
+      },
+      "required": ["repository", "pullPolicy", "tag"],
+      "title": "image",
+      "type": "object"
+    },
+    "imagePullSecrets": {
+      "description": "Image pull secrets for private docker registry usages",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "imagePullSecrets",
+      "type": "array"
+    },
+    "ingress": {
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "description": "Additional ingress annotations",
+          "required": [],
+          "title": "annotations",
+          "type": "object"
+        },
+        "className": {
+          "default": "",
+          "description": "New style ingress class name. Only possible if you use K8s 1.18.0 or later version",
+          "required": [],
+          "title": "className",
+          "type": "string"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Specifies if you want to create an ingress access",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "hosts": {
+          "description": "kubernetes.io/ingress.class: nginx\nkubernetes.io/tls-acme: \"true\"",
+          "items": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "host": {
+                    "default": "chart-example.local",
+                    "required": [],
+                    "title": "host",
+                    "type": "string"
+                  },
+                  "paths": {
+                    "items": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "path": {
+                              "default": "/",
+                              "required": [],
+                              "title": "path",
+                              "type": "string"
+                            },
+                            "pathType": {
+                              "default": "ImplementationSpecific",
+                              "description": "Ingress path type",
+                              "required": [],
+                              "title": "pathType",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["path", "pathType"],
+                          "type": "object"
+                        }
+                      ],
+                      "required": []
+                    },
+                    "required": [],
+                    "title": "paths",
+                    "type": "array"
+                  }
+                },
+                "required": ["host", "paths"],
+                "type": "object"
+              }
+            ],
+            "required": []
+          },
+          "required": [],
+          "title": "hosts",
+          "type": "array"
+        },
+        "tls": {
+          "description": "Ingress tls configuration for https access",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "tls",
+          "type": "array"
+        }
+      },
+      "required": ["enabled", "className", "annotations", "hosts", "tls"],
+      "title": "ingress",
+      "type": "object"
+    },
+    "initContainers": {
+      "description": "Init Containers for Mlflow Pod",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "initContainers",
+      "type": "array"
+    },
+    "livenessProbe": {
+      "additionalProperties": true,
+      "description": "Liveness probe configurations. Please look to [here](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes).",
+      "properties": {
+        "failureThreshold": {
+          "default": 5,
+          "required": [],
+          "title": "failureThreshold",
+          "type": "integer"
+        },
+        "initialDelaySeconds": {
+          "default": 10,
+          "required": [],
+          "title": "initialDelaySeconds",
+          "type": "integer"
+        },
+        "periodSeconds": {
+          "default": 30,
+          "required": [],
+          "title": "periodSeconds",
+          "type": "integer"
+        },
+        "timeoutSeconds": {
+          "default": 3,
+          "required": [],
+          "title": "timeoutSeconds",
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "livenessProbe",
+      "type": "object"
+    },
+    "nameOverride": {
+      "default": "",
+      "description": "String to override the default generated name",
+      "required": [],
+      "title": "nameOverride",
+      "type": "string"
+    },
+    "nodeSelector": {
+      "additionalProperties": true,
+      "description": "Set the node selector for the pod.",
+      "required": [],
+      "title": "nodeSelector",
+      "type": "object"
+    },
+    "podAnnotations": {
+      "additionalProperties": true,
+      "description": "Annotations for the pod",
+      "required": [],
+      "title": "podAnnotations",
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "additionalProperties": true,
+      "description": "Security context for all pod",
+      "properties": {
+        "runAsUser": {
+          "default": 1000,
+          "required": [],
+          "title": "runAsUser",
+          "type": "integer"
+        },
+        "runAsGroup": {
+          "default": 3000,
+          "required": [],
+          "title": "runAsGroup",
+          "type": "integer"
+        },
+        "fsGroup": {
+          "default": 2000,
+          "required": [],
+          "title": "fsGroup",
+          "type": "integer"
+        },
+        "supplementalGroups": {
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "runAsUser",
+          "type": "array"
+        },
+        "fsGroupChangePolicy": {
+          "default": "OnRootMismatch",
+          "required": [],
+          "title": "fsGroupChangePolicy",
+          "type": "string",
+          "enum": ["OnRootMismatch", "Always"]
+        }
+      },
+      "required": [],
+      "title": "podSecurityContext",
+      "type": "object"
+    },
+    "readinessProbe": {
+      "additionalProperties": true,
+      "description": "Readiness probe configurations. Please look to [here](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes).",
+      "properties": {
+        "failureThreshold": {
+          "default": 5,
+          "required": [],
+          "title": "failureThreshold",
+          "type": "integer"
+        },
+        "initialDelaySeconds": {
+          "default": 10,
+          "required": [],
+          "title": "initialDelaySeconds",
+          "type": "integer"
+        },
+        "periodSeconds": {
+          "default": 30,
+          "required": [],
+          "title": "periodSeconds",
+          "type": "integer"
+        },
+        "timeoutSeconds": {
+          "default": 3,
+          "required": [],
+          "title": "timeoutSeconds",
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "readinessProbe",
+      "type": "object"
+    },
+    "replicaCount": {
+      "default": 1,
+      "description": "Numbers of replicas",
+      "required": [],
+      "title": "replicaCount",
+      "type": "integer"
+    },
+    "resources": {
+      "additionalProperties": true,
+      "description": "This block is for setting up the resource management for the pod more information can be found here: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+      "properties": {
+        "limits": {
+          "additionalProperties": true,
+          "properties": {
+            "cpu": {
+              "default": "500m",
+              "required": [],
+              "title": "cpu",
+              "type": "string"
+            },
+            "memory": {
+              "default": "2Gi",
+              "required": [],
+              "title": "memory",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "limits",
+          "type": "object"
+        },
+        "requests": {
+          "additionalProperties": true,
+          "properties": {
+            "cpu": {
+              "default": "200m",
+              "required": [],
+              "title": "cpu",
+              "type": "string"
+            },
+            "memory": {
+              "default": "1Gi",
+              "required": [],
+              "title": "memory",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "requests",
+          "type": "object"
+        }
+      },
+      "required": [],
+      "title": "resources",
+      "type": "object"
+    },
+    "securityContext": {
+      "additionalProperties": true,
+      "description": "Security context for the mlflow container",
+      "properties": {
+        "allowPrivilegeEscalation": {
+          "default": false,
+          "required": [],
+          "title": "allowPrivilegeEscalation",
+          "type": "boolean"
+        },
+        "readOnlyRootFilesystem": {
+          "default": true,
+          "required": [],
+          "title": "readOnlyRootFilesystem",
+          "type": "boolean"
+        },
+        "runAsNonRoot": {
+          "default": true,
+          "required": [],
+          "title": "runAsNonRoot",
+          "type": "boolean"
+        },
+        "runAsUser": {
+          "default": 1000,
+          "required": [],
+          "title": "runAsUser",
+          "type": "integer"
+        },
+        "capabilities": {
+          "additionalProperties": true,
+          "properties": {
+            "drop": {
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "drop",
+              "type": "array"
+            },
+            "add": {
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "add",
+              "type": "array"
+            }
+          },
+          "required": [],
+          "title": "capabilities",
+          "type": "object"
+        }
+      },
+      "required": [],
+      "title": "securityContext",
+      "type": "object"
+    },
+    "service": {
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "description": "Additional service annotations",
+          "required": [],
+          "title": "annotations",
+          "type": "object"
+        },
+        "name": {
+          "default": "http",
+          "description": "Default Service name",
+          "required": [],
+          "title": "name",
+          "type": "string"
+        },
+        "port": {
+          "default": 5000,
+          "description": "Default Service port",
+          "required": [],
+          "title": "port",
+          "type": "integer"
+        },
+        "type": {
+          "default": "ClusterIP",
+          "description": "Specifies what type of Service should be created",
+          "required": [],
+          "title": "type",
+          "type": "string"
+        }
+      },
+      "required": ["type", "port", "name", "annotations"],
+      "title": "service",
+      "type": "object"
+    },
+    "serviceAccount": {
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "description": "Annotations to add to the service account. AWS EKS users can assign role arn from here.\nPlease find more information from here:\nhttps://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html",
+          "required": [],
+          "title": "annotations",
+          "type": "object"
+        },
+        "automount": {
+          "default": true,
+          "description": "Automatically mount a ServiceAccount's API credentials?",
+          "required": [],
+          "title": "automount",
+          "type": "boolean"
+        },
+        "create": {
+          "default": true,
+          "description": "Specifies whether a ServiceAccount should be created",
+          "required": [],
+          "title": "create",
+          "type": "boolean"
+        },
+        "name": {
+          "default": "",
+          "description": "The name of the ServiceAccount to use.\nIf not set and create is true, a name is generated using the fullname template",
+          "required": [],
+          "title": "name",
+          "type": "string"
+        }
+      },
+      "required": ["create", "automount", "annotations", "name"],
+      "title": "serviceAccount",
+      "type": "object"
+    },
+    "serviceMonitor": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "When set true then use a ServiceMonitor to configure scraping",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "interval": {
+          "default": "30s",
+          "description": "Set how frequently Prometheus should scrape",
+          "required": [],
+          "title": "interval",
+          "type": "string"
+        },
+        "labels": {
+          "additionalProperties": true,
+          "description": "Set labels for the ServiceMonitor, use this to define your scrape label for Prometheus Operator",
+          "properties": {
+            "release": {
+              "default": "prometheus",
+              "required": [],
+              "title": "release",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "labels",
+          "type": "object"
+        },
+        "metricRelabelings": {
+          "description": "Set of rules to relabel your exist metric labels",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "metricRelabelings",
+          "type": "array"
+        },
+        "namespace": {
+          "default": "monitoring",
+          "description": "Set the namespace the ServiceMonitor should be deployed",
+          "required": [],
+          "title": "namespace",
+          "type": "string"
+        },
+        "targetLabels": {
+          "description": "Set of labels to transfer on the Kubernetes Service onto the target.",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "targetLabels",
+          "type": "array"
+        },
+        "telemetryPath": {
+          "default": "/metrics",
+          "description": "Set path to mlflow telemetry-path",
+          "required": [],
+          "title": "telemetryPath",
+          "type": "string"
+        },
+        "timeout": {
+          "default": "10s",
+          "description": "Set timeout for scrape",
+          "required": [],
+          "title": "timeout",
+          "type": "string"
+        },
+        "useServicePort": {
+          "default": false,
+          "description": "When set true then use a service port. On default use a pod port.",
+          "required": [],
+          "title": "useServicePort",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled",
+        "useServicePort",
+        "namespace",
+        "interval",
+        "telemetryPath",
+        "labels",
+        "timeout",
+        "targetLabels",
+        "metricRelabelings"
+      ],
+      "title": "serviceMonitor",
+      "type": "object"
+    },
+    "strategy": {
+      "additionalProperties": true,
+      "description": "This will set the deployment strategy more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy",
+      "properties": {
+        "type": {
+          "default": "RollingUpdate",
+          "required": [],
+          "title": "type",
+          "type": "string",
+          "enum": ["RollingUpdate", "Recreate"]
+        }
+      },
+      "required": ["type"],
+      "title": "strategy",
+      "type": "object"
+    },
+    "tolerations": {
+      "description": "Set the tolerations for the pod.",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "tolerations",
+      "type": "array"
+    },
+    "flaskServerSecretKey": {
+      "default": "",
+      "description": "Mlflow flask server secret key",
+      "required": [],
+      "title": "flaskServerSecretKey",
+      "type": "string"
+    },
+    "auth": {
+      "additionalProperties": false,
+      "description": "Mlflow authentication settings",
+      "properties": {
+        "enabled": {
+          "default": "false",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "adminUsername": {
+          "default": "",
+          "required": [],
+          "title": "adminUsername",
+          "type": "string"
+        },
+        "adminPassword": {
+          "default": "",
+          "required": [],
+          "title": "adminPassword",
+          "type": "string"
+        },
+        "defaultPermission": {
+          "default": "READ",
+          "required": [],
+          "title": "defaultPermission",
+          "type": "string",
+          "enum": ["READ", "EDIT", "MANAGE", "NO_PERMISSIONS"]
+        },
+        "appName": {
+          "default": "basic-auth",
+          "required": [],
+          "title": "appName",
+          "type": "string"
+        },
+        "authorizationFunction": {
+          "default": "mlflow.server.auth:authenticate_request_basic_auth",
+          "required": [],
+          "title": "authorizationFunction",
+          "type": "string"
+        },
+        "sqliteFile": {
+          "default": "basic_auth.db",
+          "required": [],
+          "title": "sqliteFile",
+          "type": "string"
+        },
+        "sqliteFullPath": {
+          "default": "",
+          "required": [],
+          "title": "sqliteFullPath",
+          "type": "string"
+        },
+        "configPath": {
+          "default": "/etc/mlflow/",
+          "required": [],
+          "title": "configPath",
+          "type": "string"
+        },
+        "configFile": {
+          "default": "basic_auth.ini",
+          "required": [],
+          "title": "configFile",
+          "type": "string"
+        },
+        "postgres": {
+          "additionalProperties": false,
+          "description": "PostgreSQL based centrilised authentication database",
+          "properties": {
+            "enabled": {
+              "default": "false",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "host": {
+              "default": "",
+              "required": [],
+              "title": "host",
+              "type": "string"
+            },
+            "port": {
+              "default": 5432,
+              "required": [],
+              "title": "port",
+              "type": "integer"
+            },
+            "database": {
+              "default": "",
+              "required": [],
+              "title": "database",
+              "type": "string"
+            },
+            "user": {
+              "default": "",
+              "required": [],
+              "title": "user",
+              "type": "string"
+            },
+            "password": {
+              "default": "",
+              "required": [],
+              "title": "password",
+              "type": "string"
+            },
+            "driver": {
+              "default": "",
+              "required": [],
+              "title": "driver",
+              "type": "string"
+            }
+          },
+          "required": [
+            "enabled",
+            "host",
+            "port",
+            "database",
+            "user",
+            "password",
+            "driver"
+          ],
+          "title": "postgres",
+          "type": "object"
+        }
+      },
+      "required": [
+        "enabled",
+        "adminUsername",
+        "adminPassword",
+        "defaultPermission",
+        "appName",
+        "authorizationFunction",
+        "sqliteFile",
+        "sqliteFullPath",
+        "configPath",
+        "configFile",
+        "postgres"
+      ],
+      "title": "auth",
+      "type": "object"
+    },
+    "ldapAuth": {
+      "additionalProperties": false,
+      "description": "Mlflow Basic Authentication with LDAP backend settings",
+      "properties": {
+        "enabled": {
+          "default": "false",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "uri": {
+          "default": "",
+          "description": "LDAP URI. e.g.: ldap://lldap:3890/dc=mlflow,dc=test",
+          "required": [],
+          "title": "uri",
+          "type": "string"
+        },
+        "tlsVerification": {
+          "default": "required",
+          "description": "TLS verification mode. Options: required, optional, none",
+          "required": [],
+          "title": "tlsVerification",
+          "type": "string",
+          "enum": ["required", "optional", "none"]
+        },
+        "lookupBind": {
+          "default": "",
+          "description": "LDAP Loopup Bind. e.g.: uid=%s,ou=people,dc=mlflow,dc=test",
+          "required": [],
+          "title": "lookupBind",
+          "type": "string"
+        },
+        "groupAttribute": {
+          "default": "dn",
+          "description": "LDAP group attribute",
+          "required": [],
+          "title": "groupAttribute",
+          "type": "string"
+        },
+        "searchBaseDistinguishedName": {
+          "default": "",
+          "description": "LDAP base DN for the search. e.g.: ou=groups,dc=mlflow,dc=test",
+          "required": [],
+          "title": "searchBaseDistinguishedName",
+          "type": "string"
+        },
+        "searchFilter": {
+          "default": "(&(objectclass=groupOfUniqueNames)(uniquemember=%s))",
+          "description": "LDAP query filter for search",
+          "required": [],
+          "title": "searchFilter",
+          "type": "string"
+        },
+        "adminGroupDistinguishedName": {
+          "default": "",
+          "description": "LDAP DN for the admin group. e.g.: cn=test-admin,ou=groups,dc=mlflow,dc=test",
+          "required": [],
+          "title": "adminGroupDistinguishedName",
+          "type": "string"
+        },
+        "userGroupDistinguishedName": {
+          "default": "",
+          "description": "LDAP DN for the user group. e.g.: cn=test-user,ou=groups,dc=mlflow,dc=test",
+          "required": [],
+          "title": "userGroupDistinguishedName",
+          "type": "string"
+        },
+        "encodedTrustedCACertificate": {
+          "default": "",
+          "description": "Base64 encoded trusted CA certificate for LDAP server connection.",
+          "required": [],
+          "title": "encodedTrustedCACertificate",
+          "type": "string"
+        },
+        "externalSecretForTrustedCACertificate": {
+          "default": "",
+          "description": "External secret name for trusted CA certificate for LDAP server connection.",
+          "required": [],
+          "title": "externalSecretForTrustedCACertificate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "enabled",
+        "uri",
+        "tlsVerification",
+        "lookupBind",
+        "groupAttribute",
+        "searchBaseDistinguishedName",
+        "searchFilter",
+        "adminGroupDistinguishedName",
+        "userGroupDistinguishedName"
+      ],
+      "title": "ldapAuth",
+      "type": "object"
+    },
+    "autoscaling": {
+      "additionalProperties": false,
+      "description": "Autoscaling settings. Can be enabled only when backendStore is not sqlite and artifactRoot is one of blob storage systems.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "If true, the number of replicas will be automatically scaled based on default metrics. On default, it will scale based on CPU and memory. For more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "minReplicas": {
+          "default": 1,
+          "description": "The minimum number of replicas.",
+          "required": [],
+          "title": "minReplicas",
+          "type": "integer"
+        },
+        "maxReplicas": {
+          "default": 5,
+          "description": "The maximum number of replicas.",
+          "required": [],
+          "title": "maxReplicas",
+          "type": "integer"
+        },
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "description": "The metrics to use for autoscaling.",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["Resource", "Pods", "Object", "External"]
+              }
+            },
+            "oneOf": [
+              {
+                "properties": {
+                  "type": { "const": "Resource" },
+                  "resource": {
+                    "type": "object",
+                    "required": ["name", "target"],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "enum": ["cpu", "memory"]
+                      },
+                      "target": {
+                        "type": "object",
+                        "required": ["type"],
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["Utilization", "AverageValue", "Value"]
+                          },
+                          "averageUtilization": { "type": "integer", "minimum": 0 },
+                          "averageValue": { "type": "string" },
+                          "value": { "type": "string" }
+                        },
+                        "if": { "properties": { "type": { "const": "Utilization" } } },
+                        "then": { "required": ["averageUtilization"] },
+                        "else": {
+                          "if": { "properties": { "type": { "const": "AverageValue" } } },
+                          "then": { "required": ["averageValue"] },
+                          "else": { "required": ["value"] }
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": ["resource"]
+              },
+              {
+                "properties": {
+                  "type": { "const": "Pods" },
+                  "pods": {
+                    "type": "object",
+                    "required": ["metric", "target"],
+                    "properties": {
+                      "metric": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                          "name": { "type": "string" },
+                          "selector": {
+                            "type": "object",
+                            "properties": {
+                              "matchLabels": { "type": "object" },
+                              "matchExpressions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "required": ["key", "operator"],
+                                  "properties": {
+                                    "key": { "type": "string" },
+                                    "operator": { "type": "string" },
+                                    "values": { "type": "array", "items": { "type": "string" } }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "target": {
+                        "type": "object",
+                        "required": ["type"],
+                        "properties": {
+                          "type": { "type": "string", "enum": ["AverageValue", "Value"] },
+                          "averageValue": { "type": "string" },
+                          "value": { "type": "string" }
+                        },
+                        "if": { "properties": { "type": { "const": "AverageValue" } } },
+                        "then": { "required": ["averageValue"] },
+                        "else": { "required": ["value"] }
+                      }
+                    }
+                  }
+                },
+                "required": ["pods"]
+              },
+              {
+                "properties": {
+                  "type": { "const": "Object" },
+                  "object": {
+                    "type": "object",
+                    "required": ["metric", "describedObject", "target"],
+                    "properties": {
+                      "metric": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                          "name": { "type": "string" },
+                          "selector": {
+                            "type": "object",
+                            "properties": {
+                              "matchLabels": { "type": "object" },
+                              "matchExpressions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "required": ["key", "operator"],
+                                  "properties": {
+                                    "key": { "type": "string" },
+                                    "operator": { "type": "string" },
+                                    "values": { "type": "array", "items": { "type": "string" } }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "describedObject": {
+                        "type": "object",
+                        "required": ["apiVersion", "kind", "name"],
+                        "properties": {
+                          "apiVersion": { "type": "string" },
+                          "kind": { "type": "string" },
+                          "name": { "type": "string" }
+                        }
+                      },
+                      "target": {
+                        "type": "object",
+                        "required": ["type"],
+                        "properties": {
+                          "type": { "type": "string", "enum": ["Value", "AverageValue"] },
+                          "value": { "type": "string" },
+                          "averageValue": { "type": "string" }
+                        },
+                        "if": { "properties": { "type": { "const": "Value" } } },
+                        "then": { "required": ["value"] },
+                        "else": { "required": ["averageValue"] }
+                      }
+                    }
+                  }
+                },
+                "required": ["object"]
+              },
+              {
+                "properties": {
+                  "type": { "const": "External" },
+                  "external": {
+                    "type": "object",
+                    "required": ["metric", "target"],
+                    "properties": {
+                      "metric": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                          "name": { "type": "string" },
+                          "selector": {
+                            "type": "object",
+                            "properties": {
+                              "matchLabels": { "type": "object" },
+                              "matchExpressions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "required": ["key", "operator"],
+                                  "properties": {
+                                    "key": { "type": "string" },
+                                    "operator": { "type": "string" },
+                                    "values": { "type": "array", "items": { "type": "string" } }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "target": {
+                        "type": "object",
+                        "required": ["type"],
+                        "properties": {
+                          "type": { "type": "string", "enum": ["Value", "AverageValue"] },
+                          "value": { "type": "string" },
+                          "averageValue": { "type": "string" }
+                        },
+                        "if": { "properties": { "type": { "const": "Value" } } },
+                        "then": { "required": ["value"] },
+                        "else": { "required": ["averageValue"] }
+                      }
+                    }
+                  }
+                },
+                "required": ["external"]
+              }
+            ]
+          }
+        },
+        "behavior": {
+          "type": "object",
+          "description": "The behavior of the autoscaler. Only supported on K8s 1.18.0 or later.",
+          "properties": {
+            "scaleUp": {
+              "type": "object",
+              "description": "The behavior of the autoscaler when scaling up.",
+              "properties": {
+                "stabilizationWindowSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Time in seconds to wait before scaling up again (default: 0)"
+                },
+                "policies": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "minItems": 1,
+                    "required": ["type", "value", "periodSeconds"],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": ["Pods", "Percent"],
+                        "description": "Type of scaling policy: Pods (fixed number) or Percent (percentage of current replicas)"
+                      },
+                      "value": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "The value to scale by (number of pods or percentage)"
+                      },
+                      "periodSeconds": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Time in seconds over which the policy is evaluated"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "description": "List of scaling policies for scale-up"
+                },
+                "selectPolicy": {
+                  "type": "string",
+                  "enum": ["Max", "Min", "Disabled"],
+                  "description": "Policy to select among multiple policies: Max (default), Min, or Disabled"
+                }
+              },
+              "additionalProperties": false
+            },
+            "scaleDown": {
+              "type": "object",
+              "description": "The behavior of the autoscaler when scaling down.",
+              "properties": {
+                "stabilizationWindowSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Time in seconds to wait before scaling down again (default: 300)"
+                },
+                "policies": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "minItems": 1,
+                    "required": ["type", "value", "periodSeconds"],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": ["Pods", "Percent"],
+                        "description": "Type of scaling policy: Pods (fixed number) or Percent (percentage of current replicas)"
+                      },
+                      "value": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "The value to scale by (number of pods or percentage)"
+                      },
+                      "periodSeconds": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Time in seconds over which the policy is evaluated"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "description": "List of scaling policies for scale-down"
+                },
+                "selectPolicy": {
+                  "type": "string",
+                  "enum": ["Max", "Min", "Disabled"],
+                  "description": "Policy to select among multiple policies: Max (default), Min, or Disabled"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["enabled", "minReplicas", "maxReplicas", "metrics", "behavior"],
+      "title": "autoscaling",
+      "type": "object"
+    }
+  },
+  "required": [
+    "replicaCount",
+    "image",
+    "strategy",
+    "imagePullSecrets",
+    "nameOverride",
+    "fullnameOverride",
+    "serviceAccount",
+    "podAnnotations",
+    "podSecurityContext",
+    "securityContext",
+    "service",
+    "backendStore",
+    "postgresql",
+    "mysql",
+    "artifactRoot",
+    "extraArgs",
+    "extraFlags",
+    "extraEnvVars",
+    "extraSecretNamesForEnvFrom",
+    "ingress",
+    "resources",
+    "serviceMonitor",
+    "nodeSelector",
+    "tolerations",
+    "affinity",
+    "initContainers",
+    "extraContainers",
+    "extraVolumes",
+    "extraVolumeMounts",
+    "livenessProbe",
+    "readinessProbe",
+    "flaskServerSecretKey",
+    "auth",
+    "ldapAuth",
+    "autoscaling"
+  ],
+  "allOf": [
+    {
+      "not": {
+        "properties": {
+          "auth": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          },
+          "ldapAuth": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Ensures only one of backendStore.postgres.enabled, backendStore.mysql.enabled, postgresql.enabled can be true, or mysql.enabled can be true",
+      "if": {
+        "properties": {
+          "backendStore": {
+            "properties": {
+              "postgres": {
+                "properties": {
+                  "enabled": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        "required": ["backendStore"]
+      },
+      "then": {
+        "properties": {
+          "backendStore": {
+            "properties": {
+              "mysql": {
+                "properties": {
+                  "enabled": { "const": false }
+                }
+              }
+            }
+          },
+          "postgresql": {
+            "properties": {
+              "enabled": { "const": false }
+            }
+          },
+          "mysql": {
+            "properties": {
+              "enabled": { "const": false }
+            }
+          }
+        },
+        "required": ["backendStore", "postgresql", "mysql"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "backendStore": {
+            "properties": {
+              "mysql": {
+                "properties": {
+                  "enabled": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        "required": ["backendStore"]
+      },
+      "then": {
+        "properties": {
+          "backendStore": {
+            "properties": {
+              "postgres": {
+                "properties": {
+                  "enabled": { "const": false }
+                }
+              }
+            }
+          },
+          "postgresql": {
+            "properties": {
+              "enabled": { "const": false }
+            }
+          },
+          "mysql": {
+            "properties": {
+              "enabled": { "const": false }
+            }
+          }
+        },
+        "required": ["backendStore", "postgresql", "mysql"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "postgresql": {
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        },
+        "required": ["postgresql"]
+      },
+      "then": {
+        "properties": {
+          "backendStore": {
+            "properties": {
+              "postgres": {
+                "properties": {
+                  "enabled": { "const": false }
+                }
+              },
+              "mysql": {
+                "properties": {
+                  "enabled": { "const": false }
+                }
+              }
+            }
+          },
+          "mysql": {
+            "properties": {
+              "enabled": { "const": false }
+            }
+          }
+        },
+        "required": ["backendStore", "mysql"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mysql": {
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        },
+        "required": ["mysql"]
+      },
+      "then": {
+        "properties": {
+          "backendStore": {
+            "properties": {
+              "postgres": {
+                "properties": {
+                  "enabled": { "const": false }
+                }
+              },
+              "mysql": {
+                "properties": {
+                  "enabled": { "const": false }
+                }
+              }
+            }
+          },
+          "postgresql": {
+            "properties": {
+              "enabled": { "const": false }
+            }
+          }
+        },
+        "required": ["backendStore", "postgresql"]
+      }
+    }
+  ],
+  "type": "object"
+}
