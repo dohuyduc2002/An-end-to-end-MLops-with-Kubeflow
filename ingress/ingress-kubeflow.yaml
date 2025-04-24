@@ -1,0 +1,110 @@
+# --------------------------------------------------
+# 1) Ingress NGINX  →  istio-ingressgateway
+# --------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: istio-ingress
+  namespace: istio-system
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: mlops.local
+    http:
+      paths:
+      - path: /kubeflow
+        pathType: Prefix
+        backend:
+          service:
+            name: istio-ingressgateway
+            port:
+              number: 80
+# --------------------------------------------------
+# 2) Istio Gateway cho Kubeflow
+# --------------------------------------------------
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: kubeflow-gateway
+  namespace: kubeflow
+spec:
+  selector:
+    istio: ingressgateway          # pod istio-ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - mlops.local
+# --------------------------------------------------
+# 3) VirtualService – route /kubeflow tới centraldashboard
+# --------------------------------------------------
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: kubeflow-centraldashboard
+  namespace: kubeflow
+spec:
+  hosts:
+  - mlops.local
+  gateways:
+  - kubeflow-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /kubeflow
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: centraldashboard.kubeflow.svc.cluster.local
+        port:
+          number: 80
+# --------------------------------------------------
+# 4) VirtualService – route /dex tới Dex auth service
+# --------------------------------------------------
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: dex-vs
+  namespace: auth
+spec:
+  hosts:
+  - mlops.local
+  gateways:
+  - kubeflow-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /dex
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: dex.auth.svc.cluster.local
+        port:
+          number: 5556
+# --------------------------------------------------
+# 5) (Tuỳ chọn) AuthorizationPolicy – cho phép traffic
+#     từ ingressgateway vào centraldashboard
+# --------------------------------------------------
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-centraldashboard
+  namespace: kubeflow
+spec:
+  selector:
+    matchLabels:
+      app: centraldashboard
+  rules:
+  - from:
+    - source:
+        namespaces: ["istio-system"]

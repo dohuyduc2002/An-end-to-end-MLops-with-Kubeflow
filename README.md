@@ -21,60 +21,48 @@ This project is an unified platform for Datasciene team whom working on Credit m
 ## Repository structure
 ```txt
 Underwriting prediction
-├── data.dvc                              
-├── HOW-TO-GUIDE.md
-├── ingress                                                  * Ingress controller for all services 
-│   └── ingress-underwrite.yaml                       
-├── jenkins                                                  * Jenkins community helm chart
-│   ├── charts
-│   ├── CONTRIBUTING.md
-│   ├── ct.yaml
-│   ├── LICENSE
-│   ├── PROCESSES.md
-│   └── README.md
-├── kubeflow                                                  * Kubeflow manifest 1.10
-│   ├── a
+├── data.dvc
+├── helm                                                       * community helm chart for mlflow, kube-prometheus-stack
+│   ├── mlflow
+│   └── monitor
+├── ingress                                                    * Ingress controller for all services
+│   ├── allow-ingress-to-minio.yaml
+│   ├── ingressgateway-allow-kubeflow.yaml
+│   ├── ingress-jenkins.yaml
+│   ├── ingress-kubeflow.yaml
+│   ├── ingress-minio.yaml
+│   ├── ingress-mlflow.yaml
+│   ├── ingress-monitoring.yaml
+│   └── metallb-config.yaml
+├── Jenkinsfile
+├── kubeflow                                                   * Kubeflow manifest v1.10
 │   ├── kubeflow-cluster.yaml
 │   ├── manifests
 │   ├── namespace
 │   └── README.md
 ├── LICENSE
-├── mlflow                                                    * MLflow community helm chart
-│   ├── Chart.lock
-│   ├── Chart.yaml
-│   ├── files
-│   ├── LICENSE
-│   ├── mlflow-network-policy.yaml
-│   ├── postgres-mlflow.yaml
-│   ├── README.md
-│   ├── README.md.gotmpl
-│   ├── templates
-│   ├── unittests
-│   ├── values-kind.yaml
-│   ├── values.schema.json
-│   └── values.yaml
-├── monitor                                                * Kube-prometheus-stack helm chart         
-│   ├── charts
-│   ├── Chart.yaml
-│   ├── ci
-│   ├── CONTRIBUTING.md
-│   ├── files
-│   ├── hack
-│   ├── README.md
-│   ├── templates
-│   ├── unittests
-│   ├── UPGRADE.md
-│   └── values.yaml
+├── local                                                      * Custom Jenkins
+│   ├── docker-compose.yaml
+│   ├── jenkins
+│   └── jenkins-service.yaml
+├── media
+│   └── diagram.jpg
 ├── README.md
-├── src                                                 * Source code for the project           
-│   ├── kfp                                             * Kubeflow pipeline
-│   ├── observability                                   * Observability and API endpoint           
-│   ├── pipeline_deprecated                             * Deprecated Kubeflow pipeline
-│   └── __pycache__
-└── test                                                * Test files for the project         
-    ├── jenkins
-    ├── test_minio_dvc.sh
-    └── track_minio_data.sh
+└── src                                                      
+    ├── client                                                 * Source code for client api endpoint and test
+    │   ├── app
+    │   ├── data
+    │   ├── Dockerfile
+    │   ├── download_data.sh
+    │   ├── download_joblib.py
+    │   ├── grafana
+    │   ├── joblib
+    │   ├── k8s
+    │   ├── monitor
+    │   ├── requirements.txt
+    │   ├── test
+    │   └── test.json
+    └── kfp                                                   * Source code to run kubeflow pipeline in local 
 ```
 ## To-Do
 - [x] Add pkl joblib transform process into pipeline and app
@@ -246,7 +234,19 @@ k create configmap model-gini-dashboard \
 ```
 
 ### Ingress controller for all services
-Under implementation
+Only ingressed services in Kind cluster, can only access in localhost through domain, using path-based routing, cannot expose to other machine. 
+
+- **Limitation** Kind was created *without* `extraPortMappings`; Docker does **not** let you add host-port mappings to running node-containers, so ports 80/443 stay invisible to the outside world. :contentReference[oaicite:0]{index=0}  
+- All LoadBalancer IPs that MetalLB assigns live only inside Docker’s bridge network, making Ingress reachable solely from the host machine. :contentReference[oaicite:1]{index=1}  
+- Re-creating the Kind cluster is the only “native” way to expose those ports, but you prefer not to delete the current cluster. :contentReference[oaicite:2]{index=2}  
+
+- **Proposed solution** Spin up a fresh **Minikube** cluster instead.  
+- Enable the built-in `ingress` and `metallb` add-ons with one command, giving you a real LoadBalancer IP on the host interface. :contentReference[oaicite:3]{index=3}  
+- Optionally start `minikube tunnel` to bridge LoadBalancer traffic to the host if you skip MetalLB. :contentReference[oaicite:4]{index=4}  
+- Add the `ingress-dns` add-on (or normal DNS A record) so domain names resolve to that IP without editing `/etc/hosts`. :contentReference[oaicite:5]{index=5}  
+- With ports 80/443 now exposed at the host’s public address, you can attach a DNS record and obtain TLS certificates as usual.  
+- Kubeflow and other services keep their path-based routing rules inside Ingress objects—no manifest changes needed.  
+- Result: public, domain-based access to all services, achieved without tearing down your existing Kind environment.
 
 ## Usage 
 
@@ -256,7 +256,6 @@ For simplicity, in this project I used default Kubeflow namespace which is `kube
 kubectl create namespace <your-namespace>
 ```
 After that, you can follow tutorial in this git repo [git-underwrite-mlflow](https://github.com/dohuyduc2002/git-underwrite-mlflow) to setup kubeflow workspace from the UI and git. 
-
 
 ### Using Kserve
 
@@ -318,7 +317,7 @@ git commit -m "......."
 
 ### Testing CICD with Jenkins
 
-Under fixing bug due to using Jenkins on a VM outside of Kind, if using inside Kind, Jenkins can not find docker daemon.
+Under fixing bug due to using Jenkins on a VM outside of Kind, if using inside Kind, Jenkins can not find docker daemon. 
 
 ### Serve model with FastAPI and collect log 
 In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow`. The model joblib is stored in `mlpieline` bucket. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 

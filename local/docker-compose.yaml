@@ -1,22 +1,27 @@
+version: "3.8"
+
 services:
   jenkins:
     image: microwave1005/custom-jenkins:latest
     container_name: jenkins
-    user: root
-    privileged: true
+    user: root                    # cần quyền root để gắn docker.sock
+    privileged: true              # cho phép Docker-in-Docker nếu cần
     ports:
-      - 6060:8080
-      - 50000:50000
+      - "6060:8080"               # UI:  http://<host>:6060
+      - "50000:50000"             # Agent TCP (JNLP)
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      - kind-net
-    extra_hosts:
+      kind:                       # dùng bridge “kind” có sẵn
+        aliases:
+          - jenkins               # tiện gọi nội bộ http://jenkins:8080
+    extra_hosts:                  # ↔ k8s Kind muốn gọi host Docker
       - "host.docker.internal:host-gateway"
 
 networks:
-  kind-net:
-    external: true
+  kind:
+    external: true                # bridge “kind” được Kind tạo sẵn
+
 volumes:
   jenkins_home:
