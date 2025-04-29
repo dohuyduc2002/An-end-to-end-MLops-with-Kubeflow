@@ -5,12 +5,14 @@ __pycache__/
 **/__pycache__/
 src/client/data/application_test.csv
 src/client/data/application_train.csv
+
 gcp/src/client/data/application_test.csv
 gcp/src/client/data/application_train.csv
 ingress/metallb-config.secret.yaml
 gcp/src/client/joblib/processed_train
 gcp/src/client/joblib/processed_test
 /gcp/terraform/gcp-key.json
+
 # ==== Python standard ignore ====
 # Byte-compiled / optimized / DLL files
 *.py[cod]
@@ -78,6 +80,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
 
 # Terraform initialization files
 *.tfstate
