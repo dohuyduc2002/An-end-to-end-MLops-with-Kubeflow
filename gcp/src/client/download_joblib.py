@@ -38,7 +38,11 @@ local_root.mkdir(exist_ok=True)
 def download_prefix(bucket: str, prefix: str):
     print(f"Listing objects in bucket '{bucket}' with prefix '{prefix}'...")
     for obj in client.list_objects(bucket, prefix=prefix, recursive=True):
-        relative_path = Path(obj.object_name).relative_to(prefix)  # relative to the prefix
+        try:
+            relative_path = Path(obj.object_name).relative_to(prefix)  # relative to the prefix
+        except ValueError:
+            print(f"Skipping object '{obj.object_name}' as it does not start with the prefix '{prefix}'")
+            continue
         local_path = local_root / bucket / prefix / relative_path  # recreate full path
 
         # Ensure parent directories exist
