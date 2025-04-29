@@ -9,7 +9,7 @@
 	* [Additional Usage](#additional-usage)
 <!-- /code_chunk_output -->
 
-**Disclaimer**: This is a version 1 of this project, I will keep updating this project to make it more complete and useful.
+**Disclaimer**: This is a version 1.1 of this project, I will keep updating this project to make it more complete and useful.
 
 You can refer to this github repo that I pushed in Kubeflow notebook in this link : [git-underwrite-mlflow](https://github.com/dohuyduc2002/git-underwrite-mlflow), there also documentation in here to setup git and basic usage of Kubeflow notebook workspace. 
 
@@ -22,6 +22,11 @@ This project is an unified platform for Datasciene team whom working on Credit m
 ```txt
 Underwriting prediction
 ├── data.dvc
+├── gcp                                                       * Deployment monitoring, prediction svc to GKE
+│   ├── ingress
+│   ├── src                                                   * Refractored FastAPI for deployment in GKE
+│   ├── terraform                                             * IaC
+│   └── ui                                                    * Streamlit UI for end-user 
 ├── helm                                                       * community helm chart for mlflow, kube-prometheus-stack
 │   ├── mlflow
 │   └── monitor
@@ -68,15 +73,12 @@ Underwriting prediction
 - [x] Add pkl joblib transform process into pipeline and app
 - [x] Add support for other models (e.g., LightGBM, CatBoost)
 - [x] Create automated pipeline for model training and evaluation
-- [ ] Add logging in new pipeline to show log in test
 - [ ] Fix webhook arlert to Discord (Currenly in Firing state)
-- [ ] Using Ingress controller for all services 
-- [ ] Implement more metrics monitoring with Evidently
+- [x] Using Ingress controller for all services 
 - [ ] Refractor test to avoid code duplication
 - [x] Implement Unit test for all functions
 - [x] Add CI/CD pipeline using Jenkins
-- [ ] Insantiate Terraform for IaC to deploy in GCP k8s
-- [ ] Move data into GCP and using DVC for versioning
+- [x] Insantiate Terraform for IaC to deploy in GCP k8s
 - [ ] Implement Data Ingestion, Data Quality check, Data Lake, Data Warehouse, and Data Pipeline
 
 
@@ -184,7 +186,7 @@ helm upgrade --install mlflow community-charts/mlflow \
 Be cause Minio is in `kubeflow` namespace, we need to apply network policy to allow MLflow to access Minio. 
 
 ```bash
-kubectl apply -f mlflow-network-policy.yaml
+k apply -f mlflow-network-policy.yaml
 ```
 
 ### Initialize Jenkins 
@@ -227,34 +229,49 @@ Grafana is a powerful open-source analytics and monitoring solution that integra
 Create json for Grafana dashboard, apply it through configmap in `src/client/grafana` folder
 
 ```bash
-k create configmap model-gini-dashboard \
-  --from-file=model-gini-dashboard.json \
+k create configmap model-dashboard \
+  --from-file=model-dashboard.json \
   -n monitoring \
   -o yaml --dry-run=client | kubectl apply -f -
+
+k label configmap model-dashboard grafana_dashboard=1 -n monitoring --overwrite
+
+k rollout restart deployment monitor-v1-grafana -n monitoring
 ```
 
 ### Ingress controller for all services
 Only ingressed services in Kind cluster, can only access in localhost through domain, using path-based routing, cannot expose to other machine. 
+1. Install MetalLB to provide external IP for Kind cluster 
+```
+k apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.5/config/manifests/metallb-native.yaml
 
-- **Limitation** Kind was created *without* `extraPortMappings`; Docker does **not** let you add host-port mappings to running node-containers, so ports 80/443 stay invisible to the outside world. :contentReference[oaicite:0]{index=0}  
-- All LoadBalancer IPs that MetalLB assigns live only inside Docker’s bridge network, making Ingress reachable solely from the host machine. :contentReference[oaicite:1]{index=1}  
-- Re-creating the Kind cluster is the only “native” way to expose those ports, but you prefer not to delete the current cluster. :contentReference[oaicite:2]{index=2}  
+k create secret generic -n metallb-system memberlist \
+    --from-literal=secretkey="$(openssl rand -base64 128)"
+k apply -f metallb-config.secret.yaml
+```
+2. Install NginX ingress controller 
+```
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace \
+  --set controller.service.type=LoadBalancer \
+  --set controller.service.externalTrafficPolicy=Local
+
+```
+3. Apply all ingress config in `ingress`
+
+- **Limitation** Kind does **not** let you add host-port mappings to running node-containers, so ports 80/443 stay invisible to the outside world. 
+- All LoadBalancer IPs that MetalLB assigns live only inside Docker’s bridge network, making Ingress reachable solely from the host machine. 
 
 - **Proposed solution** Spin up a fresh **Minikube** cluster instead.  
-- Enable the built-in `ingress` and `metallb` add-ons with one command, giving you a real LoadBalancer IP on the host interface. :contentReference[oaicite:3]{index=3}  
-- Optionally start `minikube tunnel` to bridge LoadBalancer traffic to the host if you skip MetalLB. :contentReference[oaicite:4]{index=4}  
-- Add the `ingress-dns` add-on (or normal DNS A record) so domain names resolve to that IP without editing `/etc/hosts`. :contentReference[oaicite:5]{index=5}  
-- With ports 80/443 now exposed at the host’s public address, you can attach a DNS record and obtain TLS certificates as usual.  
-- Kubeflow and other services keep their path-based routing rules inside Ingress objects—no manifest changes needed.  
-- Result: public, domain-based access to all services, achieved without tearing down your existing Kind environment.
 
 ## Usage 
 
 ### Using Kubeflow 
-For simplicity, in this project I used default Kubeflow namespace which is `kubeflow-user-example-com`. You can create your own namespace by using the following command:
-```bash
-kubectl create namespace <your-namespace>
-```
+For simplicity, in this project I used default Kubeflow namespace which is `kubeflow-user-example-com`.
+
 After that, you can follow tutorial in this git repo [git-underwrite-mlflow](https://github.com/dohuyduc2002/git-underwrite-mlflow) to setup kubeflow workspace from the UI and git. 
 
 ### Using Kserve
@@ -344,3 +361,46 @@ k port-forward -n monitoring deployment/prediction-api 8000:8000 8001:8001
 k port-forward -n monitoring prometheus-kps-kube-prometheus-stack-prometheus-0 9090:9090
 ``` 
 
+### GCP deployment
+This is a workaround, I'm deploying monitoring stack, jenkins, and prediction API in GCP. 
+1. Create a GCP project and enable the following APIs:
+   - Kubernetes Engine API
+   - Compute Engine API
+2. Create GKE cluster using Terraform as IaC
+```bash
+cd gcp/terraform
+terraform init
+terraform plan
+terraform apply
+```
+The output from `outputs.tf` file will show you GKE cluster name, endpoint and project id. For this project, I'm using e2-standard-4 with 2 nodes which will be a back-end nodes and a routing node. 
+
+3. Switch context to GKE cluster 
+```bash
+gcloud container clusters get-credentials <cluster-name> --region <region> --project <project-id>
+```
+after this, you can use `kubectl ctx` to switch context to GKE cluster.
+
+4. Deploy monitoring stack, jenkins and prediction API using the same command as above.
+Due to default deployment, all the services are ClusterIP, so I'm using nginx ingress as a LoadBalancer to expose the services to the internet. 
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+k create namespace ingress-nginx
+
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --set controller.service.type=LoadBalancer
+ 
+```
+After that, apply all the ingress yaml files in `gcp/ingress` folder to expose the services to the internet.
+You can check the external IP of the ingress-nginx service by running the following command:
+```bash
+k get svc -n ingress-nginx
+```
+The external path will be: 
+- http://<EXTERNAL-IP>/grafana
+- http://<EXTERNAL-IP>/prometheus
+- http://<EXTERNAL-IP>/alertmanager
+- http://<EXTERNAL-IP>/prediction-api
