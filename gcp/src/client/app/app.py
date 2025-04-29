@@ -22,7 +22,7 @@ JOBLIB_DIR = "joblib"
 
 # ======= Load Transformer and Model ========
 transformer_path = Path(JOBLIB_DIR) / "transformer.joblib"
-model_path = Path(JOBLIB_DIR) / "model.xgb"
+# Removed the redundant model_path assignment to "model.xgb"
 data_path = Path(DATA_DIR) / "application_test.csv"
 model_path = Path(JOBLIB_DIR) / "model.joblib"
 
