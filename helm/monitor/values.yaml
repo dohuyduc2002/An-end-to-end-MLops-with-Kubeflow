@@ -3549,7 +3549,7 @@ prometheus:
     targetPort: 9090
 
     ## Port to expose on each node
-    ## Only used if servicePerReplica.type is 'NodePort'
+    ## Only used if servicePerReplica.type is 'NodePort'helm install monitor_v1 prometheus-community/kube-prometheus-stack
     ##
     nodePort: 30091
 

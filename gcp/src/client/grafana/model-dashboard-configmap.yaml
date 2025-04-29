@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  model-dashboard.json: |
+    {{ include "model-dashboard.json" }}

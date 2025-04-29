@@ -1,4 +1,3 @@
-# metallb-config.yaml
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -6,8 +5,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-    - 172.18.255.200-172.18.255.220   
-
+    - <SET-YOUR-IP-RANGE-HERE>   
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement

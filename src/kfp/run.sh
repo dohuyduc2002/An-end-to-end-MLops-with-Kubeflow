@@ -1,8 +1,8 @@
 cd script
-python dataloader.py
-python preprocess.py
-python modeling.py
+python3 dataloader.py
+python3 preprocess.py
+python3 modeling.py
 
 cd ..
-python pipeline.py
-python main.py
+python3 pipeline.py
+python3 main.py
