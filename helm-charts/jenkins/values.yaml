@@ -1,0 +1,20 @@
+image:
+  repository: microwave1005/custom-jenkins
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: custom-jenkins
+  port: 8080
+  agentPort: 50000
+  type: ClusterIP
+
+persistence:
+  enabled: false
+
+ingress:
+  enabled: false
+  ingressClassName: nginx
+  annotations: {}
+  hosts: []
+

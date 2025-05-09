@@ -20,3 +20,10 @@ kustomize edit fix
 kustomize build apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user | kubectl apply -f -
 
 kubectl -n istio-system describe pod kubeflow-m2m-oidc-configurator-29075670-76qpx
+
+kubectl create secret generic regcred \
+  --from-file=.dockerconfigjson=$HOME/.docker/config.json \
+  --type=kubernetes.io/dockerconfigjson
+
+ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '';
+FLUSH PRIVILEGES;

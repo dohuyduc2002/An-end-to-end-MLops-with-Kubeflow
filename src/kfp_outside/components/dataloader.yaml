@@ -1,0 +1,121 @@
+# PIPELINE DEFINITION
+# Name: dataloader
+# Description: Download a single object from MinIO into a KFP Dataset artifact.
+# Inputs:
+#    bucket_name: str
+#    minio_access_key: str
+#    minio_endpoint: str
+#    minio_secret_key: str
+#    object_name: str
+# Outputs:
+#    output: system.Dataset
+components:
+  comp-dataloader:
+    executorLabel: exec-dataloader
+    inputDefinitions:
+      parameters:
+        bucket_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        object_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-dataloader:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - dataloader
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef dataloader(\n    minio_endpoint: str,\n    minio_access_key:\
+          \ str,\n    minio_secret_key: str,\n    bucket_name: str,\n    object_name:\
+          \ str,\n    output: Output[Dataset],   \n):\n    \"\"\"\n    Download a\
+          \ single object from MinIO into a KFP Dataset artifact.\n    \"\"\"\n  \
+          \  from minio import Minio\n    import os\n\n    os.makedirs(os.path.dirname(output.path),\
+          \ exist_ok=True)\n    client = Minio(\n        minio_endpoint,\n       \
+          \ access_key=minio_access_key,\n        secret_key=minio_secret_key,\n \
+          \       secure=False,\n    )\n    client.fget_object(bucket_name, object_name,\
+          \ output.path)\n    print(f\"Downloaded {object_name} to {output.path}\"\
+          )\n\n"
+        image: microwave1005/scipy-img:latest
+pipelineInfo:
+  name: dataloader
+root:
+  dag:
+    outputs:
+      artifacts:
+        output:
+          artifactSelectors:
+          - outputArtifactKey: output
+            producerSubtask: dataloader
+    tasks:
+      dataloader:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-dataloader
+        inputs:
+          parameters:
+            bucket_name:
+              componentInputParameter: bucket_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            object_name:
+              componentInputParameter: object_name
+        taskInfo:
+          name: dataloader
+  inputDefinitions:
+    parameters:
+      bucket_name:
+        parameterType: STRING
+      minio_access_key:
+        parameterType: STRING
+      minio_endpoint:
+        parameterType: STRING
+      minio_secret_key:
+        parameterType: STRING
+      object_name:
+        parameterType: STRING
+  outputDefinitions:
+    artifacts:
+      output:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1

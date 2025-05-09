@@ -1,0 +1,12 @@
+FROM python:3.11.11-slim
+
+WORKDIR /app
+COPY . /app
+
+ENV PYTEST_DOCKER=1
+
+COPY src/kfp_outside/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install pytest mlflow kubernetes  
+
+CMD ["pytest", "-s", "-o", "log_cli=true", "--log-cli-level=DEBUG", "testing/integration/test_pipeline_run.py"]
