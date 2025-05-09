@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 import mlflow
 from mlflow.tracking import MlflowClient
-import mlflow.xgboost
+
 
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
@@ -22,14 +22,19 @@ from loguru import logger
 from dotenv import load_dotenv
 import os
 
-load_dotenv()  # Loads from .env by default
+load_dotenv(override=False)
 
 access_key = os.getenv("MINIO_ACCESS_KEY")
 secret_key = os.getenv("MINIO_SECRET_KEY")
+minio_endpoint = os.getenv("MINIO_ENDPOINT") 
 
+
+os.environ["AWS_ACCESS_KEY_ID"] = access_key
+os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
+os.environ["MLFLOW_S3_ENDPOINT_URL"] = f"http://{minio_endpoint}"
 
 minio_client = Minio(
-    "minio-service.kubeflow.svc.cluster.local:9000",
+    minio_endpoint,
     access_key=access_key,
     secret_key=secret_key,
     secure=False,
@@ -46,14 +51,28 @@ else:
     raise FileNotFoundError("transformer.joblib not found.")
 
 
-mlflow.set_tracking_uri("http://mlflow.mlflow.svc:5000")
+model_name = os.getenv("MODEL_NAME")
+model_type = os.getenv("MODEL_TYPE")
+
+mlflow_uri = os.getenv("MLFLOW_ENDPOINT")
+mlflow.set_tracking_uri(mlflow_uri)
+
 client = MlflowClient()
 versions = (
-    client.get_latest_versions("v2_XGB", stages=["Production"])
-    or client.get_latest_versions("v2_XGB", stages=["None"])
+    client.get_latest_versions(model_name, stages=["Production"])
+    or client.get_latest_versions(model_name, stages=["None"])
 )
-xgb_model = mlflow.xgboost.load_model(f"models:/v2_XGB/{versions[0].version}")
-logger.info(f"Loaded model from registry")
+
+model_uri = f"models:/{model_name}/{versions[0].version}"
+
+if model_type == "xgb":
+    model = mlflow.xgboost.load_model(model_uri)
+elif model_type == "lgbm":
+    model = mlflow.lightgbm.load_model(model_uri)
+else:
+    raise ValueError(f"Unsupported model type: {model_type}")
+
+logger.info(f"Loaded {model_type.upper()} model '{model_name}' from {model_uri}")
 
 # ========== OpenTelemetry gauges ===========================
 reader = PrometheusMetricReader()
@@ -230,7 +249,7 @@ async def predict(items: List[RawItem] = Body(...)) -> Dict[str, Any]:
     X_binned = binning.transform(df_raw)
     X = selector.transform(X_binned)
 
-    proba = xgb_model.predict_proba(X)
+    proba = model.predict_proba(X)
 
     preds = np.argmax(proba, axis=1)
 
@@ -264,7 +283,7 @@ def predict_by_id(id: int) -> Dict[str, Any]:
     t0 = time()
 
     try:
-        response = minio_client.get_object("sample-data", "data/data/application_test.csv")
+        response = minio_client.get_object("sample-data", "data/application_test.csv")
         df_all = pd.read_csv(BytesIO(response.read()))
     except Exception as e:
         raise RuntimeError(f"Failed to fetch test data from MinIO: {str(e)}")
@@ -281,7 +300,7 @@ def predict_by_id(id: int) -> Dict[str, Any]:
     X_binned = binning.transform(df_row)
     X = selector.transform(X_binned)
 
-    proba = xgb_model.predict_proba(X)
+    proba = model.predict_proba(X)
     preds = np.argmax(proba, axis=1)
 
     entropies = [entropy(p) for p in proba]

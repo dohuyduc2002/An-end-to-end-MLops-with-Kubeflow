@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.service.name }}
+  namespace: {{ .Values.service.namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.service.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.service.name }}
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: MLFLOW_URI
+              value: {{ .Values.env.MLFLOW_URI | quote }}
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: {{ .Values.env.MLFLOW_S3_ENDPOINT_URL | quote }}
+            - name: AWS_USE_SSL
+              value: {{ .Values.env.AWS_USE_SSL | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.env.AWS_REGION | quote }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.accessKeyName }}
+                  key: {{ .Values.secrets.accessKeyId }}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.accessKeyName }}
+                  key: {{ .Values.secrets.secretAccessKey }}
+          ports:
+            - containerPort: {{ .Values.service.ports.http }}
+            - containerPort: {{ .Values.service.ports.metrics }}
+

@@ -1,0 +1,35 @@
+replicaCount: 1
+
+image:
+  repository: microwave1005/prediction-api
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: prediction-api
+  namespace: api
+  ports:
+    http: 8000
+    metrics: 8001
+
+env:
+  MLFLOW_URI: "http://mlflow.mlflow.svc.cluster.local:5000"
+  MLFLOW_S3_ENDPOINT_URL: "http://minio-service.kubeflow.svc.cluster.local:9000"
+  AWS_USE_SSL: "false"
+  AWS_REGION: "us-east-1"
+
+secrets:
+  accessKeyName: minio-creds
+  accessKeyId: access_key
+  secretAccessKey: secret_key
+
+monitoring:
+  enabled: true
+  releaseLabel: kps
+  interval: 15s
+
+ingress:
+  enabled: false
+  ingressClassName: nginx
+  annotations: {}
+  rules: []

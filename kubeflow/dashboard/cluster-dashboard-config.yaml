@@ -1,0 +1,18 @@
+apiVersion: kubeflow.org/v1beta1
+kind: ClusterDashboardConfig
+metadata:
+  name: centraldashboard-config
+  namespace: kubeflow
+spec:
+  links:
+    - text: "MLflow"
+      url: "/mlflow"
+      icon: "assessment"
+    - text: "Grafana"
+      url: "/grafana"
+      icon: "dashboard"
+    - text: "Prometheus"
+      url: "/prometheus"
+      icon: "leaderboard"
+
+
