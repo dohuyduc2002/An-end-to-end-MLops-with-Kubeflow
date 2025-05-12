@@ -3,11 +3,11 @@
 * Contents:
   * [Introduction](#introduction)
 	* [Repository structure](#repository-structure)
-  * [Setting up GCP, GKE](#setupping-gcp-gke)
+  * [Setting up GCP](#setting-up-gcp)
 	* [Prerequisites installation](#prerequisites-installation)
 	* [Component Preparation](#component-preparation)
 	* [Usage](#usage)
-	* [Additional Usage](#additional-usage)
+	* [Testing CICD with Jenkins](#testing-cicd-with-jenkins)
 <!-- /code_chunk_output -->
 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
@@ -21,59 +21,43 @@ This project is an unified platform for Datasciene team whom working on Credit m
 
 ## Repository structure
 ```txt
-Underwriting prediction
-├── gcp                                                       * Deployment monitoring, prediction svc to GKE
-│   ├── ingress
-│   ├── src                                                   * Refractored FastAPI for deployment in GKE
-│   ├── terraform                                             * IaC
-│   └── ui                                                    * Streamlit UI for end-user 
-├── helm                                                       * community helm chart for mlflow, kube-prometheus-stack
-│   ├── mlflow
-│   └── monitor
-├── ingress                                                    * Ingress controller for all services
-│   ├── allow-ingress-to-minio.yaml
-│   ├── ingressgateway-allow-kubeflow.yaml
-│   ├── ingress-jenkins.yaml
-│   ├── ingress-kubeflow.yaml
-│   ├── ingress-minio.yaml
-│   ├── ingress-mlflow.yaml
-│   ├── ingress-monitoring.yaml
-│   └── metallb-config.yaml
-├── Jenkinsfile
-├── kubeflow                                                   * Kubeflow manifest v1.10
-│   ├── kubeflow-cluster.yaml
-│   ├── manifests
-│   ├── namespace
-│   └── README.md
+Root
+├── dockerfiles                         *  All Dockerfiles for the project
+├── helm-charts                         *  Helm charts for deploying components in this project            
+│   ├── api                             *  Custom Helm chart for the API component                  
+│   ├── jenkins                         *  Custom Helm chart for Jenkins
+│   ├── minio                           *  Custom Helm chart values for MinIO
+│   ├── mlflow                          *  Custom Helm chart values for MLflow
+│   └── monitoring                      *  Custom Helm chart values for Prometheus and Grafana
+├── Jenkinsfile                         *  Jenkins pipeline file for CI/CD
+├── kubeflow                            *  Kubeflow deployment files
+│   ├── dashboard                       *  Custom Kubeflow Central Dashboard
+│   ├── kfp-access                      *  Custom Kubeflow Pipelines access in Notebook
+│   ├── kind.yaml
+│   ├── manifests                       *  Kubeflow manifests v1.10
+│   ├── notebook                        *  Custom Kubeflow Notebook
+│   ├── README.md
+│   └── svc_mesh                        *  Istio service mesh to export Kubeflow services
 ├── LICENSE
-├── local                                                      * Custom Jenkins
-│   ├── docker-compose.yaml
-│   ├── jenkins
-│   └── jenkins-service.yaml
-├── media
-│   └── diagram.jpg
+├── media                               *  Media files for the project
+│   └── diagram.jpg
+├── patch_vs.sh                         *  Script to patch the Kubeflow virtualservice and gateway
 ├── README.md
-└── src                                                      
-    ├── client                                                 * Source code for client api endpoint and test
-    │   ├── app
-    │   ├── data
-    │   ├── Dockerfile
-    │   ├── download_data.sh
-    │   ├── download_joblib.py
-    │   ├── grafana
-    │   ├── joblib
-    │   ├── k8s
-    │   ├── monitor
-    │   ├── requirements.txt
-    │   ├── test
-    │   └── test.json
-    └── kfp                                                   * Source code to run kubeflow pipeline in local 
+├── src                                 *  Source code for the project
+│   ├── client                          *  Client code for the project
+│   ├── kfp_outside                     *  Code for running Kubeflow pipelines outside of the Kubeflow cluster
+│   └── ui                              *  UI code for the project
+├── terraform                           *  Terraform files for deploying the project
+│   ├── gce                             *  Deploying Jenkins in GCE 
+│   └── gke                             *  Deploying the project in GKE
+├── testing                             *  Testing files for the project
 ```
 ## To-Do
 - [ ] Implement Data Ingestion, Data Quality check, Data Lake, Data Warehouse, and Data Pipeline
-
-## Setting up GCP, GKE
-### Google Cloud Platform: Account Registration & Project Billing
+- [ ] Implement Kserve for model serving
+- [ ] Code refactoring and deduplication
+- [ ] Add media files 
+## Setting up GCP
 
 1. Create a Google Cloud account and set up billing.
 After creating GCP account, create a new project and enable billing for it. You can follow the official [GCP account registration guide](https://cloud.google.com/docs/authentication/getting-started) to create a GCP account and set up billing.
@@ -88,10 +72,7 @@ Navigate to [Kubernetes Engine API UI](https://console.cloud.google.com/marketpl
 Because this project is running on GKE, you need to install gcloud cli to manage GCP resources. You can follow the official [Gcloud installation guide](https://cloud.google.com/sdk/docs/install) 
 
 3. Create GCP service account
-To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account guide](https://cloud.google.com/iam/docs/service-accounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform` folder.
-
-4. Install Terraform
-Terraform is an open-source infrastructure as code (IaC) tool that allows you to define and provision infrastructure using a declarative configuration language. It enables you to manage cloud resources, such as virtual machines, networks, and storage, in a consistent and repeatable manner. You can follow the official [Terraform installation guide](https://learn.hashicorp.com/tutorials/terraform/install-cli) to install Terraform.
+To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account guide](https://cloud.google.com/iam/docs/service-accounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform/gce` and `terraform/gke` folder.
 
 ## Prerequisites installation
 This project is running on GKE cluster. For minikube, I'm fixing networking issue with Jenkins to run CI in KFP pipeline
@@ -101,7 +82,7 @@ This is the environment I used to run this project:
 - Kustomize Version: v5.5.0
 - Server Version: v1.32.0
 
-### Install Golang
+1. Install Kubernetes
 
 Since both Kubernetes and Kind are written in Golang, you need to install Golang first.  
 You can follow the official [Golang installation guide](https://golang.org/doc/install) or run the following commands:
@@ -133,13 +114,18 @@ echo "alias kubectx='kubectl ctx'" >> ~/.bashrc
 echo "alias kubens='kubectl ns'" >> ~/.bashrc
 ```
 
+2. Install Terraform
+
+Terraform is an open-source infrastructure as code (IaC) tool that allows you to define and provision infrastructure using a declarative configuration language. It enables you to manage cloud resources, such as virtual machines, networks, and storage, in a consistent and repeatable manner. You can follow the official [Terraform installation guide](https://learn.hashicorp.com/tutorials/terraform/install-cli) to install Terraform.
+
 ### GCP deployment
 1. Create a GCP project and enable the following APIs:
    - Kubernetes Engine API
    - Compute Engine API
 2. Create GKE cluster using Terraform as IaC
 ```bash
-cd gcp/terraform
+cd terraform/gke
+
 terraform init
 terraform plan
 terraform apply
@@ -153,7 +139,7 @@ gcloud container clusters get-credentials <cluster-name> --region <region> --pro
 ```
 after this, you can use `kubectx` to switch context to GKE cluster.
 
-That all the prerequisites you need to install. 
+That all the infrastucture you need to install. 
 
 ## Component Preparation
 In this section, I will guide you to install and configure all the components in this project.
@@ -180,7 +166,7 @@ Wait for a few minutes until `istio-ingressgateway-lb` service got `EXTERNAL-IP`
 k get svc istio-ingressgateway-lb -n istio-system
 ```
 
-2. To ensure that service mesh is working inside the cluster, you have to patch all virtual services in Kubeflow to use the new Istio LoadBalancer service. *Remember to change the HOST="kubeflow.<ExternalIP>.nip.io"* in patch_vs.sh file to your own external IP address. 
+2. To ensure that service mesh is working inside the cluster, you have to patch all virtual services in Kubeflow to use the new Istio LoadBalancer service. *Remember to change the HOST="kubeflow.<ExternalIP>.nip.io"* in `patch_vs.sh` file to your own Istio LB external IP address. 
 ```bash 
 bash patch_vs.sh
 ```
@@ -226,7 +212,7 @@ helm install minio minio/minio \
   --set rootPassword=minio123 \
   --set persistence.size=10Gi \
   --set service.type=ClusterIP \
-  --set resources.requests.memory=4Gi 
+  --set resources.requests.memory=2Gi 
 
 ```
 ### Initialize Mlflow 
@@ -235,22 +221,26 @@ MLflow is an open-source platform designed to manage the end-to-end machine lear
 Im using MLflow community helm chart to deploy MLflow in this project. You can find the helm chart in `mlflow` folder which is cloned from this repo [MLflow community helm chart](https://github.com/community-charts/helm-charts/tree/main/charts/mlflow)
 
 ```bash
+cd helm-charts/mlflow
 helm install mlflow community-charts/mlflow \
   --namespace mlflow \
-  --create-namespace 
-```
-I'm using Postgres as backend store and Minio as artifact store. This can be configure using this cmd
+  --create-namespace \
+  --set ingress.enabled=false \
+  -f custom-values.yaml
 
+```
+We initialize Postgres database for MLflow backend store.
 ```bash
 cd helm-charts/mlflow
 k apply -f postgres.yaml
 ```
-After initialize MLflow, we bind to Minio as artifact store
+I'm using Postgres as backend store and Minio as artifact store. This can be configure using this cmd
 
 ```bash
 helm upgrade --install mlflow community-charts/mlflow \
   --namespace mlflow \
   --create-namespace \
+  --reuse-values \
   \
   --set backendStore.databaseMigration=true \
   --set backendStore.postgres.enabled=true \
@@ -275,30 +265,6 @@ helm upgrade --install mlflow community-charts/mlflow \
   --set serviceMonitor.enabled=true
 ```
 
-### Initialize Jenkins 
-Jenkins is an open-source automation server that enables developers to build, test, and deploy their software. It provides hundreds of plugins to support building, deploying, and automating any project.
-
-In this repo, I'm building a custom Jenkins image with all the dependencies and plugins that I need to run the pipeline. You can find the Dockerfile in `dockerfiles/Dockerfile.jk` . This Dockerfile will be used to build Jenkins service using helm.
-
-1st, you need to build the Docker image for Jenkins using the following command:
-
-```bash
-docker build -t microwave1005/custom-jenkins -f dockerfiles/Dockerfile.jk .
-```
-
-```bash
-helm install jenkins ./jenkins -n cicd --create-namespace
-```
-To get user and password for Jenkins, you can run the following command:
-
-```bash
-k get pods -n cicd
-```
-After that using this command to get password:
-```bash
-k exec -n cicd <JENKINS-POD> -- cat /var/jenkins_home/secrets/initialAdminPassword
-```
-
 ### Initialize Prometheus-Grafana
 To monitor the system, I'm using Prometheus and Grafana. Prometheus is an open-source systems monitoring and alerting toolkit originally built at SoundCloud. Grafana is an open-source platform for monitoring and observability. I'm using Kube-prometheus-stack helm chart to deploy Prometheus and Grafana in this project. You can find the helm chart in `monitor` folder which is cloned from this repo [Kube-prometheus-stack helm chart](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack)
 
@@ -310,7 +276,8 @@ helm install kps prometheus-community/kube-prometheus-stack -n monitoring --crea
 I'm setting up Prometheus to monitor system metric through OpenTelemetry. I already added alert rules in the `helm-charts/monitoring/custom-values.yaml` file. 
 
 #### Grafana
-Grafana is a powerful open-source analytics and monitoring solution that integrates with various data sources, including Prometheus. It provides a rich set of features for visualizing and analyzing time-series data.
+Grafana is a powerful open-source analytics and monitoring solution that integrates with various data sources, including Prometheus. It provides a rich set of features for visualizing and analyzing time-series data. I'm also modified Grafana in `helm-charts/monitoring/custom-values.yaml`.
+
 
 Create json for Grafana dashboard, apply it through configmap in `src/client/grafana` folder
 
@@ -326,9 +293,38 @@ k label configmap model-dashboard grafana_dashboard=1 -n monitoring --overwrite
 kubectl rollout restart deployment kps-grafana -n monitoring
 ```
 
-### Ingress controller for all services
-1. Install NginX ingress controller 
+### Serve model with FastAPI and collect log 
+In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpieline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 
+
+I'm also collecting prediction log using OpenTelemetry and send it back to Prometheus. The metrics dashboard is created in Grafana throguh a configmap that created above .
+
+There are 2 ways to deploy endpoint api
+1. Manual: You can deploy the endpoint manually by using the following command:
+2. CICD : The endpoint is automatically deployed when the Jenkins pipeline run success 
+
+In this section, we will use the manual way to deploy the endpoint API.
+
+```bash
+helm install api ./api \
+  --namespace api \
+  --create-namespace \
+  --set monitoring.enabled=true \`
+  --set image.tag=latest \
+  --set replicaCount=1
 ```
+Because endpoint app is pulling artefact from Minio, you need to add secret to this namespace. 
+```bash
+k create secret generic minio-creds \
+  --from-literal=access_key=minio \
+  --from-literal=secret_key=minio123 \
+  -n api
+```
+
+### Ingress controller for all services
+While using GKE cluster, you can not use `kubectl port-forward` to access the services. To expose all services to the internet, you need to install NginX ingress controller and create ingress for each service. Kubeflow is already exposed in previous step.
+1. Install NginX ingress controller 
+
+```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 
 helm install ingress-nginx ingress-nginx/ingress-nginx \
@@ -336,38 +332,27 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
   --create-namespace \
   --set controller.service.type=LoadBalancer \
   --set controller.service.externalTrafficPolicy=Cluster
+  --set controller.resources.requests.cpu=50m \
+  --set controller.resources.requests.memory=64Mi
 ```
 2. Apply ingress config in `ingress` folder to ingress minio 
 
 3. Helm upgrade all services with custom `values.yaml`
-a. Jenkins
-```bash
-cd helm-charts
 
-helm upgrade jenkins ./jenkins -n cicd \
-  --set service.name=custom-jenkins \
-  --set service.port=8080 \
-  --set ingress.enabled=true \
-  --set ingress.ingressClassName=nginx \
-  --set ingress.annotations."nginx\.ingress\.kubernetes\.io/rewrite-target"="/" \
-  --set ingress.hosts[0].host=jenkins.dhduc.com \
-  --set ingress.hosts[0].paths[0].path="/" \
-  --set ingress.hosts[0].paths[0].pathType="Prefix"
-
-
-```
-b. Mlflow
+a. Mlflow
 ```bash
 cd helm-charts/mlflow
 
 helm upgrade mlflow community-charts/mlflow \
   --namespace mlflow \
-  -f custom-values.yaml \
+  --reuse-values \
+  --set ingress.enabled=true \
   --set ingress.hosts[0].host=mlflow.ducdh.com \
   --set ingress.hosts[0].paths[0].path=/ \
   --set ingress.hosts[0].paths[0].pathType=Prefix
+
 ```
-c. Monitoring (Grafana, Prometheus, Alertmanager)
+b. Monitoring (Grafana, Prometheus, Alertmanager)
 ```bash
 cd helm-charts/monitoring
 helm upgrade kps prometheus-community/kube-prometheus-stack \
@@ -375,28 +360,25 @@ helm upgrade kps prometheus-community/kube-prometheus-stack \
   -f custom-values.yaml \
   --reuse-values
 ```
-d. Prediction API
+c. Prediction API
 ```bash
 helm upgrade api ./api \
   -n api \
+  --reuse-values \
   --set ingress.enabled=true \
   --set ingress.rules[0].host=api.ducdh.com \
-  --set ingress.rules[0].paths[0].path="/api" \
+  --set ingress.rules[0].paths[0].path="/" \
   --set ingress.rules[0].paths[0].pathType=Prefix \
   --set ingress.rules[0].paths[0].serviceName=prediction-api \
   --set ingress.rules[0].paths[0].servicePort=8000
 
+```
 d. Minio
 ```bash
 cd helm-charts/minio
 helm upgrade minio minio/minio \
   --namespace minio \
-  --set mode=standalone \
-  --set rootUser=minio \
-  --set rootPassword=minio123 \
-  --set persistence.size=10Gi \
-  --set service.type=ClusterIP \
-  --set resources.requests.memory=4Gi \
+  --reuse-values \
   --set ingress.enabled=true \
   --set ingress.ingressClassName=nginx \
   --set ingress.hosts[0]=minio.ducdh.com \
@@ -411,13 +393,12 @@ After that, to create a mapping between the domain name and the external IP addr
 ```bash
 sudo nano /etc/hosts
 
-<EXTERNAL-IP> jenkins.dhduc.com
-<EXTERNAL-IP> mlflow.ducdh.com
-<EXTERNAL-IP> api.ducdh.com
-<EXTERNAL-IP> minio.ducdh.com
-<EXTERNAL-IP> console.minio.ducdh.com
-<EXTERNAL-IP> prometheus.ducdh.com
-<EXTERNAL-IP> grafana.ducdh.com
+<EXTERNAL-IP-NGINX> mlflow.ducdh.com
+<EXTERNAL-IP-NGINX> api.ducdh.com
+<EXTERNAL-IP-NGINX> minio.ducdh.com
+<EXTERNAL-IP-NGINX> console.minio.ducdh.com
+<EXTERNAL-IP-NGINX> prometheus.ducdh.com
+<EXTERNAL-IP-NGINX> grafana.ducdh.com
 
 ```
 
@@ -446,7 +427,6 @@ Ideal for teams working on MLOps, Kubeflow Pipelines simplifies the path from pr
 image pipeline 
 
 #### Using Kubeflow Pipeline outside the cluster
-**Note**: Under fixing bug to access KFP outside the cluster with out using port-forwarding.
 
 1. First, you have to fill this .env file in `src/kfp_outside` folder to provide credential for Kubeflow pipeline, my credential is 
 ```
@@ -498,31 +478,62 @@ echo "Check data in Minio"
 mc ls --recursive localMinio/sample-data
 
 ```
-### Testing CICD with Jenkins
-Under fixing bug due to using Jenkins on a VM outside of Kind, if using inside Kind, Jenkins can not find docker daemon. 
 
-### Serve model with FastAPI and collect log 
-In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpieline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 
+### Config Kubeflow Central Dashboard
+Kubeflow Central Dashboard allow users to manage their Kubeflow resources and access various components of the Kubeflow ecosystem. It provides a unified interface for users to interact with different Kubeflow components, such as Pipelines, Katib, Kserve, and more. It can also be used to add others outside components with Configmap through virtual service. 
 
-I'm also collecting prediction log using OpenTelemetry and send it back to Prometheus. The metrics dashboard is created in Grafana throguh a configmap that created above .
+There is 2 ways to add new components to the dashboard:
+1. Internal Link: Run inside Kubeflow central dashboard, require sidecar proxy to Istio
+2. External Link: Create a link to external service, no need sidecar proxy to Istio
 
-There are 2 ways to deploy endpoint api
-1. CICD : The endpoint is automatically deployed when the Jenkins pipeline run success 
-2. Manual: You can deploy the endpoint manually by using the following command:
-
+For simplicity, I'm using external link method the Central Dashboard configmap is already created in `kubeflow/dashboard` folder. In this configmap, I added external link to Mlflow, Minio, Grafana and Jenkins.
 ```bash
-helm install api ./api \
-  --namespace api \
-  --create-namespace \
-  --set monitoring.enabled=true \
-  --set image.tag=latest \
-  --set replicaCount=1
-```
-Because endpoint app is pulling artefact from Minio, you need to add secret to this namespace. 
-```bash
-k create secret generic minio-creds \
-  --from-literal=access_key=minio \
-  --from-literal=secret_key=minio123 \
-  -n api
+cd kubeflow/dashboard
+k apply -f dashboard-configmap.yaml
 ```
 
+## Testing CICD with Jenkins
+Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.jk` file. This image is used to run Jenkins pipeline and build Docker images for the project.
+
+```bash
+docker build -t microwave1005/custom-jenkins -f dockerfiles/Dockerfile.jk .
+```
+
+Due to GKE runtime is `containerd`, Jenkins cannot mount to `/var/run/docker.sock:/var/run/docker.sock` , so I'm using Jenkins in GCE instance. You can use the following command to create a GCE instance with Jenkins installed. Before create GCE instance, there you will need to config your external IP from previous ingress step in GKE into `terraform.tfvars` file due to my CICD pipeline will need to access internal service from GKE cluster. 
+
+```bash
+cd terraform/gce
+terraform init
+terraform plan
+terraform apply
+```
+In this folder, the startup script will install Jenkins and all the dependencies for Jenkins. After that, you can access Jenkins using the GCE external IP address. I already use Nginx reverse proxy to route all traffic to Jenkins due to this VM only run Jenkins.
+
+Before access Jenkins, you need to map the GCE external IP address to your local machine. You can do this by adding the following line to your `/etc/hosts` file:
+
+```bash
+sudo nano /etc/hosts
+<EXTERNAL-IP-GCE> jenkins.ducdh.com
+```
+
+### Initialize Jenkins 
+Jenkins is an open-source automation server that enables developers to build, test, and deploy their software. It provides hundreds of plugins to support building, deploying, and automating any project.
+
+In this repo, I'm building a custom Jenkins image with all the dependencies and plugins that I need to run the pipeline. You can find the Dockerfile in `dockerfiles/Dockerfile.jk` . This Dockerfile will be used to build Jenkins service using helm.
+
+1st, you need to build the Docker image for Jenkins using the following command:
+
+
+
+```bash
+helm install jenkins ./jenkins -n cicd --create-namespace
+```
+To get user and password for Jenkins, you can run the following command:
+
+```bash
+k get pods -n cicd
+```
+After that using this command to get password:
+```bash
+k exec -n cicd <JENKINS-POD> -- cat /var/jenkins_home/secrets/initialAdminPassword
+```
