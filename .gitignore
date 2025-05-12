@@ -13,7 +13,7 @@ gcp/src/client/joblib/processed_train
 gcp/src/client/joblib/processed_test
 /gcp/terraform/gcp-key.json
 src/pipeline_deprecated
-terraform/gcp-key.json
+gcp-key.json
 data
 a 
 

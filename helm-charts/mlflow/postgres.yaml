@@ -51,6 +51,13 @@ spec:
               value: postgres
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: "20m"
+              memory: "64Mi"
+            limits:
+              cpu: "80m"
+              memory: "128Mi"
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgres-storage

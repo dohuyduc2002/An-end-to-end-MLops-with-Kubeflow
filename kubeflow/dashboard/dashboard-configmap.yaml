@@ -1,0 +1,159 @@
+apiVersion: v1
+data:
+  links: |-
+    {
+        "menuLinks": [
+            {
+                "icon": "book",
+                "link": "/jupyter/",
+                "text": "Notebooks",
+                "type": "item"
+            },
+            {
+                "icon": "assessment",
+                "link": "/tensorboards/",
+                "text": "TensorBoards",
+                "type": "item"
+            },
+            {
+                "icon": "device:storage",
+                "link": "/volumes/",
+                "text": "Volumes",
+                "type": "item"
+            },
+            {
+                "icon": "kubeflow:katib",
+                "link": "/katib/",
+                "text": "Katib Experiments",
+                "type": "item"
+            },
+            {
+                "type": "item",
+                "link": "/kserve-endpoints/",
+                "text": "KServe Endpoints",
+                "icon": "kubeflow:models"
+            },
+            {
+                "icon": "kubeflow:pipeline-centered",
+                "items": [
+                    {
+                        "link": "/pipeline/#/pipelines",
+                        "text": "Pipelines",
+                        "type": "item"
+                    },
+                    {
+                        "link": "/pipeline/#/experiments",
+                        "text": "Experiments",
+                        "type": "item"
+                    },
+                    {
+                        "link": "/pipeline/#/runs",
+                        "text": "Runs",
+                        "type": "item"
+                    },
+                    {
+                        "link": "/pipeline/#/recurringruns",
+                        "text": "Recurring Runs",
+                        "type": "item"
+                    },
+                    {
+                        "link": "/pipeline/#/artifacts",
+                        "text": "Artifacts",
+                        "type": "item"
+                    },
+                    {
+                        "link": "/pipeline/#/executions",
+                        "text": "Executions",
+                        "type": "item"
+                    }
+                ],
+                "text": "Pipelines",
+                "type": "section"
+            }
+        ],
+        "externalLinks": [
+            {
+              "text": "MLflow",
+              "link": "http://mlflow.ducdh.com",
+              "icon": "analytics"
+            },
+            {
+              "text": "MinIO",
+              "link": "http://console.minio.ducdh.com",
+              "icon": "storage"
+            },
+            {
+              "text": "Grafana",
+              "link": "http://grafana.ducdh.com",
+              "icon": "monitor"
+            },
+            {
+              "text": "Jenkins",
+              "link": "http://jenkins.ducdh.com",
+              "icon": "code"
+            }
+        ],
+        "documentationItems": [
+            {
+                "desc": "The Kubeflow website",
+                "link": "https://www.kubeflow.org/",
+                "text": "Kubeflow Website"
+            },
+            {
+                "desc": "Documentation for Kubeflow Pipelines",
+                "link": "https://www.kubeflow.org/docs/components/pipelines/",
+                "text": "Kubeflow Pipelines Documentation"
+            },
+            {
+                "desc": "Documentation for Kubeflow Notebooks",
+                "link": "https://www.kubeflow.org/docs/components/notebooks/",
+                "text": "Kubeflow Notebooks Documentation"
+            },
+            {
+                "desc": "Documentation for Kubeflow Training Operator",
+                "link": "https://www.kubeflow.org/docs/components/training/",
+                "text": "Kubeflow Training Operator Documentation"
+            },
+            {
+                "desc": "Documentation for Katib",
+                "link": "https://www.kubeflow.org/docs/components/katib/",
+                "text": "Katib Documentation"
+            }
+        ],
+        "quickLinks": [
+            {
+                "desc": "Kubeflow Notebooks",
+                "link": "/jupyter/new",
+                "text": "Create a new Notebook"
+            },
+            {
+                "desc": "Kubeflow Pipelines",
+                "link": "/pipeline/#/pipelines",
+                "text": "Upload a Pipeline"
+            },
+            {
+                "desc": "Pipelines",
+                "link": "/pipeline/#/runs",
+                "text": "View Pipeline Runs"
+            }
+        ]
+    }
+  settings: |-
+    {
+      "DASHBOARD_FORCE_IFRAME": true
+    }
+kind: ConfigMap
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"links":"{\n    \"menuLinks\": [\n        {\n            \"icon\": \"book\",\n            \"link\": \"/jupyter/\",\n            \"text\": \"Notebooks\",\n            \"type\": \"item\"\n        },\n        {\n            \"icon\": \"assessment\",\n            \"link\": \"/tensorboards/\",\n            \"text\": \"TensorBoards\",\n            \"type\": \"item\"\n        },\n        {\n            \"icon\": \"device:storage\",\n            \"link\": \"/volumes/\",\n            \"text\": \"Volumes\",\n            \"type\": \"item\"\n        },\n        {\n            \"icon\": \"kubeflow:katib\",\n            \"link\": \"/katib/\",\n            \"text\": \"Katib Experiments\",\n            \"type\": \"item\"\n        },\n        {\n            \"type\": \"item\",\n            \"link\": \"/kserve-endpoints/\",\n            \"text\": \"KServe Endpoints\",\n            \"icon\": \"kubeflow:models\"\n        },\n        {\n            \"icon\": \"kubeflow:pipeline-centered\",\n            \"items\": [\n                {\n                    \"link\": \"/pipeline/#/pipelines\",\n                    \"text\": \"Pipelines\",\n                    \"type\": \"item\"\n                },\n                {\n                    \"link\": \"/pipeline/#/experiments\",\n                    \"text\": \"Experiments\",\n                    \"type\": \"item\"\n                },\n                {\n                    \"link\": \"/pipeline/#/runs\",\n                    \"text\": \"Runs\",\n                    \"type\": \"item\"\n                },\n                {\n                    \"link\": \"/pipeline/#/recurringruns\",\n                    \"text\": \"Recurring Runs\",\n                    \"type\": \"item\"\n                },\n                {\n                    \"link\": \"/pipeline/#/artifacts\",\n                    \"text\": \"Artifacts\",\n                    \"type\": \"item\"\n                },\n                {\n                    \"link\": \"/pipeline/#/executions\",\n                    \"text\": \"Executions\",\n                    \"type\": \"item\"\n                }\n            ],\n            \"text\": \"Pipelines\",\n            \"type\": \"section\"\n        }\n    ],\n    \"externalLinks\": [],\n    \"documentationItems\": [\n        {\n            \"desc\": \"The Kubeflow website\",\n            \"link\": \"https://www.kubeflow.org/\",\n            \"text\": \"Kubeflow Website\"\n        },\n        {\n            \"desc\": \"Documentation for Kubeflow Pipelines\",\n            \"link\": \"https://www.kubeflow.org/docs/components/pipelines/\",\n            \"text\": \"Kubeflow Pipelines Documentation\"\n        },\n        {\n            \"desc\": \"Documentation for Kubeflow Notebooks\",\n            \"link\": \"https://www.kubeflow.org/docs/components/notebooks/\",\n            \"text\": \"Kubeflow Notebooks Documentation\"\n        },\n        {\n            \"desc\": \"Documentation for Kubeflow Training Operator\",\n            \"link\": \"https://www.kubeflow.org/docs/components/training/\",\n            \"text\": \"Kubeflow Training Operator Documentation\"\n        },\n        {\n            \"desc\": \"Documentation for Katib\",\n            \"link\": \"https://www.kubeflow.org/docs/components/katib/\",\n            \"text\": \"Katib Documentation\"\n        }\n    ],\n    \"quickLinks\": [\n        {\n            \"desc\": \"Kubeflow Notebooks\",\n            \"link\": \"/jupyter/new\",\n            \"text\": \"Create a new Notebook\"\n        },\n        {\n            \"desc\": \"Kubeflow Pipelines\",\n            \"link\": \"/pipeline/#/pipelines\",\n            \"text\": \"Upload a Pipeline\"\n        },\n        {\n            \"desc\": \"Pipelines\",\n            \"link\": \"/pipeline/#/runs\",\n            \"text\": \"View Pipeline Runs\"\n        }\n    ]\n}","settings":"{\n  \"DASHBOARD_FORCE_IFRAME\": true\n}"},"kind":"ConfigMap","metadata":{"annotations":{},"labels":{"app":"centraldashboard","app.kubernetes.io/component":"centraldashboard","app.kubernetes.io/name":"centraldashboard","kustomize.component":"centraldashboard"},"name":"centraldashboard-config","namespace":"kubeflow"}}
+  creationTimestamp: "2025-05-09T10:30:33Z"
+  labels:
+    app: centraldashboard
+    app.kubernetes.io/component: centraldashboard
+    app.kubernetes.io/name: centraldashboard
+    kustomize.component: centraldashboard
+  name: centraldashboard-config
+  namespace: kubeflow
+  resourceVersion: "2640601"
+  uid: 394ea110-341f-489a-81e7-21694697febd
