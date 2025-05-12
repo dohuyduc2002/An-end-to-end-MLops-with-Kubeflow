@@ -2,12 +2,12 @@
 
 * Contents:
   * [Introduction](#introduction)
-	* [Repository structure](#repository-structure)
+  * [Repository structure](#repository-structure)
   * [Setting up GCP](#setting-up-gcp)
-	* [Prerequisites installation](#prerequisites-installation)
-	* [Component Preparation](#component-preparation)
-	* [Usage](#usage)
-	* [Testing CICD with Jenkins](#testing-cicd-with-jenkins)
+  * [Prerequisites installation](#prerequisites-installation)
+  * [Component Preparation](#component-preparation)
+  * [Usage](#usage)
+  * [Testing CICD with Jenkins](#testing-cicd-with-jenkins)
 <!-- /code_chunk_output -->
 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
