@@ -55,10 +55,15 @@ pipeline {
         }
 
         stage('Promote to Staging') {
+            agent {
+                docker {
+                    image 'microwave1005/kfp-ci-jenkins'
+                    reuseNode true
+                }
+            }
             steps {
-                script {
-                    sh """
-                        python3 -c "import mlflow
+                sh """
+                    python3 -c "import mlflow
 client = mlflow.tracking.MlflowClient(tracking_uri='${MLFLOW_TRACKING_URI}')
 versions = client.get_latest_versions('${params.MODEL_NAME}', stages=['None'])
 if versions:
@@ -67,8 +72,7 @@ if versions:
     print(f'Promoted to Staging: ${params.MODEL_NAME} v{v}')
 else:
     print('No model version found.')"
-                    """
-                }
+                """
             }
         }
 
@@ -79,6 +83,12 @@ else:
         }
 
         stage('Promote to Production') {
+            agent {
+                docker {
+                    image 'microwave1005/kfp-ci-jenkins'
+                    reuseNode true
+                }
+            }
             steps {
                 sh """
                     python3 -c "import mlflow
