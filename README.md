@@ -518,7 +518,7 @@ docker build -t microwave1005/custom-jenkins -f dockerfiles/Dockerfile.jk .
 
 2. Run Jenkins container
 ```bash
-docker-compose -f jenkins/docker-compose.yaml up -d
+docker-compose -f jenkins/docker-compose.yaml up -d --build
 ```
 
 3. Exec into Jenkins container to get password
