@@ -1,83 +1,122 @@
 pipeline {
     agent any
 
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5', daysToKeepStr: '5'))
+        timestamps()
+    }
+
     environment {
-        DOCKER_IMAGE = 'microwave1005/prediction-api'
-        IMAGE_TAG    = 'latest'
+        registry = 'microwave1005/prediction-api'
+        registryCredential = 'dockerhub-creds'
+        MINIO_ENDPOINT        = 'minio.dhduc.com'
+        MINIO_ACCESS_KEY      = 'minio'
+        MINIO_SECRET_KEY      = 'minio123'
+        MINIO_BUCKET_NAME     = 'sample-data'
+        MLFLOW_TRACKING_URI   = 'http://mlflow.ducdh.com'
+        KFP_API_URL           = 'http://kubeflow.ducdh.com/pipeline'
+        KFP_DEX_USERNAME      = 'user@example.com'
+        KFP_DEX_PASSWORD      = '12341234'
+        KFP_SKIP_TLS_VERIFY   = 'False'
+        KFP_DEX_AUTH_TYPE     = 'local'
     }
-
-    stage('Test') {
-        agent {
-            docker {
-                image 'microwave1005/test-runner:latest'
-            }
-        }
-        steps {
-            sh '''
-                pip install pytest
-                chmod +x src/client/test/test.sh
-                src/client/test/test.sh
-            '''
-        }
-    }
-
-        stage('Build & Push') {
+    /*
+    stages {
+        stage('Test') {
             agent {
                 docker {
-                    image 'docker:latest'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                    image 'microwave1005/kfp-ci-jenkins:latest'
                 }
             }
             steps {
+                checkout scm
                 sh '''
-                    cd src/kfp
-
-                    docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
-                    docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
+                    echo "Checking workspace"
+                    ls -R
+                    echo "Running tests"
+                    cd testing
+                    chmod +x test.sh
+                    ./test.sh
                 '''
             }
         }
+    */
+        stage('Build') {
+            steps {
+                script {
+                    echo 'Building image for deployment...'
+                    dockerImage = docker.build("${registry}:${BUILD_NUMBER}", "dockerfiles --file Dockerfile.app")
+                    echo 'Pushing image to Docker Hub...'
+                    docker.withRegistry('', registryCredential) {
+                        dockerImage.push()
+                        dockerImage.push('latest')
+                    }
+                }
+            }
+        }
 
-    stage('Approve') {
-        steps {
-            script {
-                def modelName = input(
-                    id: 'modelApproval', message: 'Model Promotion Approval',
-                    parameters: [string(defaultValue: 'v2_XGB', description: 'Model Name to Promote', name: 'modelName')]
-                )
+        stage('Promote to Staging') {
+            agent {
+                docker {
+                    image 'microwave1005/kfp-ci-jenkins:latest'
+                }
+            }
+            steps {
+                script {
+                    env.modelName = input(
+                        id: 'modelApproval', message: 'Model Promotion Approval',
+                        parameters: [string(defaultValue: 'v1_xgb_XGB', description: 'Model Name to Promote', name: 'modelName')]
+                    )
 
-                // Promote to Staging
-                sh """
-    python3 -c "import mlflow
-    client = mlflow.tracking.MlflowClient(tracking_uri='http://mlflow.mlflow.svc:5000')
-    versions = client.get_latest_versions('${modelName}', stages=['None'])
-    if versions:
-        v = versions[0].version
-        client.transition_model_version_stage('${modelName}', v, 'Staging')
-        print(f'Promoted to Staging: {modelName} v{v}')
-    else:
-        print('No model version found.')"
-                """
+                    sh """
+                        python3 -c "import mlflow
+client = mlflow.tracking.MlflowClient(tracking_uri='http://mlflow.mlflow.svc:5000')
+versions = client.get_latest_versions('${modelName}', stages=['None'])
+if versions:
+    v = versions[0].version
+    client.transition_model_version_stage('${modelName}', v, 'Staging')
+    print(f'Promoted to Staging: {modelName} v{v}')
+else:
+    print('No model version found.')"
+                    """
+                }
+            }
+        }
 
+        stage('Approve to Production') {
+            steps {
                 input message: "Approve promotion of model ${modelName} to Production?"
+            }
+        }
 
-                // Promote to Production
+        stage('Promote to Production') {
+            agent {
+                docker {
+                    image 'microwave1005/kfp-ci-jenkins:latest'
+                }
+            }
+            steps {
                 sh """
-    python3 -c "import mlflow
-    client = mlflow.tracking.MlflowClient(tracking_uri='http://mlflow.mlflow.svc:5000')
-    versions = client.get_latest_versions('${modelName}', stages=['Staging'])
-    if versions:
-        v = versions[0].version
-        client.transition_model_version_stage('${modelName}', v, 'Production')
-        print(f'Promoted to Production: {modelName} v{v}')
-    else:
-        print('No Staging model found.')"
+                    python3 -c "import mlflow
+client = mlflow.tracking.MlflowClient(tracking_uri='http://mlflow.mlflow.svc:5000')
+versions = client.get_latest_versions('${modelName}', stages=['Staging'])
+if versions:
+    v = versions[0].version
+    client.transition_model_version_stage('${modelName}', v, 'Production')
+    print(f'Promoted to Production: {modelName} v{v}')
+else:
+    print('No Staging model found.')"
                 """
             }
         }
-    }
 
         stage('Deploy') {
+            agent {
+                docker {
+                    image 'microwave1005/kfp-ci-jenkins:latest'
+                    args '-u root'
+                }
+            }
             steps {
                 sh '''
                     cd k8s
@@ -98,4 +137,4 @@ pipeline {
             echo 'Pipeline execution complete.'
         }
     }
-
+}

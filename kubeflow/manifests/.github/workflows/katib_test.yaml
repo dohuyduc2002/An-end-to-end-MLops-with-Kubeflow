@@ -1,0 +1,72 @@
+name: Build & Apply Katib manifests in KinD
+on:
+  pull_request:
+    paths:
+    - tests/gh-actions/install_KinD_create_KinD_cluster_install_kustomize.sh
+    - .github/workflows/katib_test.yaml
+    - apps/katib/upstream/**
+    - tests/gh-actions/install_istio.sh
+    - common/istio*/**
+    - tests/gh-actions/install_cert_manager.sh
+    - common/cert-manager/**
+    - experimental/security/PSS/*
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install KinD, Create KinD cluster and Install kustomize
+      run: ./tests/gh-actions/install_KinD_create_KinD_cluster_install_kustomize.sh
+
+    - name: Install Istio
+      run: ./tests/gh-actions/install_istio.sh
+
+    - name: Install cert-manager
+      run: ./tests/gh-actions/install_cert_manager.sh
+
+    # https://kind.sigs.k8s.io/docs/user/known-issues/#apparmor
+    - name: AppArmor
+      run: |
+        set -x
+        sudo apt-get install apparmor-profiles
+        sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.mysqld
+
+    - name: Build & Apply manifests
+      run: |
+        cd apps/katib/upstream
+        kubectl create ns kubeflow
+        kustomize build installs/katib-with-kubeflow | kubectl apply -f -
+        kubectl wait --for=condition=Ready pods --all -n kubeflow --timeout 300s
+
+    - name: Create katib experiment
+      run: |
+        kubectl create namespace kubeflow-user
+        kubectl label namespace kubeflow-user katib.kubeflow.org/metrics-collector-injection=enabled
+        kubectl apply -f tests/gh-actions/kf-objects/katib_test.yaml
+
+        echo "Waiting for Experiment to become Running..."
+        kubectl wait --for=condition=Running experiments.kubeflow.org -n kubeflow-user --all --timeout 300s
+
+        echo "Waiting for all Trials to become Succeeded..."
+        kubectl wait --for=condition=Succeeded trials.kubeflow.org -n kubeflow-user --all --timeout 600s
+
+        echo "Waiting for the Experiment to become Succeeded..."
+        kubectl wait --for=condition=Succeeded experiments.kubeflow.org -n kubeflow-user --all --timeout 300s
+
+    - name: Apply Pod Security Standards baseline levels
+      run: ./tests/gh-actions/enable_baseline_PSS.sh
+
+    - name: Unapply applied baseline labels
+      run: |
+        NAMESPACES=("istio-system" "auth" "cert-manager" "oauth2-proxy" "kubeflow")
+        for NAMESPACE in "${NAMESPACES[@]}"; do
+          if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+            kubectl label namespace $NAMESPACE pod-security.kubernetes.io/enforce-
+          fi
+        done
+
+    - name: Applying Pod Security Standards restricted levels
+      run: ./tests/gh-actions/enable_restricted_PSS.sh

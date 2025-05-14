@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: microwave1005/custom-jenkins:latest
+    container_name: jenkins
+    restart: unless-stopped
+    privileged: true
+    user: root
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../gcp-key.json:/root/gcp-key.json:ro   
+      - ${HOME}/.kube:/root/.kube:ro                      
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro    
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/root/gcp-key.json
+
+volumes:
+  jenkins_home:

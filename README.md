@@ -3,11 +3,12 @@
 * Contents:
   * [Introduction](#introduction)
   * [Repository structure](#repository-structure)
+  * [Repository structure](#repository-structure)
   * [Setting up GCP](#setting-up-gcp)
   * [Prerequisites installation](#prerequisites-installation)
   * [Component Preparation](#component-preparation)
   * [Usage](#usage)
-  * [Testing CICD with Jenkins](#testing-cicd-with-jenkins)
+  * [CICD pipeline](#cicd-pipeline)
 <!-- /code_chunk_output -->
 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
@@ -53,9 +54,11 @@ Root
 ├── testing                             *  Testing files for the project
 ```
 ## To-Do
+- [ ] Optimize GKE, GCE usage to fit GCP quota for all resources instead of using GCP and Azure
 - [ ] Implement Data Ingestion, Data Quality check, Data Lake, Data Warehouse, and Data Pipeline
 - [ ] Implement Kserve for model serving
 - [ ] Code refactoring and deduplication
+- [ ] Refractor API helm deployment and Cloudbuild pipeline
 - [ ] Add media files 
 ## Setting up GCP
 
@@ -68,6 +71,8 @@ Next, navigate to [Compute Engine API UI](https://console.cloud.google.com/marke
 
 Navigate to [Kubernetes Engine API UI](https://console.cloud.google.com/marketplace/product/google/container.googleapis.com) to "ENABLE" Kubernetes Engine API:
 
+Navigate to [Cloud Builder API UI](https://console.cloud.google.com/marketplace/product/google/cloudbuild.googleapis.com) to "ENABLE" Cloud Build API:
+
 2. Instal gcloud cli
 Because this project is running on GKE, you need to install gcloud cli to manage GCP resources. You can follow the official [Gcloud installation guide](https://cloud.google.com/sdk/docs/install) 
 
@@ -75,8 +80,6 @@ Because this project is running on GKE, you need to install gcloud cli to manage
 To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account guide](https://cloud.google.com/iam/docs/service-accounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform/gce` and `terraform/gke` folder.
 
 ## Prerequisites installation
-This project is running on GKE cluster. For minikube, I'm fixing networking issue with Jenkins to run CI in KFP pipeline
-
 This is the environment I used to run this project:
 - Client Version: v1.32.3
 - Kustomize Version: v5.5.0
@@ -290,8 +293,11 @@ k create configmap model-dashboard \
 
 k label configmap model-dashboard grafana_dashboard=1 -n monitoring --overwrite
 
-kubectl rollout restart deployment kps-grafana -n monitoring
+k rollout restart deployment kps-grafana -n monitoring
 ```
+You can also check other Grafana dashboards in [Grafana lab](https://grafana.com/grafana/dashboards/), in this project, I'm using Node Exporter Full dashboard to monitor the all cluster nodes.
+
+media ... 
 
 ### Serve model with FastAPI and collect log 
 In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpieline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 
@@ -305,10 +311,11 @@ There are 2 ways to deploy endpoint api
 In this section, we will use the manual way to deploy the endpoint API.
 
 ```bash
-helm install api ./api \
+cd helm-charts/api
+helm install api . \
   --namespace api \
   --create-namespace \
-  --set monitoring.enabled=true \`
+  --set monitoring.enabled=true \
   --set image.tag=latest \
   --set replicaCount=1
 ```
@@ -332,11 +339,14 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
   --create-namespace \
   --set controller.service.type=LoadBalancer \
   --set controller.service.externalTrafficPolicy=Cluster
-  --set controller.resources.requests.cpu=50m \
-  --set controller.resources.requests.memory=64Mi
+  --set controller.resources.requests.cpu=100m \
+  --set controller.resources.requests.memory=90Mi
 ```
-2. Apply ingress config in `ingress` folder to ingress minio 
+2. Wait for a few minutes until `ingress-nginx` service got `EXTERNAL-IP` address. You can check the status of the service by running the following command:
 
+```bash
+k get svc ingress-nginx-controller -n ingress-nginx
+```
 3. Helm upgrade all services with custom `values.yaml`
 
 a. Mlflow
@@ -362,7 +372,7 @@ helm upgrade kps prometheus-community/kube-prometheus-stack \
 ```
 c. Prediction API
 ```bash
-helm upgrade api ./api \
+helm upgrade api . \
   -n api \
   --reuse-values \
   --set ingress.enabled=true \
@@ -386,6 +396,7 @@ helm upgrade minio minio/minio \
   --set consoleIngress.ingressClassName=nginx \
   --set consoleIngress.hosts[0]=console.minio.ducdh.com
 
+e. Jenkins 
 
 ```
 After that, to create a mapping between the domain name and the external IP address of the ingress controller, you can use the following command:
@@ -486,54 +497,34 @@ There is 2 ways to add new components to the dashboard:
 1. Internal Link: Run inside Kubeflow central dashboard, require sidecar proxy to Istio
 2. External Link: Create a link to external service, no need sidecar proxy to Istio
 
-For simplicity, I'm using external link method the Central Dashboard configmap is already created in `kubeflow/dashboard` folder. In this configmap, I added external link to Mlflow, Minio, Grafana and Jenkins.
+For simplicity, I'm using external link method the Central Dashboard configmap is already created in `kubeflow/dashboard` folder. In this configmap, I added external link to Mlflow, Minio, Grafana.
 ```bash
 cd kubeflow/dashboard
+k delete configmap centraldashboard-config -n kubeflow
 k apply -f dashboard-configmap.yaml
+k rollout restart deployment centraldashboard -n kubeflow
 ```
 
-## Testing CICD with Jenkins
+## CICD pipeline 
+### Cloud Build
+
+### Jenkins local
+1. Initialize Jenkins 
 Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.jk` file. This image is used to run Jenkins pipeline and build Docker images for the project.
 
 ```bash
 docker build -t microwave1005/custom-jenkins -f dockerfiles/Dockerfile.jk .
 ```
 
-Due to GKE runtime is `containerd`, Jenkins cannot mount to `/var/run/docker.sock:/var/run/docker.sock` , so I'm using Jenkins in GCE instance. You can use the following command to create a GCE instance with Jenkins installed. Before create GCE instance, there you will need to config your external IP from previous ingress step in GKE into `terraform.tfvars` file due to my CICD pipeline will need to access internal service from GKE cluster. 
-
+2. Run Jenkins container
 ```bash
-cd terraform/gce
-terraform init
-terraform plan
-terraform apply
-```
-In this folder, the startup script will install Jenkins and all the dependencies for Jenkins. After that, you can access Jenkins using the GCE external IP address. I already use Nginx reverse proxy to route all traffic to Jenkins due to this VM only run Jenkins.
-
-Before access Jenkins, you need to map the GCE external IP address to your local machine. You can do this by adding the following line to your `/etc/hosts` file:
-
-```bash
-sudo nano /etc/hosts
-<EXTERNAL-IP-GCE> jenkins.ducdh.com
+docker-compose -f jenkins/docker-compose.yaml up -d
 ```
 
-### Initialize Jenkins 
-Jenkins is an open-source automation server that enables developers to build, test, and deploy their software. It provides hundreds of plugins to support building, deploying, and automating any project.
-
-In this repo, I'm building a custom Jenkins image with all the dependencies and plugins that I need to run the pipeline. You can find the Dockerfile in `dockerfiles/Dockerfile.jk` . This Dockerfile will be used to build Jenkins service using helm.
-
-1st, you need to build the Docker image for Jenkins using the following command:
-
-
+3. Exec into Jenkins container to get password
 
 ```bash
-helm install jenkins ./jenkins -n cicd --create-namespace
+docker exec -it jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 ```
-To get user and password for Jenkins, you can run the following command:
+After login, you should install recommended plugins and create a new admin user.
 
-```bash
-k get pods -n cicd
-```
-After that using this command to get password:
-```bash
-k exec -n cicd <JENKINS-POD> -- cat /var/jenkins_home/secrets/initialAdminPassword
-```

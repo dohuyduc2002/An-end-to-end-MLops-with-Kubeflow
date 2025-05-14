@@ -16,7 +16,8 @@ src/pipeline_deprecated
 gcp-key.json
 data
 a 
-
+b
+deprecated
 # ==== Python standard ignore ====
 # Byte-compiled / optimized / DLL files
 *.py[cod]

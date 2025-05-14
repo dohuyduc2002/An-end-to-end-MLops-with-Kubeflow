@@ -1,0 +1,25 @@
+substitutions:
+  _MODEL_NAME: ""
+  _IMAGE_TAG: "latest"
+  _CLUSTER: "prediction-platform"
+  _ZONE: "us-central1-c"
+
+steps:
+- name: "docker.io/microwave1005/scipy-img"
+  entrypoint: bash
+  args:
+    - -c
+    - |
+      export MLFLOW_TRACKING_URI="http://mlflow.mlflow.svc:5000"
+      python3 - <<EOF
+import mlflow, os
+client = mlflow.tracking.MlflowClient(tracking_uri=os.environ["MLFLOW_TRACKING_URI"])
+model = os.getenv("_MODEL_NAME")
+versions = client.get_latest_versions(model, stages=["Staging"])
+if versions:
+    v = versions[0].version
+    client.transition_model_version_stage(model, v, "Production")
+    print(f"✅ Promoted {model} v{v} to Production")
+else:
+    print("❌ No staging version found.")
+EOF

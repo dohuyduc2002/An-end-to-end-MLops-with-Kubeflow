@@ -1,48 +1,75 @@
-# testing/conftest.py
-
-import os
 import sys
-from pathlib import Path
-
 import pytest
-from dotenv import load_dotenv
-from minio import Minio
-import mlflow
+import pandas as pd
+from pathlib import Path
+from typing import get_args, get_origin, Union
+from unittest.mock import MagicMock
+from faker import Faker
 
-# ─── Add PROJECT_ROOT/src to sys.path ────────────────────────────────────────
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SRC_PATH = PROJECT_ROOT / "src"
+# ─── Add src/ to sys.path ───────────────────────────────────────────────
+ROOT_DIR = Path(__file__).resolve().parents[1]
+SRC_PATH = ROOT_DIR / "src"
 sys.path.insert(0, str(SRC_PATH))
 
-# ─── Load .env file (if present) ─────────────────────────────────────────────
-dotenv_path = PROJECT_ROOT / ".env"
-if dotenv_path.exists():
-    load_dotenv(dotenv_path=dotenv_path, override=False)
+# ─── Register custom ini option ─────────────────────────────────────────
+def pytest_addoption(parser):
+    parser.addini("test_image", "Docker image used for KFP components", default="microwave1005/kfp-ci-jenkins:latest")
 
-# ─── Override DNS for containerized test (e.g. Jenkins or docker run) ────────
-if os.getenv("PYTEST_DOCKER") == "1":
-    os.environ["MINIO_ENDPOINT"] = "minio.minio.svc.cluster.local:9000"
-    os.environ["MLFLOW_TRACKING_URI"] = "http://mlflow.mlflow.svc.cluster.local:5000"
+# ─── Fixtures ───────────────────────────────────────────────────────────
+from client.app.schema import RawItem
+fake = Faker()
 
-# ─── Fixtures ────────────────────────────────────────────────────────────────
+def build_fake_value(field_type):
+    if field_type == int:
+        return fake.random_int(min=0, max=100)
+    elif field_type == float:
+        return fake.pyfloat(left_digits=5, right_digits=4, positive=True)
+    return None  # skip str
+
+def build_fake_raw_item() -> RawItem:
+    kwargs = {}
+    for field_name, annotation in RawItem.__annotations__.items():
+        origin = get_origin(annotation)
+        args = get_args(annotation)
+        actual_type = args[0] if origin is Union and type(None) in args else annotation
+        if actual_type in [int, float]:
+            kwargs[field_name] = build_fake_value(actual_type)
+    return RawItem(**kwargs)
+
+@pytest.fixture
+def fake_raw_items():
+    return [build_fake_raw_item() for _ in range(50)]
+
+@pytest.fixture
+def mock_minio_client(fake_raw_items):
+    df = pd.DataFrame([item.dict() for item in fake_raw_items])
+    df_train = df.copy()
+    df_test = df.drop(columns=["TARGET"], errors="ignore")
+
+    output_paths = {}
+
+    def fget(bucket, key, dest_path):
+        content_df = df_train if "train" in key else df_test
+        content_df.to_csv(dest_path, index=False)
+        output_paths[key] = pd.read_csv(dest_path)
+
+    def fput(bucket, key, src_path):
+        assert Path(src_path).exists()
+
+    client = MagicMock()
+    client.fget_object.side_effect = fget
+    client.fput_object.side_effect = fput
+    client.output_paths = output_paths
+    return client
+
+@pytest.fixture
+def mock_mlflow_client():
+    client = MagicMock()
+    run_ctx = MagicMock()
+    client.start_run.return_value.__enter__.return_value = run_ctx
+    client.get_artifact_uri.return_value = "s3://mock"
+    return client
+
 @pytest.fixture(scope="session")
-def minio_client():
-    return Minio(
-        endpoint=os.environ["MINIO_ENDPOINT"],
-        access_key=os.environ["MINIO_ACCESS_KEY"],
-        secret_key=os.environ["MINIO_SECRET_KEY"],
-        secure=False,
-    )
-
-@pytest.fixture(scope="session")
-def mlflow_client():
-    mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
-    return mlflow.tracking.MlflowClient()
-
-@pytest.fixture(scope="session")
-def sample_data(minio_client):
-    bucket = os.getenv("MINIO_BUCKET_NAME", "sample-data")
-    tr_key, te_key = "data/application_train.csv", "data/application_test.csv"
-    minio_client.stat_object(bucket, tr_key)
-    minio_client.stat_object(bucket, te_key)
-    return bucket, tr_key, te_key
+def test_image(request):
+    return request.config.getini("test_image")

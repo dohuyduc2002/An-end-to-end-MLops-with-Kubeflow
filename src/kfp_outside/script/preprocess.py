@@ -2,7 +2,31 @@ from typing import NamedTuple
 from kfp import dsl
 from kfp.dsl import InputPath, Output, Model, Dataset
 
-@dsl.component(base_image="microwave1005/scipy-img:latest")
+@dsl.component(base_image="microwave1005/scipy-img:latest",
+                packages_to_install=[
+                "protobuf==4.25.5",
+                "kfp==2.12.1",
+                "fastapi==0.104.1",
+                "uvicorn[standard]==0.24.0",
+                "loguru==0.7.2",
+                "joblib==1.3.2",
+                "pandas==2.1.3",
+                "pytest==7.4.3",
+                "numpy==1.24.4",
+                "mlflow==2.8.1",
+                "matplotlib==3.8.1",
+                "pydantic==1.10.8",
+                "ortools==9.7.2996",
+                "requests==2.31.0",
+                "boto3",
+                "shap",
+                "optuna",
+                "optbinning",
+                "urllib3",
+                "minio",
+                "lightgbm",
+                "python-dotenv"
+            ])
 def preprocess(
     train_csv: InputPath(Dataset),       
     test_csv:  InputPath(Dataset),   

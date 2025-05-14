@@ -194,9 +194,12 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ python3 -m pip install --quiet --no-warn-script-location 'protobuf==4.25.5'\
+          \ 'kfp==2.12.1' 'fastapi==0.104.1' 'uvicorn[standard]==0.24.0' 'loguru==0.7.2'\
+          \ 'joblib==1.3.2' 'pandas==2.1.3' 'pytest==7.4.3' 'numpy==1.24.4' 'mlflow==2.8.1'\
+          \ 'matplotlib==3.8.1' 'pydantic==1.10.8' 'ortools==9.7.2996' 'requests==2.31.0'\
+          \ 'boto3' 'shap' 'optuna' 'optbinning' 'urllib3' 'minio' 'lightgbm' 'python-dotenv'\
+          \ && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -231,9 +234,12 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ python3 -m pip install --quiet --no-warn-script-location 'protobuf==4.25.5'\
+          \ 'kfp==2.12.1' 'fastapi==0.104.1' 'uvicorn[standard]==0.24.0' 'loguru==0.7.2'\
+          \ 'joblib==1.3.2' 'pandas==2.1.3' 'pytest==7.4.3' 'numpy==1.24.4' 'mlflow==2.8.1'\
+          \ 'matplotlib==3.8.1' 'pydantic==1.10.8' 'ortools==9.7.2996' 'requests==2.31.0'\
+          \ 'boto3' 'shap' 'optuna' 'optbinning' 'urllib3' 'minio' 'lightgbm' 'python-dotenv'\
+          \ && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -268,9 +274,12 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ python3 -m pip install --quiet --no-warn-script-location 'protobuf==4.25.5'\
+          \ 'kfp==2.12.1' 'fastapi==0.104.1' 'uvicorn[standard]==0.24.0' 'loguru==0.7.2'\
+          \ 'joblib==1.3.2' 'pandas==2.1.3' 'pytest==7.4.3' 'numpy==1.24.4' 'mlflow==2.8.1'\
+          \ 'matplotlib==3.8.1' 'pydantic==1.10.8' 'ortools==9.7.2996' 'requests==2.31.0'\
+          \ 'boto3' 'shap' 'optuna' 'optbinning' 'urllib3' 'minio' 'lightgbm' 'python-dotenv'\
+          \ && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -305,9 +314,12 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ python3 -m pip install --quiet --no-warn-script-location 'protobuf==4.25.5'\
+          \ 'kfp==2.12.1' 'fastapi==0.104.1' 'uvicorn[standard]==0.24.0' 'loguru==0.7.2'\
+          \ 'joblib==1.3.2' 'pandas==2.1.3' 'pytest==7.4.3' 'numpy==1.24.4' 'mlflow==2.8.1'\
+          \ 'matplotlib==3.8.1' 'pydantic==1.10.8' 'ortools==9.7.2996' 'requests==2.31.0'\
+          \ 'boto3' 'shap' 'optuna' 'optbinning' 'urllib3' 'minio' 'lightgbm' 'python-dotenv'\
+          \ && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -342,9 +354,12 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ python3 -m pip install --quiet --no-warn-script-location 'protobuf==4.25.5'\
+          \ 'kfp==2.12.1' 'fastapi==0.104.1' 'uvicorn[standard]==0.24.0' 'loguru==0.7.2'\
+          \ 'joblib==1.3.2' 'pandas==2.1.3' 'pytest==7.4.3' 'numpy==1.24.4' 'mlflow==2.8.1'\
+          \ 'matplotlib==3.8.1' 'pydantic==1.10.8' 'ortools==9.7.2996' 'requests==2.31.0'\
+          \ 'boto3' 'shap' 'optuna' 'optbinning' 'urllib3' 'minio' 'lightgbm' 'python-dotenv'\
+          \ && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -427,9 +442,12 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ python3 -m pip install --quiet --no-warn-script-location 'protobuf==4.25.5'\
+          \ 'kfp==2.12.1' 'fastapi==0.104.1' 'uvicorn[standard]==0.24.0' 'loguru==0.7.2'\
+          \ 'joblib==1.3.2' 'pandas==2.1.3' 'pytest==7.4.3' 'numpy==1.24.4' 'mlflow==2.8.1'\
+          \ 'matplotlib==3.8.1' 'pydantic==1.10.8' 'ortools==9.7.2996' 'requests==2.31.0'\
+          \ 'boto3' 'shap' 'optuna' 'optbinning' 'urllib3' 'minio' 'lightgbm' 'python-dotenv'\
+          \ && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
