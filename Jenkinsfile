@@ -12,6 +12,7 @@ pipeline {
         string(name: 'CLUSTER_NAME', defaultValue: 'prediction-platform', description: 'GKE Cluster name')
         string(name: 'ZONE', defaultValue: 'us-central1-c', description: 'GKE Cluster zone')
         string(name: 'PROJECT_ID', defaultValue: 'mlops-fsds', description: 'GCP Project ID')
+        string(name: 'MLFLOW_IP', defaultValue: '35.193.229.26', description: 'External IP of MLflow Ingress')
     }
 
     environment {
@@ -58,20 +59,26 @@ pipeline {
             agent {
                 docker {
                     image 'microwave1005/kfp-ci-jenkins'
+                    args "--add-host mlflow.ducdh.com:${params.MLFLOW_IP}"
                     reuseNode true
                 }
             }
             steps {
                 sh """
+                    echo "🌐 Verifying DNS & Host routing..."
+                    curl -I http://mlflow.ducdh.com || echo "❌ DNS resolve failed"
+                    curl -I -H 'Host: mlflow.ducdh.com' http://${params.MLFLOW_IP} || echo "❌ Host header routing failed"
+
+                    echo "🚀 Promoting model to STAGING..."
                     python3 -c "import mlflow
-client = mlflow.tracking.MlflowClient(tracking_uri='${MLFLOW_TRACKING_URI}')
+client = mlflow.tracking.MlflowClient(tracking_uri='http://mlflow.ducdh.com')
 versions = client.get_latest_versions('${params.MODEL_NAME}', stages=['None'])
 if versions:
     v = versions[0].version
     client.transition_model_version_stage('${params.MODEL_NAME}', v, 'Staging')
-    print(f'Promoted to Staging: ${params.MODEL_NAME} v{v}')
+    print(f'✅ Promoted to Staging: ${params.MODEL_NAME} v{v}')
 else:
-    print('No model version found.')"
+    print('⚠️ No model version found.')"
                 """
             }
         }
@@ -86,20 +93,26 @@ else:
             agent {
                 docker {
                     image 'microwave1005/kfp-ci-jenkins'
+                    args "--add-host mlflow.ducdh.com:${params.MLFLOW_IP}"
                     reuseNode true
                 }
             }
             steps {
                 sh """
+                    echo "🌐 Verifying DNS & Host routing..."
+                    curl -I http://mlflow.ducdh.com || echo "❌ DNS resolve failed"
+                    curl -I -H 'Host: mlflow.ducdh.com' http://${params.MLFLOW_IP} || echo "❌ Host header routing failed"
+
+                    echo "🚀 Promoting model to PRODUCTION..."
                     python3 -c "import mlflow
-client = mlflow.tracking.MlflowClient(tracking_uri='${MLFLOW_TRACKING_URI}')
+client = mlflow.tracking.MlflowClient(tracking_uri='http://mlflow.ducdh.com')
 versions = client.get_latest_versions('${params.MODEL_NAME}', stages=['Staging'])
 if versions:
     v = versions[0].version
     client.transition_model_version_stage('${params.MODEL_NAME}', v, 'Production')
-    print(f'Promoted to Production: ${params.MODEL_NAME} v{v}')
+    print(f'✅ Promoted to Production: ${params.MODEL_NAME} v{v}')
 else:
-    print('No Staging model found.')"
+    print('⚠️ No Staging model found.')"
                 """
             }
         }
