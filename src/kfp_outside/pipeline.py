@@ -15,6 +15,7 @@ modeling_op   = load_component_from_file(COMP_DIR / "model.yaml")
 )
 def underwriting_pipeline(
     minio_endpoint:       str,
+    mlflow_endpoint:     str,
     minio_access_key:     str,
     minio_secret_key:     str,
     bucket_name:          str,
@@ -60,35 +61,18 @@ def underwriting_pipeline(
         data_version=data_version,
     ).after(raw_te)
 
-    # 4️⃣ Download processed train
-    proc_tr = dataloader_op(
-        minio_endpoint=minio_endpoint,
-        minio_access_key=minio_access_key,
-        minio_secret_key=minio_secret_key,
-        bucket_name=bucket_name,
-        object_name=prep.outputs["train_key"],
-    ).after(prep)
-
-    # 5️⃣ Download processed test
-    proc_te = dataloader_op(
-        minio_endpoint=minio_endpoint,
-        minio_access_key=minio_access_key,
-        minio_secret_key=minio_secret_key,
-        bucket_name=bucket_name,
-        object_name=prep.outputs["test_key"],
-    ).after(prep)
-
     # 6️⃣ Modeling
     modeling_op(
         minio_endpoint=minio_endpoint,
+        mlflow_endpoint=mlflow_endpoint,
         minio_access_key=minio_access_key,
         minio_secret_key=minio_secret_key,
-        train_csv=proc_tr.outputs["output"],
-        test_csv= proc_te.outputs["output"],
+        train_csv=prep.outputs["output_train_csv"],
+        test_csv= prep.outputs["output_test_csv"],
         model_name=model_name,
         version=version,
         experiment_name=experiment_name,
-    ).after(proc_te)
+    ).after(prep)
 
 
 if __name__ == "__main__":

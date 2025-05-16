@@ -1,6 +1,6 @@
 from typing import NamedTuple
 from kfp import dsl
-from kfp.dsl import InputPath, Output, Model, Dataset
+from kfp.dsl import Input, Output, Model, Dataset
 
 @dsl.component(base_image="microwave1005/scipy-img:latest",
                 packages_to_install=[
@@ -28,9 +28,11 @@ from kfp.dsl import InputPath, Output, Model, Dataset
                 "python-dotenv"
             ])
 def preprocess(
-    train_csv: InputPath(Dataset),       
-    test_csv:  InputPath(Dataset),   
-    transformer_joblib: Output[Model],    
+    train_csv: Input[Dataset],       
+    test_csv:  Input[Dataset],   
+    transformer_joblib: Output[Model],  
+    output_train_csv: Output[Dataset],  
+    output_test_csv: Output[Dataset],
     minio_endpoint: str,
     minio_access_key: str,
     minio_secret_key: str,
@@ -39,7 +41,8 @@ def preprocess(
     dest_test_object: str,
     n_features_to_select: str = "auto",
     data_version: str = "v1",
-) -> NamedTuple("Keys", [("train_key", str), ("test_key", str)]):
+) -> NamedTuple("Outputs", [("train_key", str), ("test_key", str)]):
+    
     import pandas as pd, numpy as np, joblib
     from pathlib import Path
     from minio import Minio
@@ -47,8 +50,8 @@ def preprocess(
     from sklearn.feature_selection import SelectKBest, f_classif
 
     # Load artifact CSVs
-    df_tr = pd.read_csv(train_csv)
-    df_te = pd.read_csv(test_csv)
+    df_tr = pd.read_csv(train_csv.path)
+    df_te = pd.read_csv(test_csv.path)
 
     # 2) IV‑based filter & binning
     def get_lists(df):
@@ -100,6 +103,9 @@ def preprocess(
     # Dump transformer
     Path(transformer_joblib.path).parent.mkdir(parents=True, exist_ok=True)
     joblib.dump({"binning_process": bp, "selector": sel}, transformer_joblib.path)
+    
+    out_tr.to_csv(output_train_csv.path, index=False)
+    out_te.to_csv(output_test_csv.path, index=False)
 
     # Push processed CSVs back to MinIO
     client = Minio(

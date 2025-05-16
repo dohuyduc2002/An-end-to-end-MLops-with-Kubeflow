@@ -51,14 +51,17 @@ Root
 ├── terraform                           *  Terraform files for deploying the project
 │   ├── gce                             *  Deploying Jenkins in GCE 
 │   └── gke                             *  Deploying the project in GKE
-├── testing                             *  Testing files for the project
+│ testing                               *  Testing files for the project
+│   ├── unit                            *  Unit test files for kfp pipeline and model serving
+│   └── integration                     *  Integration test files for kfp pipeline and model serving                         
 ```
 ## To-Do
-- [ ] Optimize GKE, GCE usage to fit GCP quota for all resources instead of using GCP and Azure
+- [ ] Optimize GKE, GCE usage to fit GCP quota for all resources instead of using GCP
 - [ ] Implement Data Ingestion, Data Quality check, Data Lake, Data Warehouse, and Data Pipeline
+- [ ] Implement Cloud Build for CI/CD
 - [ ] Implement Kserve for model serving
 - [ ] Code refactoring and deduplication
-- [ ] Refractor API helm deployment and Cloudbuild pipeline
+- [ ] Add integration test 
 - [ ] Add media files 
 ## Setting up GCP
 
@@ -448,11 +451,13 @@ MINIO_SECRET_KEY=minio123
 MINIO_BUCKET_NAME=sample-data
 
 # Kubeflow/Dex Auth Configuration
-KFP_API_URL=http://ml-pipeline.kubeflow.svc.cluster.local:8888 
+KFP_API_URL=http://localhost:8080/pipeline
 KFP_SKIP_TLS_VERIFY=True
 KFP_DEX_USERNAME=user@example.com
 KFP_DEX_PASSWORD=12341234
 KFP_DEX_AUTH_TYPE=local
+
+MLFLOW_ENDPOINT=mlflow.mlflow.svc.cluster.local:5000
 ```
 2. After that, you can run the following command to run the pipeline:
 ```bash
@@ -518,7 +523,7 @@ docker build -t microwave1005/custom-jenkins -f dockerfiles/Dockerfile.jk .
 
 2. Run Jenkins container
 ```bash
-docker-compose -f jenkins/docker-compose.yaml up -d
+docker-compose -f jenkins/docker-compose.yaml up -d --build
 ```
 
 3. Exec into Jenkins container to get password
@@ -528,3 +533,38 @@ docker exec -it jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 ```
 After login, you should install recommended plugins and create a new admin user.
 
+4. Install ngrok 
+Due to deployment in local machine, I need to use ngrok to expose Jenkins to the interne to use Webhook. You can follow the official [ngrok installation guide](https://ngrok.com/download) to install ngrok.
+
+```bash
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list \
+  && sudo apt update \
+  && sudo apt install ngrok
+
+ngrok config add-authtoken <your-ngrok-token>
+ngrok http 8081
+```
+5. Configure Jenkins
+
+- Go to the GitHub repository and click on `Settings`. Click on `Webhooks` and then click on `Add Webhook`. Enter the URL of your Jenkins server .Then click on Let me select individual events and select Let me select individual events. Select `Push` and `Pull Request` and click on `Add Webhook`.
+
+In the previous step, you already exposed Jenkins to the internet with *random ngrok URL*, you can use this URL to add webhook to your GitHub repository.
+
+```bash
+https://abc123.ngrok.io → http://localhost:8001
+
+```
+This URL `https://abc123.ngrok.io/github-webhook/` will be used to add webhook to your GitHub repository.
+
+- Go to Jenkins dashboard and click on `New Item`. Enter a name for your project and select `Multibranch Pipeline`. Click on `OK`. Click on `Configure` and then click on `Add Source`. Select `GitHub` and click on `Add`. Enter the URL of your GitHub repository. In the `Credentials` field, select `Add` and select `Username with password`. Enter your `GitHub username` and `password` (or use a personal access token). Click on `Test Connection` and then click on `Save`.
+
+- You also need to add Dockerhub credential to Jenkins with the in order to push Docker image to Dockerhub. 
+
+- Create GCP service account and add it to Jenkins with the role `Kubernetes Engine Admin` and `Kubernetes Engine Cluster Admin`. This is used to deploy the project in GKE cluster. You need to save `gcp-key.json` Jenkins from `Manage Jenkins` -> `Cloud` -> `New Cloud` and select `Kubernetes` and enter the GCP service account key. *Remember to use the correct namespace in GKE cluster for Jenkins to run the pipeline. In this project, I'm using `api` namespace.* 
+
+After all setup is complete, you can `Push` a new commit to your GitHub repository. You should see a new build in Jenkins.
+
+### Cloud Build

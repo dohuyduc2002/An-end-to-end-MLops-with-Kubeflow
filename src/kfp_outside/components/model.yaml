@@ -5,6 +5,7 @@
 #    minio_access_key: str
 #    minio_endpoint: str
 #    minio_secret_key: str
+#    mlflow_endpoint: str
 #    model_name: str [Default: 'xgb']
 #    test_csv: system.Dataset
 #    train_csv: system.Dataset
@@ -35,6 +36,8 @@ components:
         minio_endpoint:
           parameterType: STRING
         minio_secret_key:
+          parameterType: STRING
+        mlflow_endpoint:
           parameterType: STRING
         model_name:
           defaultValue: xgb
@@ -84,12 +87,12 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef modeling(\n    train_csv: InputPath(Dataset),\n    test_csv:\
-          \ InputPath(Dataset),\n    model_joblib: Output[Model],\n    registered_model:\
-          \ OutputPath(str),\n    minio_endpoint: str,\n    minio_access_key: str,\n\
-          \    minio_secret_key: str,\n    model_name: str = \"xgb\",\n    version:\
-          \ str = \"v1\",\n    experiment_name: str = \"UnderwritingPipeline\",\n\
-          ):\n    import os, json, optuna, shap, matplotlib.pyplot as plt, joblib\n\
+          \ *\n\ndef modeling(\n    train_csv: Input[Dataset],\n    test_csv: Input[Dataset],\n\
+          \    model_joblib: Output[Model],\n    registered_model: OutputPath(str),\n\
+          \    minio_endpoint: str,\n    minio_access_key: str,\n    minio_secret_key:\
+          \ str,\n    mlflow_endpoint: str ,\n    model_name: str = \"xgb\",\n   \
+          \ version: str = \"v1\",\n    experiment_name: str = \"UnderwritingPipeline\"\
+          ,\n):\n    import os, json, optuna, shap, matplotlib.pyplot as plt, joblib\n\
           \    import pandas as pd, mlflow, xgboost as xgb\n    from lightgbm import\
           \ LGBMClassifier\n    from pathlib import Path\n    from sklearn.model_selection\
           \ import train_test_split\n    from sklearn.metrics import (\n        accuracy_score,\
@@ -97,8 +100,9 @@ deploymentSpec:
           \    import mlflow.xgboost, mlflow.lightgbm\n\n    # Configure MLflow \u2192\
           \ MinIO\n    os.environ[\"MLFLOW_S3_ENDPOINT_URL\"] = f\"http://{minio_endpoint}\"\
           \n    os.environ[\"AWS_ACCESS_KEY_ID\"]      = minio_access_key\n    os.environ[\"\
-          AWS_SECRET_ACCESS_KEY\"]  = minio_secret_key\n\n    # Load processed CSV\n\
-          \    df = pd.read_csv(train_csv)\n    X, y = df.drop(\"TARGET\", axis=1),\
+          AWS_SECRET_ACCESS_KEY\"]  = minio_secret_key\n    os.environ[\"MLFLOW_ENDPOINT\"\
+          ] = f\"http://{mlflow_endpoint}\"\n\n    # Load processed CSV\n    df =\
+          \ pd.read_csv(train_csv.path) \n    X, y = df.drop(\"TARGET\", axis=1),\
           \ df[\"TARGET\"]\n\n    # Optuna tuning\n    def objective(trial):\n   \
           \     params = {\n            \"max_depth\": trial.suggest_int(\"max_depth\"\
           , 2, 8),\n            \"learning_rate\": trial.suggest_float(\"learning_rate\"\
@@ -128,7 +132,7 @@ deploymentSpec:
           \    shap.summary_plot(shap_vals, X, show=False)\n    plt.savefig(f\"{art_dir}/shap.png\"\
           )\n    plt.close()\n\n    (Path(art_dir) / \"schema.json\").write_text(\n\
           \        json.dumps(X.dtypes.apply(str).to_dict(), indent=2)\n    )\n\n\
-          \    # Log & register via MLflow\n    mlflow.set_tracking_uri(\"http://mlflow.mlflow.svc.cluster.local:5000\"\
+          \    # Log & register via MLflow\n    mlflow.set_tracking_uri(f\"http://{mlflow_endpoint}\"\
           )\n    mlflow.set_experiment(experiment_name)\n    run_name = f\"{version}_{model_name.upper()}\"\
           \n    with mlflow.start_run(run_name=run_name):\n        mlflow.log_params(best_params)\n\
           \        mlflow.log_metric(\"accuracy\", acc)\n        if roc is not None:\n\
@@ -179,6 +183,8 @@ root:
               componentInputParameter: minio_endpoint
             minio_secret_key:
               componentInputParameter: minio_secret_key
+            mlflow_endpoint:
+              componentInputParameter: mlflow_endpoint
             model_name:
               componentInputParameter: model_name
             version:
@@ -205,6 +211,8 @@ root:
       minio_endpoint:
         parameterType: STRING
       minio_secret_key:
+        parameterType: STRING
+      mlflow_endpoint:
         parameterType: STRING
       model_name:
         defaultValue: xgb

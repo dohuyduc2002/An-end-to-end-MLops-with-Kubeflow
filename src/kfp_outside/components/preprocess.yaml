@@ -12,6 +12,8 @@
 #    test_csv: system.Dataset
 #    train_csv: system.Dataset
 # Outputs:
+#    output_test_csv: system.Dataset
+#    output_train_csv: system.Dataset
 #    test_key: str
 #    train_key: str
 #    transformer_joblib: system.Model
@@ -51,6 +53,14 @@ components:
           parameterType: STRING
     outputDefinitions:
       artifacts:
+        output_test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        output_train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
         transformer_joblib:
           artifactType:
             schemaTitle: system.Model
@@ -91,26 +101,26 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef preprocess(\n    train_csv: InputPath(Dataset),       \n    test_csv:\
-          \  InputPath(Dataset),   \n    transformer_joblib: Output[Model],    \n\
-          \    minio_endpoint: str,\n    minio_access_key: str,\n    minio_secret_key:\
-          \ str,\n    bucket_name: str,\n    dest_train_object: str,\n    dest_test_object:\
-          \ str,\n    n_features_to_select: str = \"auto\",\n    data_version: str\
-          \ = \"v1\",\n) -> NamedTuple(\"Keys\", [(\"train_key\", str), (\"test_key\"\
-          , str)]):\n    import pandas as pd, numpy as np, joblib\n    from pathlib\
-          \ import Path\n    from minio import Minio\n    from optbinning import BinningProcess\n\
-          \    from sklearn.feature_selection import SelectKBest, f_classif\n\n  \
-          \  # Load artifact CSVs\n    df_tr = pd.read_csv(train_csv)\n    df_te =\
-          \ pd.read_csv(test_csv)\n\n    # 2) IV\u2011based filter & binning\n   \
-          \ def get_lists(df):\n        num = df.select_dtypes(include=[\"int64\"\
-          ,\"float64\"]).columns.tolist()\n        cat = df.select_dtypes(include=[\"\
-          object\"]).columns.tolist()\n        for c in (\"SK_ID_CURR\",\"TARGET\"\
-          ):\n            if c in num: num.remove(c)\n        return cat, num\n\n\
-          \    def iv_score(bins, y):\n        tmp = pd.DataFrame({\"b\": bins, \"\
-          t\": y})\n        tot_g, tot_b = (tmp.t==0).sum(), (tmp.t==1).sum()\n  \
-          \      s = 0\n        for _, g in tmp.groupby(\"b\"):\n            good\
-          \ = (g.t==0).sum() or 0.5\n            bad  = (g.t==1).sum() or 0.5\n  \
-          \          s += (good/tot_g - bad/tot_b)*np.log((good/tot_g)/(bad/tot_b))\n\
+          \ *\n\ndef preprocess(\n    train_csv: Input[Dataset],       \n    test_csv:\
+          \  Input[Dataset],   \n    transformer_joblib: Output[Model],  \n    output_train_csv:\
+          \ Output[Dataset],  \n    output_test_csv: Output[Dataset],\n    minio_endpoint:\
+          \ str,\n    minio_access_key: str,\n    minio_secret_key: str,\n    bucket_name:\
+          \ str,\n    dest_train_object: str,\n    dest_test_object: str,\n    n_features_to_select:\
+          \ str = \"auto\",\n    data_version: str = \"v1\",\n) -> NamedTuple(\"Outputs\"\
+          , [(\"train_key\", str), (\"test_key\", str)]):\n\n    import pandas as\
+          \ pd, numpy as np, joblib\n    from pathlib import Path\n    from minio\
+          \ import Minio\n    from optbinning import BinningProcess\n    from sklearn.feature_selection\
+          \ import SelectKBest, f_classif\n\n    # Load artifact CSVs\n    df_tr =\
+          \ pd.read_csv(train_csv.path)\n    df_te = pd.read_csv(test_csv.path)\n\n\
+          \    # 2) IV\u2011based filter & binning\n    def get_lists(df):\n     \
+          \   num = df.select_dtypes(include=[\"int64\",\"float64\"]).columns.tolist()\n\
+          \        cat = df.select_dtypes(include=[\"object\"]).columns.tolist()\n\
+          \        for c in (\"SK_ID_CURR\",\"TARGET\"):\n            if c in num:\
+          \ num.remove(c)\n        return cat, num\n\n    def iv_score(bins, y):\n\
+          \        tmp = pd.DataFrame({\"b\": bins, \"t\": y})\n        tot_g, tot_b\
+          \ = (tmp.t==0).sum(), (tmp.t==1).sum()\n        s = 0\n        for _, g\
+          \ in tmp.groupby(\"b\"):\n            good = (g.t==0).sum() or 0.5\n   \
+          \         bad  = (g.t==1).sum() or 0.5\n            s += (good/tot_g - bad/tot_b)*np.log((good/tot_g)/(bad/tot_b))\n\
           \        return s\n\n    cat_cols, num_cols = get_lists(df_tr)\n    y =\
           \ df_tr[\"TARGET\"]\n    X_tr, X_te = df_tr.drop(\"TARGET\", axis=1), df_te.copy()\n\
           \n    survivors = []\n    for f in cat_cols+num_cols:\n        bp_tmp =\
@@ -129,15 +139,17 @@ deploymentSpec:
           \ = pd.DataFrame(sel.transform(df_te_b), columns=keep)\n    out_tr[\"TARGET\"\
           ] = y\n\n    # Dump transformer\n    Path(transformer_joblib.path).parent.mkdir(parents=True,\
           \ exist_ok=True)\n    joblib.dump({\"binning_process\": bp, \"selector\"\
-          : sel}, transformer_joblib.path)\n\n    # Push processed CSVs back to MinIO\n\
-          \    client = Minio(\n        minio_endpoint,\n        access_key=minio_access_key,\n\
-          \        secret_key=minio_secret_key,\n        secure=False,\n    )\n  \
-          \  tr_key = dest_train_object.replace(\".csv\", f\"_{data_version}.csv\"\
-          )\n    te_key = dest_test_object.replace(\".csv\", f\"_{data_version}.csv\"\
-          )\n    tmp_tr = f\"/tmp/{Path(tr_key).name}\"\n    tmp_te = f\"/tmp/{Path(te_key).name}\"\
-          \n    out_tr.to_csv(tmp_tr, index=False)\n    out_te.to_csv(tmp_te, index=False)\n\
-          \    client.fput_object(bucket_name, tr_key, tmp_tr)\n    client.fput_object(bucket_name,\
-          \ te_key, tmp_te)\n\n    return (tr_key, te_key)\n\n"
+          : sel}, transformer_joblib.path)\n\n    out_tr.to_csv(output_train_csv.path,\
+          \ index=False)\n    out_te.to_csv(output_test_csv.path, index=False)\n\n\
+          \    # Push processed CSVs back to MinIO\n    client = Minio(\n        minio_endpoint,\n\
+          \        access_key=minio_access_key,\n        secret_key=minio_secret_key,\n\
+          \        secure=False,\n    )\n    tr_key = dest_train_object.replace(\"\
+          .csv\", f\"_{data_version}.csv\")\n    te_key = dest_test_object.replace(\"\
+          .csv\", f\"_{data_version}.csv\")\n    tmp_tr = f\"/tmp/{Path(tr_key).name}\"\
+          \n    tmp_te = f\"/tmp/{Path(te_key).name}\"\n    out_tr.to_csv(tmp_tr,\
+          \ index=False)\n    out_te.to_csv(tmp_te, index=False)\n    client.fput_object(bucket_name,\
+          \ tr_key, tmp_tr)\n    client.fput_object(bucket_name, te_key, tmp_te)\n\
+          \n    return (tr_key, te_key)\n\n"
         image: microwave1005/scipy-img:latest
 pipelineInfo:
   name: preprocess
@@ -145,6 +157,14 @@ root:
   dag:
     outputs:
       artifacts:
+        output_test_csv:
+          artifactSelectors:
+          - outputArtifactKey: output_test_csv
+            producerSubtask: preprocess
+        output_train_csv:
+          artifactSelectors:
+          - outputArtifactKey: output_train_csv
+            producerSubtask: preprocess
         transformer_joblib:
           artifactSelectors:
           - outputArtifactKey: transformer_joblib
@@ -222,6 +242,14 @@ root:
         parameterType: STRING
   outputDefinitions:
     artifacts:
+      output_test_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+      output_train_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
       transformer_joblib:
         artifactType:
           schemaTitle: system.Model
