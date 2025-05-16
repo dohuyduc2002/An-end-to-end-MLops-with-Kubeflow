@@ -448,11 +448,13 @@ MINIO_SECRET_KEY=minio123
 MINIO_BUCKET_NAME=sample-data
 
 # Kubeflow/Dex Auth Configuration
-KFP_API_URL=http://ml-pipeline.kubeflow.svc.cluster.local:8888 
+KFP_API_URL=http://localhost:8080/pipeline
 KFP_SKIP_TLS_VERIFY=True
 KFP_DEX_USERNAME=user@example.com
 KFP_DEX_PASSWORD=12341234
 KFP_DEX_AUTH_TYPE=local
+
+MLFLOW_ENDPOINT=mlflow.mlflow.svc.cluster.local:5000
 ```
 2. After that, you can run the following command to run the pipeline:
 ```bash

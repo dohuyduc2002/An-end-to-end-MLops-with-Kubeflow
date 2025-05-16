@@ -9,9 +9,6 @@ pipeline {
     parameters {
         string(name: 'MODEL_NAME', defaultValue: 'v1_xgb_XGB', description: 'Model Name to Build & Promote')
         choice(name: 'MODEL_TYPE', choices: ['xgb','lgbm'], description: 'Model Type to use')
-        string(name: 'CLUSTER_NAME', defaultValue: 'prediction-platform', description: 'GKE Cluster name')
-        string(name: 'ZONE', defaultValue: 'us-central1-c', description: 'GKE Cluster zone')
-        string(name: 'PROJECT_ID', defaultValue: 'mlops-fsds', description: 'GCP Project ID')
         string(name: 'MLFLOW_IP', defaultValue: '35.193.229.26', description: 'External IP of MLflow Ingress')
     }
 
@@ -23,17 +20,37 @@ pipeline {
         MINIO_SECRET_KEY       = 'minio123'
         MINIO_BUCKET_NAME      = 'sample-data'
         MLFLOW_TRACKING_URI    = 'http://mlflow.ducdh.com'
-        KFP_API_URL            = 'http://kubeflow.ducdh.com/pipeline'
-        KFP_DEX_USERNAME       = 'user@example.com'
-        KFP_DEX_PASSWORD       = '12341234'
-        KFP_SKIP_TLS_VERIFY    = 'False'
-        KFP_DEX_AUTH_TYPE      = 'local'
+
+        CLUSTER_NAME           = 'prediction-platform'
+        ZONE                   = 'us-central1-c'
+        PROJECT_ID             = 'mlops-fsds'
     }
 
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Test') {
+            agent {
+                docker {
+                    image 'microwave1005/kfp-ci-jenkins'
+                    reuseNode true
+                }
+            }
+            steps {
+                dir('testing') {
+                    
+                sh '''
+                    cd testing
+                    pytest -m unit
+
+                    echo " Failing if coverage < 80%"
+                    coverage report --fail-under=80
+                '''
+                }
             }
         }
 
@@ -117,41 +134,34 @@ else:
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to Google Kubernetes Engine') {
             steps {
-                withCredentials([file(credentialsId: 'gcp-service-account', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                    sh '''
-                        set -e
+                sh '''
+                    set -e
 
-                        echo "🔐 Authenticating to GCP..."
-                        gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                    echo "🔐 Authenticating to GCP..."
+                    gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
 
-                        echo "🔗 Fetching GKE credentials..."
-                        gcloud container clusters get-credentials $CLUSTER_NAME --zone $ZONE --project $PROJECT_ID
+                    echo "🔗 Fetching GKE credentials..."
+                    gcloud container clusters get-credentials $CLUSTER_NAME --zone $ZONE --project $PROJECT_ID
 
-                        echo "🚀 Upgrading API release with Helm..."
-                        cd helm-charts/api
+                    echo "🚀 Upgrading API release with Helm..."
+                    cd helm-charts/api
 
-                        helm upgrade api . \
-                          --namespace api \
-                          --create-namespace \
-                          --reuse-values \
-                          --set monitoring.enabled=true \
-                          --set image.tag=latest \
-                          --set replicaCount=1 \
-                          --set ingress.enabled=true \
-                          --set ingress.rules[0].host=api.ducdh.com \
-                          --set ingress.rules[0].paths[0].path="/" \
-                          --set ingress.rules[0].paths[0].pathType=Prefix \
-                          --set ingress.rules[0].paths[0].serviceName=prediction-api \
-                          --set ingress.rules[0].paths[0].servicePort=8000
-
-                        echo "🔄 Restarting deployment..."
-                        kubectl rollout restart deployment/prediction-api -n api
-
-                        echo "✅ Deployment completed!"
-                    '''
-                }
+                    helm upgrade api . \
+                      --namespace api \
+                      --create-namespace \
+                      --reuse-values \
+                      --set monitoring.enabled=true \
+                      --set image.tag=latest \
+                      --set replicaCount=1 \
+                      --set ingress.enabled=true \
+                      --set ingress.rules[0].host=api.ducdh.com \
+                      --set ingress.rules[0].paths[0].path="/" \
+                      --set ingress.rules[0].paths[0].pathType=Prefix \
+                      --set ingress.rules[0].paths[0].serviceName=prediction-api \
+                      --set ingress.rules[0].paths[0].servicePort=8000
+                '''
             }
         }
     }
@@ -159,6 +169,10 @@ else:
     post {
         always {
             echo '✅ Pipeline execution complete.'
+        }
+        cleanup {
+            echo '🧹 Cleaning up unused Docker images...'
+            sh 'docker image prune -f'
         }
     }
 }

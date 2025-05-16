@@ -24,6 +24,7 @@ if __name__ == "__main__":
     minio_access_key = os.environ["MINIO_ACCESS_KEY"]
     minio_secret_key = os.environ["MINIO_SECRET_KEY"]
     bucket_name      = os.environ["MINIO_BUCKET_NAME"]
+    mlflow_endpoint  = os.environ["MLFLOW_ENDPOINT"]
 
     # 3️⃣ Define the rest of pipeline parameters inline
     pipeline_args = {
@@ -31,6 +32,7 @@ if __name__ == "__main__":
         "minio_access_key":     minio_access_key,
         "minio_secret_key":     minio_secret_key,
         "bucket_name":          bucket_name,
+        "mlflow_endpoint":      mlflow_endpoint,
         "raw_train_object":     "data/application_train.csv",
         "raw_test_object":      "data/application_test.csv",
         "dest_train_object":    "data/train/preprocessed_train.csv",

@@ -1,10 +1,9 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from time import time
 
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, Body
-from pydantic import BaseModel
 
 import mlflow
 from mlflow.tracking import MlflowClient
@@ -17,11 +16,10 @@ from pathlib import Path
 import joblib
 from minio import Minio
 from io import BytesIO
-from loguru import logger
 from dotenv import load_dotenv
 import os
 
-from schema import RawItem
+from .schema import RawItem
 load_dotenv(override=False)
 
 access_key = os.getenv("MINIO_ACCESS_KEY")
@@ -41,15 +39,7 @@ minio_client = Minio(
 )
 
 local_path = Path(__file__).resolve().parents[1] / "joblib" / "transformer.joblib"
-docker_path = Path("/app/joblib/transformer.joblib")
-
-if local_path.exists():
-    transformer = joblib.load(local_path)
-elif docker_path.exists():
-    transformer = joblib.load(docker_path)
-else:
-    raise FileNotFoundError("transformer.joblib not found.")
-
+transformer = joblib.load(local_path)
 
 model_name = os.getenv("MODEL_NAME")
 model_type = os.getenv("MODEL_TYPE")
@@ -69,10 +59,6 @@ if model_type == "xgb":
     model = mlflow.xgboost.load_model(model_uri)
 elif model_type == "lgbm":
     model = mlflow.lightgbm.load_model(model_uri)
-else:
-    raise ValueError(f"Unsupported model type: {model_type}")
-
-logger.info(f"Loaded {model_type.upper()} model '{model_name}' from {model_uri}")
 
 # ========== OpenTelemetry gauges ===========================
 reader = PrometheusMetricReader()
@@ -157,12 +143,9 @@ def predict_by_id(id: int) -> Dict[str, Any]:
     global last_avg_entropy, last_avg_confidence
     t0 = time()
 
-    try:
-        response = minio_client.get_object("sample-data", "data/application_test.csv")
-        df_all = pd.read_csv(BytesIO(response.read()))
-    except Exception as e:
-        raise RuntimeError(f"Failed to fetch test data from MinIO: {str(e)}")
-
+    response = minio_client.get_object("sample-data", "data/application_test.csv")
+    df_all = pd.read_csv(BytesIO(response.read()))
+    
     df_row = df_all[df_all["SK_ID_CURR"] == id]
     if df_row.empty:
         return {"error": f"ID {id} not found"}

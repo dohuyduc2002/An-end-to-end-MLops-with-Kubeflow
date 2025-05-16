@@ -65,7 +65,7 @@ deploymentSpec:
           \ str,\n    minio_secret_key: str,\n    bucket_name: str,\n    object_name:\
           \ str,\n    output: Output[Dataset],   \n):\n    \"\"\"\n    Download a\
           \ single object from MinIO into a KFP Dataset artifact.\n    \"\"\"\n  \
-          \  from minio import Minio\n    import os\n\n    os.makedirs(os.path.dirname(output.path),\
+          \  from minio import Minio\n    import os\n\n\n    os.makedirs(os.path.dirname(output.path),\
           \ exist_ok=True)\n    client = Minio(\n        minio_endpoint,\n       \
           \ access_key=minio_access_key,\n        secret_key=minio_secret_key,\n \
           \       secure=False,\n    )\n    client.fget_object(bucket_name, object_name,\
