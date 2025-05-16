@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from kfp.v2.dsl import Dataset
+from kfp.dsl import Dataset
 from kfp_outside.script.dataloader import dataloader
 from testing.utils import make_test_artifact
 

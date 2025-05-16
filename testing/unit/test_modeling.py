@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from kfp.v2.dsl import Dataset, Model
+from kfp.dsl import Dataset, Model
 from testing.utils import make_test_artifact
 
 from kfp_outside.script.modeling import modeling
