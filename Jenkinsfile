@@ -44,7 +44,7 @@ pipeline {
                 dir('testing') {
                     
                 sh '''
-                    pytest testing/unit -m unit
+                    pytest unit -m unit
 
                     echo " Failing if coverage < 80%"
                     coverage report --fail-under=80
@@ -56,13 +56,13 @@ pipeline {
         stage('Build') {
             steps {
                 script {
-                    echo "📦 Building image with MODEL_NAME=${params.MODEL_NAME}, MODEL_TYPE=${params.MODEL_TYPE}"
+                    echo " Building image with MODEL_NAME=${params.MODEL_NAME}, MODEL_TYPE=${params.MODEL_TYPE}"
                     dockerImage = docker.build(
                         "${registry}:${BUILD_NUMBER}",
                         "--build-arg MODEL_NAME=${params.MODEL_NAME} --build-arg MODEL_TYPE=${params.MODEL_TYPE} -f dockerfiles/Dockerfile.app ."
                     )
 
-                    echo '📤 Pushing image to Docker Hub...'
+                    echo '[INFO] Pushing image to Docker Hub...'
                     docker.withRegistry('', registryCredential) {
                         dockerImage.push()
                         dockerImage.push('latest')
@@ -81,20 +81,20 @@ pipeline {
             }
             steps {
                 sh """
-                    echo "🌐 Verifying DNS & Host routing..."
-                    curl -I http://mlflow.ducdh.com || echo "❌ DNS resolve failed"
-                    curl -I -H 'Host: mlflow.ducdh.com' http://${params.MLFLOW_IP} || echo "❌ Host header routing failed"
+                    echo "[INFO] Verifying DNS & Host routing..."
+                    curl -I http://mlflow.ducdh.com || echo "[CRITICAL] DNS resolve failed"
+                    curl -I -H 'Host: mlflow.ducdh.com' http://${params.MLFLOW_IP} || echo "[CRITICAL] Host header routing failed"
 
-                    echo "🚀 Promoting model to STAGING..."
+                    echo "[INFO] Promoting model to STAGING..."
                     python3 -c "import mlflow
 client = mlflow.tracking.MlflowClient(tracking_uri='http://mlflow.ducdh.com')
 versions = client.get_latest_versions('${params.MODEL_NAME}', stages=['None'])
 if versions:
     v = versions[0].version
     client.transition_model_version_stage('${params.MODEL_NAME}', v, 'Staging')
-    print(f'✅ Promoted to Staging: ${params.MODEL_NAME} v{v}')
+    print(f'[INFO] Promoted to Staging: ${params.MODEL_NAME} v{v}')
 else:
-    print('⚠️ No model version found.')"
+    print('[INFO] No model version found.')"
                 """
             }
         }
@@ -115,20 +115,20 @@ else:
             }
             steps {
                 sh """
-                    echo "🌐 Verifying DNS & Host routing..."
-                    curl -I http://mlflow.ducdh.com || echo "❌ DNS resolve failed"
-                    curl -I -H 'Host: mlflow.ducdh.com' http://${params.MLFLOW_IP} || echo "❌ Host header routing failed"
+                    echo "[INFO] Verifying DNS & Host routing..."
+                    curl -I http://mlflow.ducdh.com || echo "[CRITICAL] DNS resolve failed"
+                    curl -I -H 'Host: mlflow.ducdh.com' http://${params.MLFLOW_IP} || echo "[CRITICAL] Host header routing failed"
 
-                    echo "🚀 Promoting model to PRODUCTION..."
+                    echo "[INFO] Promoting model to PRODUCTION..."
                     python3 -c "import mlflow
 client = mlflow.tracking.MlflowClient(tracking_uri='http://mlflow.ducdh.com')
 versions = client.get_latest_versions('${params.MODEL_NAME}', stages=['Staging'])
 if versions:
     v = versions[0].version
     client.transition_model_version_stage('${params.MODEL_NAME}', v, 'Production')
-    print(f'✅ Promoted to Production: ${params.MODEL_NAME} v{v}')
+    print(f'[INFO] Promoted to Production: ${params.MODEL_NAME} v{v}')
 else:
-    print('⚠️ No Staging model found.')"
+    print('[INFO] No Staging model found.')"
                 """
             }
         }
@@ -138,13 +138,13 @@ else:
                 sh '''
                     set -e
 
-                    echo "🔐 Authenticating to GCP..."
+                    echo " Authenticating to GCP..."
                     gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
 
-                    echo "🔗 Fetching GKE credentials..."
+                    echo " Fetching GKE credentials..."
                     gcloud container clusters get-credentials $CLUSTER_NAME --zone $ZONE --project $PROJECT_ID
 
-                    echo "🚀 Upgrading API release with Helm..."
+                    echo " Upgrading API release with Helm..."
                     cd helm-charts/api
 
                     helm upgrade api . \
@@ -167,10 +167,10 @@ else:
 
     post {
         always {
-            echo '✅ Pipeline execution complete.'
+            echo '[INFO] Pipeline execution complete.'
         }
         cleanup {
-            echo '🧹 Cleaning up unused Docker images...'
+            echo '[INFO] Cleaning up unused Docker images...'
             sh 'docker image prune -f'
         }
     }
