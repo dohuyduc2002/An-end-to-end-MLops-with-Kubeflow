@@ -44,8 +44,7 @@ pipeline {
                 dir('testing') {
                     
                 sh '''
-                    cd testing
-                    pytest -m unit
+                    pytest testing/unit -m unit
 
                     echo " Failing if coverage < 80%"
                     coverage report --fail-under=80
