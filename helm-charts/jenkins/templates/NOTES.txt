@@ -1,7 +1,0 @@
-{{- if and .Values.ingress.enabled (gt (len .Values.ingress.hosts) 0) }}
-  {{- $hostEntry := index .Values.ingress.hosts 0 }}
-  {{- $host := (hasKey $hostEntry "host") | ternary $hostEntry.host $hostEntry }}
-✅ Jenkins is available at: http://{{ $host }}
-{{- else }}
-ℹ️ Ingress is not enabled or host not defined.
-{{- end }}
