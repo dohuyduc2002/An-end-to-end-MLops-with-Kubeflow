@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Copy your requirements from relative path
-COPY ../src/kfp/requirements.txt ./requirements.txt
+COPY ../src/kfp_outside/requirements.txt ./requirements.txt
 
 # Install Python dependencies
 RUN pip install --upgrade pip && \

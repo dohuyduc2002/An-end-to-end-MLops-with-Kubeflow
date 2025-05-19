@@ -1,0 +1,47 @@
+substitutions:
+  _REGISTRY: "microwave1005/prediction-api"
+  _DOCKERHUB_USER: "microwave1005"
+  _DOCKERHUB_PASS: "projects/mlops-fsds/secrets/dockerhub-pass/versions/latest"
+
+notifications:
+- filter: build.status in ["SUCCESS","FAILURE"]
+  pubsubTopic: projects/mlops-fsds/topics/build-notifications
+  messageFormat: JSON
+
+steps:
+- name: "gcr.io/cloud-builders/docker"
+  id: "Build App Image"
+  secretEnv: ["DOCKERHUB_PASS"]
+  args: [
+    "build", "-f", "dockerfiles/Dockerfile.app",
+    "-t", "microwave1005/prediction-api:$BUILD_ID",
+    "-t", "microwave1005/prediction-api:latest", "."
+  ]
+
+- name: "gcr.io/cloud-builders/docker"
+  id: "Run Pytest"
+  args: [
+    "run", "--rm", "microwave1005/prediction-api:$BUILD_ID",
+    "bash", "-c",
+    "pip install pytest==8.3.4 && cd testing && chmod +x test.sh && ./test.sh"
+  ]
+
+- name: "gcr.io/cloud-builders/docker"
+  id: "Push Image"
+  entrypoint: bash
+  secretEnv: ["DOCKERHUB_PASS"]
+  args:
+    - -c
+    - |
+      echo "$DOCKERHUB_PASS" | docker login -u "$_DOCKERHUB_USER" --password-stdin &&
+      docker push $_REGISTRY:$BUILD_ID &&
+      docker push $_REGISTRY:latest
+
+secrets:
+- kmsKeyName: projects/mlops-fsds/locations/global/keyRings/cloudbuild/cryptoKeys/dockerhub
+  secretEnv:
+    DOCKERHUB_PASS: $_DOCKERHUB_PASS
+
+images:
+- "microwave1005/prediction-api:$BUILD_ID"
+- "microwave1005/prediction-api:latest"

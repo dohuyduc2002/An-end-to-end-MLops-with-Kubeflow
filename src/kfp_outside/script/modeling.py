@@ -1,16 +1,41 @@
 # scripts/modeling.py
 from kfp import dsl
-from kfp.dsl import InputPath, Output, Model, Dataset, OutputPath
+from kfp.dsl import InputPath, Output, Model, Dataset, OutputPath, Input
 
-@dsl.component(base_image="microwave1005/scipy-img:latest")
+@dsl.component(base_image="microwave1005/scipy-img:latest",
+                packages_to_install=[
+                "protobuf==4.25.5",
+                "kfp==2.12.1",
+                "fastapi==0.104.1",
+                "uvicorn[standard]==0.24.0",
+                "loguru==0.7.2",
+                "joblib==1.3.2",
+                "pandas==2.1.3",
+                "pytest==7.4.3",
+                "numpy==1.24.4",
+                "mlflow==2.8.1",
+                "matplotlib==3.8.1",
+                "pydantic==1.10.8",
+                "ortools==9.7.2996",
+                "requests==2.31.0",
+                "boto3",
+                "shap",
+                "optuna",
+                "optbinning",
+                "urllib3",
+                "minio",
+                "lightgbm",
+                "python-dotenv"
+            ])
 def modeling(
-    train_csv: InputPath(Dataset),
-    test_csv: InputPath(Dataset),
+    train_csv: Input[Dataset],
+    test_csv: Input[Dataset],
     model_joblib: Output[Model],
     registered_model: OutputPath(str),
     minio_endpoint: str,
     minio_access_key: str,
     minio_secret_key: str,
+    mlflow_endpoint: str ,
     model_name: str = "xgb",
     version: str = "v1",
     experiment_name: str = "UnderwritingPipeline",
@@ -30,9 +55,10 @@ def modeling(
     os.environ["MLFLOW_S3_ENDPOINT_URL"] = f"http://{minio_endpoint}"
     os.environ["AWS_ACCESS_KEY_ID"]      = minio_access_key
     os.environ["AWS_SECRET_ACCESS_KEY"]  = minio_secret_key
+    os.environ["MLFLOW_ENDPOINT"] = f"http://{mlflow_endpoint}"
 
     # Load processed CSV
-    df = pd.read_csv(train_csv)
+    df = pd.read_csv(train_csv.path) 
     X, y = df.drop("TARGET", axis=1), df["TARGET"]
 
     # Optuna tuning
@@ -97,7 +123,7 @@ def modeling(
     )
 
     # Log & register via MLflow
-    mlflow.set_tracking_uri("http://mlflow.mlflow.svc.cluster.local:5000")
+    mlflow.set_tracking_uri(f"http://{mlflow_endpoint}")
     mlflow.set_experiment(experiment_name)
     run_name = f"{version}_{model_name.upper()}"
     with mlflow.start_run(run_name=run_name):
