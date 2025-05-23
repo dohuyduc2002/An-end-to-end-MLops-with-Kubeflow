@@ -5,7 +5,7 @@ __pycache__/
 **/__pycache__/
 src/client/data/application_test.csv
 src/client/data/application_train.csv
-
+.DS_Store
 
 gcp/src/client/joblib/processed_train
 gcp/src/client/joblib/processed_test

@@ -36,13 +36,12 @@ Root
 │   ├── kfp-access                      *  Custom Kubeflow Pipelines access in Notebook
 │   ├── kind.yaml
 │   ├── manifests                       *  Kubeflow manifests v1.10
-│   ├── notebook                        *  Custom Kubeflow Notebook
+│   ├── notebook                        *  Custom Kubeflow Notebook 
+│   ├── patch_vs.sh                     *  Script to patch the Kubeflow virtualservice and gateway
 │   ├── README.md
 │   └── svc_mesh                        *  Istio service mesh to export Kubeflow services
 ├── LICENSE
-├── media                               *  Media files for the project
-│   └── diagram.jpg
-├── patch_vs.sh                         *  Script to patch the Kubeflow virtualservice and gateway
+├── media                               *  Media files for the project                      
 ├── README.md
 ├── src                                 *  Source code for the project
 │   ├── client                          *  Client code for the project
@@ -51,7 +50,7 @@ Root
 ├── terraform                           *  Terraform files for deploying the project
 │   ├── gce                             *  Deploying Jenkins in GCE 
 │   └── gke                             *  Deploying the project in GKE
-│ testing                               *  Testing files for the project
+│ tests                                 *  Testing files for the project
 │   ├── unit                            *  Unit test files for kfp pipeline and model serving
 │   └── integration                     *  Integration test files for kfp pipeline and model serving                         
 ```
@@ -63,10 +62,11 @@ Root
 - [ ] Code refactoring and deduplication
 - [ ] Add integration test 
 - [ ] Add media files 
+- [ ] Artifact storage in pipeline 
 ## Setting up GCP
-
+# jenkins file chi chay stage xx neu co change tu folder xx 
 1. Create a Google Cloud account and set up billing.
-After creating GCP account, create a new project and enable billing for it. You can follow the official [GCP account registration guide](https://cloud.google.com/docs/authentication/getting-started) to create a GCP account and set up billing.
+After creating GCP account, create a new project and enable billing for it. You can follow the official [GCP account registration guide](https://cloud.google.com/free/docs/free-cloud-features) to create a GCP account and set up billing.
 
 media...
 
@@ -80,7 +80,7 @@ Navigate to [Cloud Builder API UI](https://console.cloud.google.com/marketplace/
 Because this project is running on GKE, you need to install gcloud cli to manage GCP resources. You can follow the official [Gcloud installation guide](https://cloud.google.com/sdk/docs/install) 
 
 3. Create GCP service account
-To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account guide](https://cloud.google.com/iam/docs/service-accounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform/gce` and `terraform/gke` folder.
+To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account](https://console.cloud.google.com/iam-admin/serviceaccounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform/gce` and `terraform/gke` folder.
 
 ## Prerequisites installation
 This is the environment I used to run this project:
@@ -141,7 +141,8 @@ I'm using default VPC network provided by GKE cluster when creating the cluster.
 
 3. Switch context to GKE cluster 
 ```bash
-gcloud container clusters get-credentials <cluster-name> --region <region> --project <project-id>
+
+gcloud container clusters get-credentials <cluster-name> --zone <zone> --project <project-id>
 ```
 after this, you can use `kubectx` to switch context to GKE cluster.
 
@@ -157,13 +158,13 @@ To install Kubeflow, first you clone the Kubeflow manifest repo [Kubeflow manife
 After that, you can install Kubeflow using the README file in `kubeflow/manifests` folder. 
 
 ### Expose Kubeflow to the internet
-While using GKE cluster, you can not use `kubectl port-forward` to access the Kubeflow central dashboard. To expose Kubeflow to the internet, you need to do following steps:
+While using GKE cluster, you can use `kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80` to access the Kubeflow central dashboard but it will only work for your local machine. To expose Kubeflow to the internet, you need to create a LoadBalancer service for Istio ingress gateway.
 
 1. Create Istio LoadBalancer service inside `istio-system` namespace
 Because we need to keep internal service mesh for Kubeflow services, the new Istio LoadBalancer service will take external IP from GKE cluster and route all traffic to the internal Istio ClusterIP service mesh. 
 
 ```bash
-cd svc_mesh
+cd kubeflow/svc_mesh
 k apply -f istio-ingressgateway-lb.yaml
 ```
 Wait for a few minutes until `istio-ingressgateway-lb` service got `EXTERNAL-IP` address. You can check the status of the service by running the following command:
@@ -172,7 +173,7 @@ Wait for a few minutes until `istio-ingressgateway-lb` service got `EXTERNAL-IP`
 k get svc istio-ingressgateway-lb -n istio-system
 ```
 
-2. To ensure that service mesh is working inside the cluster, you have to patch all virtual services in Kubeflow to use the new Istio LoadBalancer service. *Remember to change the HOST="kubeflow.<ExternalIP>.nip.io"* in `patch_vs.sh` file to your own Istio LB external IP address. 
+2. To ensure that service mesh is working inside the cluster, you have to patch all virtual services in Kubeflow to use the new Istio LoadBalancer service. For more information, check `kubeflow/patch_vs.sh` file
 ```bash 
 bash patch_vs.sh
 ```
@@ -182,11 +183,14 @@ This command will patch all virtual services with new Istio LoadBalancer gateway
 # Get all virtual services
 k get virtualservices -A 
 ```
-After that, you can access Kubeflow central dashboard using the following URL:
+After all virtual services are patched, you may need to map `<ISTIO-EXTERNAL-IP>` to your local machine. You can do this by adding the following line to your `/etc/hosts` file:
 
 ```bash
-http://kubeflow.<EXTERNAL-IP>.nip.io
+sudo nano /etc/hosts
+
+<ISTIO-EXTERNAL_IP> kubeflow.ducdh.com
 ```
+Then you can access Kubeflow central dashboard by going to `http://ducdh.kubeflow.com` in your browser without port-forwarding.
 **Using Kubeflow Pipelines Inside Kubeflow Notebook**:
 After Kubeflow manifests version v1.7, the default button to allow pipeline to run inside the namespace is removed, we need to add this manually by providing `kubeflow-user-example-com` Service Account and add RBAC role to Pod Default. 
 
@@ -195,14 +199,6 @@ cd kubeflow/kfp-access
 k apply -f kfp-access.yaml
 ```
 You can also based on this template to add your own configuration button like add GCP credential, Wandb credential, etc.
-
-If you prefer to hide your IP address, you can use sample DNS at your local machine
-
-```bash
-sudo nano /etc/hosts
-
-<ISTIO-EXTERNAL_IP> ducdh.kubeflow.com
-```
 
 ### Initialize Minio
 Im using Minio helm chart to deploy Minio in this project. You can find the helm chart in `minio` folder which is cloned from this repo [Minio community helm chart](https://github.com/minio/minio/blob/master/helm/minio/README.md)
@@ -221,31 +217,60 @@ helm install minio minio/minio \
   --set resources.requests.memory=2Gi 
 
 ```
+
+### Uploading data to Minio
+In this project, I'm tracking all data under `sample-data` bucket in Minio for simplicity. For simplicity, in this project, I'm using minio root user and password which is `minio` and `minio123`.
+
+1. Download data from gdrive using the following command:
+```bash
+gdown --folder https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVKY35Z-p44?usp=drive_link
+```
+2. Forward Minio service port to access Minio UI and Minio console
+```bash
+k port-forward svc/minio -n minio 9000:9000
+k port-forward svc/minio-console -n minio 9001:9001
+```
+
+3. After that, you can push data to Minio using the following command:
+```bash
+
+mc alias set localMinio http://localhost:9000 minio minio123
+mc mb localMinio/sample-data
+mc mb localMinio/mlflow
+
+mc cp --recursive ./data localMinio/sample-data
+
+echo "Check data in Minio"
+mc ls --recursive localMinio/sample-data
+
+```
 ### Initialize Mlflow 
 MLflow is an open-source platform designed to manage the end-to-end machine learning lifecycle. It provides tools for tracking experiments, packaging code into reproducible runs, and sharing and deploying models.
 
 Im using MLflow community helm chart to deploy MLflow in this project. You can find the helm chart in `mlflow` folder which is cloned from this repo [MLflow community helm chart](https://github.com/community-charts/helm-charts/tree/main/charts/mlflow)
 
+We initialize Postgres database for MLflow backend store.
 ```bash
 cd helm-charts/mlflow
+k create ns mlflow
+k apply -f postgres.yaml
+```
+
+```bash
+helm repo add community-charts https://community-charts.github.io/helm-charts
+
 helm install mlflow community-charts/mlflow \
   --namespace mlflow \
-  --create-namespace \
   --set ingress.enabled=false \
   -f custom-values.yaml
 
 ```
-We initialize Postgres database for MLflow backend store.
-```bash
-cd helm-charts/mlflow
-k apply -f postgres.yaml
-```
+
 I'm using Postgres as backend store and Minio as artifact store. This can be configure using this cmd
 
 ```bash
 helm upgrade --install mlflow community-charts/mlflow \
   --namespace mlflow \
-  --create-namespace \
   --reuse-values \
   \
   --set backendStore.databaseMigration=true \
@@ -275,6 +300,8 @@ helm upgrade --install mlflow community-charts/mlflow \
 To monitor the system, I'm using Prometheus and Grafana. Prometheus is an open-source systems monitoring and alerting toolkit originally built at SoundCloud. Grafana is an open-source platform for monitoring and observability. I'm using Kube-prometheus-stack helm chart to deploy Prometheus and Grafana in this project. You can find the helm chart in `monitor` folder which is cloned from this repo [Kube-prometheus-stack helm chart](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack)
 
 ```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+
 helm install kps prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
 ```
 
@@ -311,8 +338,20 @@ There are 2 ways to deploy endpoint api
 1. Manual: You can deploy the endpoint manually by using the following command:
 2. CICD : The endpoint is automatically deployed when the Jenkins pipeline run success 
 
-In this section, we will use the manual way to deploy the endpoint API.
+In this section, we will use the manual way to deploy the endpoint API. 
 
+**You have to build docker image for the endpoint API first which is `dockerfiles/Dockerfile.app`** 
+```bash
+docker build \
+  -t microwave1005/prediction-api:latest \
+  -t microwave1005/prediction-api:<your_desired_version> \
+  -f dockerfiles/Dockerfile.app \
+  --build-arg MODEL_NAME=v1_xgb_XGB \
+  --build-arg MODEL_TYPE=xgb \
+  .
+```
+
+In my api helm chart, I used `microwave1005/prediction-api:latest` as the default image. The other version is also build to revert when necessary.
 ```bash
 cd helm-charts/api
 helm install api . \
@@ -399,8 +438,6 @@ helm upgrade minio minio/minio \
   --set consoleIngress.ingressClassName=nginx \
   --set consoleIngress.hosts[0]=console.minio.ducdh.com
 
-e. Jenkins 
-
 ```
 After that, to create a mapping between the domain name and the external IP address of the ingress controller, you can use the following command:
 
@@ -442,7 +479,15 @@ image pipeline
 
 #### Using Kubeflow Pipeline outside the cluster
 
-1. First, you have to fill this .env file in `src/kfp_outside` folder to provide credential for Kubeflow pipeline, my credential is 
+1. I'm using custom Kubeflow notebook image to run this pipeline, so need to build this and push it to dockerhub, the image configuration for each component is in `src/kfp_outside/utils.py` file with constant `SCIPY_IMAGE`. This image can also be used as base image to use Kubeflow notebook in the the next step.
+```bash
+docker build --no-cache -t microwave1005/scipy-img:latest -t microwave1005/scipy-img:v0.1 -f dockerfiles/Dockerfile.kubeflow_nb .
+
+docker push microwave1005/scipy-img:latest
+docker push microwave1005/scipy-img:v0.1
+```
+
+2. Second, you have to fill this .env file in `src/kfp_outside` folder to provide credential for Kubeflow pipeline, my credential is 
 ```
 # MinIO configuration
 MINIO_ENDPOINT=minio.minio.svc.cluster.local:9000
@@ -459,7 +504,7 @@ KFP_DEX_AUTH_TYPE=local
 
 MLFLOW_ENDPOINT=mlflow.mlflow.svc.cluster.local:5000
 ```
-2. After that, you can run the following command to run the pipeline:
+3. After that, you can run the following command to run the pipeline:
 ```bash
 cd src/kfp_outside
 bash run.sh
@@ -467,33 +512,6 @@ bash run.sh
 
 #### Using Kubeflow Pipeline inside the cluster
 Refer to this repo [git-underwrite-mlflow](https://github.com/dohuyduc2002/git-underwrite-mlflow) after add Pod default, RBAC and Service account to run pipeline inside the cluster.
-
-### Uploading data to Minio
-In this project, I'm tracking all data under `sample-data` bucket in Minio for simplicity. For simplicity, in this project, I'm using minio root user and password which is `minio` and `minio123`.
-
-1. Download data from gdrive using the following command:
-```bash
-gdown --folder https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVKY35Z-p44?usp=drive_link```
-```
-2. Forward Minio service port to access Minio UI and Minio console
-```bash
-k port-forward svc/minio -n minio 9000:9000
-k port-forward svc/minio-console -n minio 9001:9001
-```
-
-3. After that, you can push data to Minio using the following command:
-```bash
-
-mc alias set localMinio http://localhost:9000 minio minio123
-mc mb localMinio/sample-data
-mc mb localMinio/mlflow
-
-mc cp --recursive ./data localMinio/sample-data
-
-echo "Check data in Minio"
-mc ls --recursive localMinio/sample-data
-
-```
 
 ### Config Kubeflow Central Dashboard
 Kubeflow Central Dashboard allow users to manage their Kubeflow resources and access various components of the Kubeflow ecosystem. It provides a unified interface for users to interact with different Kubeflow components, such as Pipelines, Katib, Kserve, and more. It can also be used to add others outside components with Configmap through virtual service. 
@@ -515,10 +533,10 @@ k rollout restart deployment centraldashboard -n kubeflow
 
 ### Jenkins local
 1. Initialize Jenkins 
-Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.jk` file. This image is used to run Jenkins pipeline and build Docker images for the project.
+Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.custom_jenkins` file. This image is used to run Jenkins pipeline and build Docker images for the project.
 
 ```bash
-docker build -t microwave1005/custom-jenkins -f dockerfiles/Dockerfile.jk .
+docker build -t microwave1005/custom-jenkins:latest -f dockerfiles/Dockerfile.custom_jenkins .
 ```
 
 2. Run Jenkins container

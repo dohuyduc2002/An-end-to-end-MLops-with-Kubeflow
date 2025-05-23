@@ -35,13 +35,13 @@ if __name__ == "__main__":
         "mlflow_endpoint":      mlflow_endpoint,
         "raw_train_object":     "data/application_train.csv",
         "raw_test_object":      "data/application_test.csv",
-        "dest_train_object":    "data/train/preprocessed_train.csv",
-        "dest_test_object":     "data/test/preprocessed_test.csv",
+        "dest_train_object":    "preprocessed_train.csv",
+        "dest_test_object":     "preprocessed_test.csv",
         "n_features_to_select": "auto",
         "data_version":         "v1",
         "model_name":           "xgb",
-        "version":              "v1_xgb",
-        "experiment_name":      "Underwriting-model",
+        "version":              "abc",
+        "experiment_name":      "test",
     }
 
     # 4️⃣ Submit the pipeline run using existing pipeline.yaml

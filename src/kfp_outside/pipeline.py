@@ -21,13 +21,13 @@ def underwriting_pipeline(
     bucket_name:          str,
     raw_train_object:     str,
     raw_test_object:      str,
-    dest_train_object:    str = "processed/train.csv",
-    dest_test_object:     str = "processed/test.csv",
-    n_features_to_select: str = "auto",
-    data_version:         str = "v1",
-    model_name:           str = "xgb",
-    version:              str = "v1",
-    experiment_name:      str = "UnderwritingPipeline",
+    dest_train_object:    str,
+    dest_test_object:     str,
+    n_features_to_select: str ,
+    data_version:         str ,
+    model_name:           str ,
+    version:              str ,
+    experiment_name:      str ,
 ):
     # 1️⃣ Download raw train
     raw_tr = dataloader_op(
@@ -51,10 +51,13 @@ def underwriting_pipeline(
     prep = preprocess_op(
         train_csv=raw_tr.outputs["output"],
         test_csv= raw_te.outputs["output"],
+        mlflow_endpoint=mlflow_endpoint,
         minio_endpoint=minio_endpoint,
         minio_access_key=minio_access_key,
         minio_secret_key=minio_secret_key,
-        bucket_name=bucket_name,
+        experiment_name=experiment_name,
+        model_name=model_name,
+        version=version,
         dest_train_object=dest_train_object,
         dest_test_object=dest_test_object,
         n_features_to_select=n_features_to_select,
@@ -63,12 +66,13 @@ def underwriting_pipeline(
 
     # 6️⃣ Modeling
     modeling_op(
-        minio_endpoint=minio_endpoint,
         mlflow_endpoint=mlflow_endpoint,
+        train_csv=prep.outputs["output_train_csv"],
+        test_csv=prep.outputs["output_test_csv"],
+        mlflow_run_id=prep.outputs["mlflow_run_id"],
+        minio_endpoint=minio_endpoint,
         minio_access_key=minio_access_key,
         minio_secret_key=minio_secret_key,
-        train_csv=prep.outputs["output_train_csv"],
-        test_csv= prep.outputs["output_test_csv"],
         model_name=model_name,
         version=version,
         experiment_name=experiment_name,

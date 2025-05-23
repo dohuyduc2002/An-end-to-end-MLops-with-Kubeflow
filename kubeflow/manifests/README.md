@@ -52,21 +52,22 @@ This repository periodically synchronizes all official Kubeflow components from 
 
 | Component | Local Manifests Path | Upstream Revision |
 | - | - | - |
-| Training Operator | apps/training-operator/upstream | [v1.9.1](https://github.com/kubeflow/training-operator/tree/v1.9.1/manifests) |
+| Training Operator | apps/training-operator/upstream | [v1.9.2](https://github.com/kubeflow/training-operator/tree/v1.9.2/manifests) |
 | Notebook Controller | apps/jupyter/notebook-controller/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/notebook-controller/config) |
 | PVC Viewer Controller | apps/pvcviewer-controller/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/pvcviewer-controller/config) |
 | Tensorboard Controller | apps/tensorboard/tensorboard-controller/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/tensorboard-controller/config) |
 | Central Dashboard | apps/centraldashboard/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/centraldashboard/manifests) |
 | Profiles + KFAM | apps/profiles/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/profile-controller/config) |
 | PodDefaults Webhook | apps/admission-webhook/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/admission-webhook/manifests) |
-| Jupyter Web App | apps/jupyter/jupyter-web-app/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/crud-web-apps/jupyter/manifests) |
-| Tensorboards Web App | apps/tensorboard/tensorboards-web-app/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/crud-web-apps/tensorboards/manifests) |
-| Volumes Web App | apps/volumes-web-app/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/crud-web-apps/volumes/manifests) |
+| Jupyter Web Application | apps/jupyter/jupyter-web-app/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/crud-web-apps/jupyter/manifests) |
+| Tensorboards Web Application | apps/tensorboard/tensorboards-web-app/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/crud-web-apps/tensorboards/manifests) |
+| Volumes Web Application | apps/volumes-web-app/upstream | [v1.10.0](https://github.com/kubeflow/kubeflow/tree/v1.10.0/components/crud-web-apps/volumes/manifests) |
 | Katib | apps/katib/upstream | [v0.18.0](https://github.com/kubeflow/katib/tree/v0.18.0/manifests/v1beta1) |
-| KServe | apps/kserve/kserve | [v0.14.1](https://github.com/kserve/kserve/releases/tag/v0.14.1/install/v0.14.1) |
-| KServe Models Web App | apps/kserve/models-web-app | [v0.14.0-rc.0](https://github.com/kserve/models-web-app/tree/v0.14.0-rc.0/config) |
-| Kubeflow Pipelines | apps/pipeline/upstream | [2.4.1](https://github.com/kubeflow/pipelines/tree/2.4.1/manifests/kustomize) |
-| Kubeflow Model Registry | apps/model-registry/upstream | [v0.2.15.3](https://github.com/kubeflow/model-registry/tree/v0.2.15.3/manifests/kustomize) |
+| KServe | apps/kserve/kserve | [v0.15.0](https://github.com/kserve/kserve/releases/tag/v0.15.0/install/v0.15.0) |
+| KServe Models Web Application | apps/kserve/models-web-app | [v0.14.0](https://github.com/kserve/models-web-app/tree/v0.14.0/config) |
+| Kubeflow Pipelines | apps/pipeline/upstream | [2.5.0](https://github.com/kubeflow/pipelines/tree/2.5.0/manifests/kustomize) |
+| Kubeflow Model Registry | apps/model-registry/upstream | [v0.2.17](https://github.com/kubeflow/model-registry/tree/v0.2.17/manifests/kustomize) |
+| Spark Operator | apps/spark/spark-operator | [2.1.1](https://github.com/kubeflow/spark-operator/tree/v2.1.1) |
 
 The following matrix shows the versions of common components used across different Kubeflow projects:
 
@@ -450,7 +451,7 @@ Install the Notebook Controller official Kubeflow component:
 kustomize build apps/jupyter/notebook-controller/upstream/overlays/kubeflow | kubectl apply -f -
 ```
 
-Install the Jupyter Web App official Kubeflow component:
+Install the Jupyter Web Application official Kubeflow component:
 
 ```sh
 kustomize build apps/jupyter/jupyter-web-app/upstream/overlays/istio | kubectl apply -f -
@@ -478,7 +479,7 @@ kustomize build apps/profiles/upstream/overlays/kubeflow | kubectl apply -f -
 
 #### Volumes Web Application
 
-Install the Volumes Web App official Kubeflow component:
+Install the Volumes Web Application official Kubeflow component:
 
 ```sh
 kustomize build apps/volumes-web-app/upstream/overlays/istio | kubectl apply -f -
@@ -486,7 +487,7 @@ kustomize build apps/volumes-web-app/upstream/overlays/istio | kubectl apply -f 
 
 #### Tensorboard
 
-Install the Tensorboards Web App official Kubeflow component:
+Install the Tensorboards Web Application official Kubeflow component:
 
 ```sh
 kustomize build apps/tensorboard/tensorboards-web-app/upstream/overlays/istio | kubectl apply -f -
@@ -504,6 +505,14 @@ Install the Training Operator official Kubeflow component:
 
 ```sh
 kustomize build apps/training-operator/upstream/overlays/kubeflow | kubectl apply --server-side --force-conflicts -f -
+```
+
+#### Spark Operator
+
+Install the Spark Operator:
+
+```sh
+kustomize build apps/spark/spark-operator/overlays/kubeflow | kubectl apply -f -
 ```
 
 #### User Namespaces
@@ -627,8 +636,24 @@ For modifications and in-place upgrades of the Kubeflow platform, we provide a r
 - You might have to adjust your overlays and components if needed.
 - You might need to prune old resources. For that, you would add [labels](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/labels/) to all your resources from the start.
 - With labels, you can use `kubectl apply` with `--prune` and `--dry-run` to list prunable resources.
-- Sometimes there are major changes; for example, in the 1.9 release, we switched to oauth2-proxy, which needs additional attention.
+- Sometimes there are major changes; for example, in the 1.9 release, we switched to oauth2-proxy, which needs additional attention (cleanup istio-system once); or 1.9.1 -> 1.10 `kubectl delete clusterrolebinding meta-controller-cluster-role-binding`
 - Nevertheless, with a bit of Kubernetes knowledge, one should be able to upgrade.
+
+### Kubernetes upgrade fails due to `PodDisruptionBudget`
+
+To work around this remove these `PodDisruptionBudget`s for the time of the upgrade.
+You can most easily find them via the `k9s` pdb overview of this resource, alternatively with this command:
+
+```
+$ kubectl get --all-namespaces PodDisruptionBudget
+```
+
+As of now the following `PodDisruptionBudget`s are problematic in the upgrade
+context, all due to the `minAvailable` attribute:
+
+- **eventing-webhook** from _knative-eventing_
+- **activator-pdb** from _knative-serving_
+- **webhook-pdb** from _knative-serving_
 
 ## Release Process
 

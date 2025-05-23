@@ -1,140 +1,156 @@
-from typing import NamedTuple
 from kfp import dsl
-from kfp.dsl import Input, Output, Model, Dataset
+from kfp.dsl import Input, Output, Dataset, Artifact
+from pathlib import Path
+import sys
 
-@dsl.component(base_image="microwave1005/scipy-img:latest",
-                packages_to_install=[
-                "protobuf==4.25.5",
-                "kfp==2.12.1",
-                "fastapi==0.104.1",
-                "uvicorn[standard]==0.24.0",
-                "loguru==0.7.2",
-                "joblib==1.3.2",
-                "pandas==2.1.3",
-                "pytest==7.4.3",
-                "numpy==1.24.4",
-                "mlflow==2.8.1",
-                "matplotlib==3.8.1",
-                "pydantic==1.10.8",
-                "ortools==9.7.2996",
-                "requests==2.31.0",
-                "boto3",
-                "shap",
-                "optuna",
-                "optbinning",
-                "urllib3",
-                "minio",
-                "lightgbm",
-                "python-dotenv"
-            ])
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from utils import SCIPY_IMAGE
+
+
+@dsl.component(base_image=SCIPY_IMAGE)
 def preprocess(
-    train_csv: Input[Dataset],       
-    test_csv:  Input[Dataset],   
-    transformer_joblib: Output[Model],  
-    output_train_csv: Output[Dataset],  
+    train_csv: Input[Dataset],
+    test_csv: Input[Dataset],
+    transformer_joblib: Output[Artifact],
+    output_train_csv: Output[Dataset],
     output_test_csv: Output[Dataset],
+    mlflow_run_id: Output[Artifact],
     minio_endpoint: str,
     minio_access_key: str,
     minio_secret_key: str,
-    bucket_name: str,
+    mlflow_endpoint: str,
     dest_train_object: str,
     dest_test_object: str,
-    n_features_to_select: str = "auto",
-    data_version: str = "v1",
-) -> NamedTuple("Outputs", [("train_key", str), ("test_key", str)]):
-    
-    import pandas as pd, numpy as np, joblib
+    n_features_to_select: str,
+    data_version: str,
+    model_name: str,
+    version: str,
+    experiment_name: str,
+) :
+
+    import os
+    import pandas as pd 
+    import numpy as np
+    import joblib
     from pathlib import Path
-    from minio import Minio
+    import mlflow
     from optbinning import BinningProcess
     from sklearn.feature_selection import SelectKBest, f_classif
 
-    # Load artifact CSVs
-    df_tr = pd.read_csv(train_csv.path)
-    df_te = pd.read_csv(test_csv.path)
+    os.environ["MLFLOW_S3_ENDPOINT_URL"] = f"http://{minio_endpoint}"
+    os.environ["AWS_ACCESS_KEY_ID"] = minio_access_key
+    os.environ["AWS_SECRET_ACCESS_KEY"] = minio_secret_key
+    os.environ["MLFLOW_ENDPOINT"] = f"http://{mlflow_endpoint}"
+    # Load data
 
-    # 2) IV‑based filter & binning
+    df_train = pd.read_csv(train_csv.path)
+    df_test = pd.read_csv(test_csv.path)
+
+    # Data processing functions
     def get_lists(df):
-        num = df.select_dtypes(include=["int64","float64"]).columns.tolist()
-        cat = df.select_dtypes(include=["object"]).columns.tolist()
-        for c in ("SK_ID_CURR","TARGET"):
-            if c in num: num.remove(c)
-        return cat, num
+        numeric = df.select_dtypes(include=["int64","float64"]).columns.tolist()
+        category = df.select_dtypes(include=["object"]).columns.tolist()
+        for column in ("SK_ID_CURR","TARGET"):
+            if column in numeric:
+                numeric.remove(column)
+        return category, numeric
 
     def iv_score(bins, y):
-        tmp = pd.DataFrame({"b": bins, "t": y})
-        tot_g, tot_b = (tmp.t==0).sum(), (tmp.t==1).sum()
-        s = 0
-        for _, g in tmp.groupby("b"):
-            good = (g.t==0).sum() or 0.5
-            bad  = (g.t==1).sum() or 0.5
-            s += (good/tot_g - bad/tot_b)*np.log((good/tot_g)/(bad/tot_b))
-        return s
+        df = pd.DataFrame({"bins": bins, "target": y})
+        total_good, total_bad = (df.target==0).sum(), (df.target==1).sum()
+        score = 0
+        for _, goods in df.groupby("bins"):
+            good = (goods.target == 0).sum() or 0.5
+            bad = (goods.target == 1).sum() or 0.5
+            score += (good / total_good - bad / total_bad) * np.log((good / total_good) / (bad / total_bad))
+        return score
 
-    cat_cols, num_cols = get_lists(df_tr)
-    y = df_tr["TARGET"]
-    X_tr, X_te = df_tr.drop("TARGET", axis=1), df_te.copy()
+    # Feature selection and binning
+    cat_cols, num_cols = get_lists(df_train)
+    y = df_train["TARGET"]
+    X_tr, X_te = df_train.drop("TARGET", axis=1), df_test.copy()
 
     survivors = []
     for f in cat_cols+num_cols:
-        bp_tmp = BinningProcess([f], categorical_variables=[f] if f in cat_cols else [])
-        bp_tmp.fit(X_tr[[f]].values, y)
-        b = bp_tmp.transform(X_tr[[f]].values).flatten()
+        binning = BinningProcess([f], categorical_variables=[f] if f in cat_cols else [])
+        binning.fit(X_tr[[f]].values, y)
+        b = binning.transform(X_tr[[f]].values).flatten()
         if 0.02 <= iv_score(b,y) <= 0.5 and X_tr[f].isna().mean()<=0.1:
             survivors.append(f)
 
-    bp = BinningProcess(variable_names=survivors,
-                        categorical_variables=[c for c in survivors if c in cat_cols])
-    bp.fit(X_tr[survivors].values, y)
+    opt_binning_process = BinningProcess(variable_names=survivors,
+                        categorical_variables=[col for col in survivors if col in cat_cols])
+    opt_binning_process.fit(X_tr[survivors].values, y)
 
-    df_tr_b = pd.DataFrame(bp.transform(X_tr[survivors].values), columns=survivors)
-    df_te_b = pd.DataFrame(bp.transform(X_te[survivors].values), columns=survivors)
+    df_train_binned = pd.DataFrame(opt_binning_process.transform(X_tr[survivors].values), columns=survivors)
+    df_test_binned = pd.DataFrame(opt_binning_process.transform(X_te[survivors].values), columns=survivors)
 
-    # 3) SelectKBest
+    # Feature selection
     k = len(survivors) if n_features_to_select=="auto" else int(n_features_to_select)
-    sel = SelectKBest(f_classif, k=k)
-    sel.fit(df_tr_b.fillna(0), y)
+    selector = SelectKBest(f_classif, k=k)
+    selector.fit(df_train_binned.fillna(0), y)
 
-    keep = df_tr_b.columns[sel.get_support()]
-    out_tr = pd.DataFrame(sel.transform(df_tr_b), columns=keep)
-    out_te = pd.DataFrame(sel.transform(df_te_b), columns=keep)
+    keep = df_train_binned.columns[selector.get_support()]
+    out_tr = pd.DataFrame(selector.transform(df_train_binned), columns=keep)
+    out_te = pd.DataFrame(selector.transform(df_train_binned), columns=keep)
     out_tr["TARGET"] = y
 
-    # Dump transformer
+    # Save artifacts to KFP component outputs
     Path(transformer_joblib.path).parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump({"binning_process": bp, "selector": sel}, transformer_joblib.path)
-    
+    joblib.dump(
+        {"opt_binning_process": opt_binning_process, "selector": selector},
+        transformer_joblib.path,
+    )
     out_tr.to_csv(output_train_csv.path, index=False)
     out_te.to_csv(output_test_csv.path, index=False)
 
-    # Push processed CSVs back to MinIO
-    client = Minio(
-        minio_endpoint,
-        access_key=minio_access_key,
-        secret_key=minio_secret_key,
-        secure=False,
-    )
-    tr_key = dest_train_object.replace(".csv", f"_{data_version}.csv")
-    te_key = dest_test_object.replace(".csv", f"_{data_version}.csv")
-    tmp_tr = f"/tmp/{Path(tr_key).name}"
-    tmp_te = f"/tmp/{Path(te_key).name}"
-    out_tr.to_csv(tmp_tr, index=False)
-    out_te.to_csv(tmp_te, index=False)
-    client.fput_object(bucket_name, tr_key, tmp_tr)
-    client.fput_object(bucket_name, te_key, tmp_te)
+    # Prepare artifact names for MLflow
+    train_artifact_name = dest_train_object.replace(".csv", f"_{data_version}.csv")
+    test_artifact_name = dest_test_object.replace(".csv", f"_{data_version}.csv")
+    transformer_artifact_name = f"transformer_{data_version}.joblib"
 
-    return (tr_key, te_key)
+    # Create temporary directory for MLflow artifacts
+    art_dir = Path("/tmp/mlflow_artifacts")
+    art_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save artifacts with versioned names
+    joblib.dump(
+        {"opt_binning_process": opt_binning_process, "selector": selector},
+        art_dir / transformer_artifact_name,
+    )
+    out_tr.to_csv(art_dir / train_artifact_name, index=False)
+    out_te.to_csv(art_dir / test_artifact_name, index=False)
+
+    # Log to MLflow
+    mlflow.set_tracking_uri(os.environ["MLFLOW_ENDPOINT"])
+    mlflow.set_experiment(experiment_name)
+
+    with mlflow.start_run(run_name="preproc_run",) as parent:
+
+        parent_id = parent.info.run_id
+        joblib.dump(
+            {"opt_binning_process": opt_binning_process, "selector": selector},
+            transformer_joblib.path,
+        )
+        out_tr.to_csv(output_train_csv.path, index=False)
+        out_te.to_csv(output_test_csv.path, index=False)
+
+        mlflow.log_artifact(transformer_joblib.path, artifact_path="prep")
+        mlflow.log_artifact(output_train_csv.path, artifact_path="prep")
+        mlflow.log_artifact(output_test_csv.path, artifact_path="prep")
+
+    Path(mlflow_run_id.path).parent.mkdir(parents=True, exist_ok=True)
+    Path(mlflow_run_id.path).write_text(parent_id)
+
 
 if __name__ == "__main__":
     from pathlib import Path
     import kfp.compiler as compiler
 
-    # Define paths using pathlib
     current_dir = Path(__file__).parent
     components_dir = current_dir.parent / "components"
     components_dir.mkdir(parents=True, exist_ok=True)
 
-    # Compile and write the YAML to the components directory
     compiler.Compiler().compile(
         preprocess,
         str(components_dir / "preprocess.yaml"),

@@ -1,4 +1,4 @@
-name: Create Pipeline Run from Kubeflow Notebook
+name: Test Pipeline run from Jupyterlab
 on:
   pull_request:
     paths:
@@ -6,7 +6,7 @@ on:
     - .github/workflows/pipeline_run_from_notebook.yaml
     - apps/jupyter/notebook-controller/upstream/**
     - apps/pipeline/upstream/**
-    - tests/gh-actions/install_istio.sh
+    - tests/gh-actions/install_istio*.sh
     - tests/gh-actions/install_cert_manager.sh
     - common/cert-manager/**
     - common/oauth2-proxy/**
@@ -25,7 +25,7 @@ jobs:
       run: ./tests/gh-actions/install_KinD_create_KinD_cluster_install_kustomize.sh
 
     - name: Install Istio
-      run: ./tests/gh-actions/install_istio.sh
+      run: ./tests/gh-actions/install_istio-cni.sh
 
     - name: Install oauth2-proxy
       run: ./tests/gh-actions/install_oauth2-proxy.sh
@@ -37,7 +37,7 @@ jobs:
       run: kustomize build common/kubeflow-namespace/base | kubectl apply -f -
 
     - name: Install kubeflow-istio-resources
-      run: kustomize build common/istio-1-24/kubeflow-istio-resources/base | kubectl apply -f -
+      run: kustomize build common/istio-cni-1-24/kubeflow-istio-resources/base | kubectl apply -f -
 
     - name: Install KF Pipelines
       run: ./tests/gh-actions/install_pipelines.sh
@@ -54,7 +54,7 @@ jobs:
           --field-selector=status.phase!=Succeeded
 
     - name: Create KF Profile
-      run: kustomize build common/user-namespace/base | kubectl apply -f -
+      run: ./tests/gh-actions/install_kubeflow_profile.sh
 
     - name: Apply PodDefaults to access ml-pipeline with projected token
       run: kubectl apply -f tests/gh-actions/kf-objects/poddefaults.access-ml-pipeline.kubeflow-user-example-com.yaml
