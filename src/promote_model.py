@@ -1,4 +1,4 @@
-import os
+import argparse
 import sys
 import mlflow
 
@@ -16,16 +16,21 @@ def promote(model, from_stage, to_stage, tracking_uri):
 
 
 if __name__ == "__main__":
-    model = os.getenv("MODEL_NAME")
-    from_stage = os.getenv("FROM_STAGE", "none")
-    to_stage = os.getenv("TO_STAGE")
-    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow.ducdh.com")
+    parser = argparse.ArgumentParser(
+        description="Promote an MLflow model version to a new stage."
+    )
+    parser.add_argument("--model", required=True, help="Model name to promote")
+    parser.add_argument(
+        "--from-stage",
+        default="none",
+        help="Current stage (e.g., none, staging, production)",
+    )
+    parser.add_argument(
+        "--to-stage", required=True, help="Target stage (e.g., staging, production)"
+    )
+    parser.add_argument(
+        "--tracking-uri", default="http://mlflow.ducdh.com", help="MLflow tracking URI"
+    )
+    args = parser.parse_args()
 
-    if not model:
-        print("[ERROR] MODEL_NAME environment variable is required")
-        sys.exit(1)
-    if not to_stage:
-        print("[ERROR] TO_STAGE environment variable is required")
-        sys.exit(1)
-
-    promote(model, from_stage, to_stage, tracking_uri)
+    promote(args.model, args.from_stage, args.to_stage, args.tracking_uri)

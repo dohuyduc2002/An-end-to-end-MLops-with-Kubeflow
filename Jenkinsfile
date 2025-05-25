@@ -45,17 +45,15 @@ pipeline {
         stage('Test') {
             agent { 
                 docker { 
-                    image 'microwave1005/kfp-ci-jenkins' 
+                    image 'microwave1005/kfp-ci-jenkins:latest'
                 } 
             }
             steps {
-                dir('tests') {
-                    sh '''
-                        PYTHONPATH=src pytest -m unittest
-                        echo "[INFO] Failing if coverage < 80%"
-                        coverage report --fail-under=80
-                    '''
-                }
+                sh '''
+                    PYTHONPATH=src pytest -m unittest tests/
+                    echo "[INFO] Failing if coverage < 80%"
+                    coverage report --fail-under=80
+                '''
             }
         }
 
@@ -83,7 +81,7 @@ pipeline {
         stage('Promote to Staging') {
             agent { 
                 docker { 
-                    image 'microwave1005/kfp-ci-jenkins'
+                    image 'microwave1005/kfp-ci-jenkins:latest'
                 }
             }
             steps {
