@@ -342,23 +342,38 @@ In this section, we will use the manual way to deploy the endpoint API.
 
 **You have to build docker image for the endpoint API first which is `dockerfiles/Dockerfile.app`** 
 ```bash
-docker build \
+docker buildx build \
+  --no-cache \
   -t microwave1005/prediction-api:latest \
-  -t microwave1005/prediction-api:<your_desired_version> \
+  -t microwave1005/prediction-api:v0.1 \
   -f dockerfiles/Dockerfile.app \
-  --build-arg MODEL_NAME=v1_xgb_XGB \
+  --build-arg MODEL_NAME=xgb_underwriting \
   --build-arg MODEL_TYPE=xgb \
   .
+
+```
+In case your machine is using ARM architecture (eg Mac m1,...), you can build image like this 
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  --no-cache \
+  -t microwave1005/prediction-api:latest \
+  -t microwave1005/prediction-api:v0.1 \
+  -f dockerfiles/Dockerfile.app \
+  --build-arg MODEL_NAME=xgb_underwriting \
+  --build-arg MODEL_TYPE=xgb \
+  .
+
 ```
 
 In my api helm chart, I used `microwave1005/prediction-api:latest` as the default image. The other version is also build to revert when necessary.
 ```bash
-cd helm-charts/api
-helm install api . \
+helm install api ./helm-charts/api \
   --namespace api \
   --create-namespace \
+  --set version=v0.1 \
   --set monitoring.enabled=true \
-  --set image.tag=latest \
+  --set image.tag=v0.1 \
   --set replicaCount=1
 ```
 Because endpoint app is pulling artefact from Minio, you need to add secret to this namespace. 
@@ -414,7 +429,7 @@ helm upgrade kps prometheus-community/kube-prometheus-stack \
 ```
 c. Prediction API
 ```bash
-helm upgrade api . \
+helm upgrade api ./helm-charts/api \
   -n api \
   --reuse-values \
   --set ingress.enabled=true \
@@ -496,7 +511,7 @@ MINIO_SECRET_KEY=minio123
 MINIO_BUCKET_NAME=sample-data
 
 # Kubeflow/Dex Auth Configuration
-KFP_API_URL=http://localhost:8080/pipeline
+KFP_API_URL=http://localhost:8080/pipeline # You have to forward istio port for KFP to get correct cookies credential
 KFP_SKIP_TLS_VERIFY=True
 KFP_DEX_USERNAME=user@example.com
 KFP_DEX_PASSWORD=12341234
@@ -541,7 +556,7 @@ docker build -t microwave1005/custom-jenkins:latest -f dockerfiles/Dockerfile.cu
 
 2. Run Jenkins container
 ```bash
-docker-compose -f jenkins/docker-compose.yaml up -d --build
+docker-compose -f jenkins/docker-compose.yaml up -d 
 ```
 
 3. Exec into Jenkins container to get password

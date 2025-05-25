@@ -12,7 +12,6 @@ from mlflow.tracking import MlflowClient
 load_dotenv(override=False)
 
 
-# 1) Configuration
 class ApiConfig:
     def __init__(self) -> None:
         self.s3_endpoint: str = os.getenv("S3_ENDPOINT", "")

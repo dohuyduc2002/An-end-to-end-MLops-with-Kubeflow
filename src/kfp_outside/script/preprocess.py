@@ -19,12 +19,11 @@ def preprocess(
     minio_access_key: str,
     minio_secret_key: str,
     mlflow_endpoint: str,
+    parent_run_name: str,
     dest_train_object: str,
     dest_test_object: str,
     n_features_to_select: str,
     data_version: str,
-    model_name: str,
-    version: str,
     experiment_name: str,
 ) :
 
@@ -125,7 +124,7 @@ def preprocess(
     mlflow.set_tracking_uri(os.environ["MLFLOW_ENDPOINT"])
     mlflow.set_experiment(experiment_name)
 
-    with mlflow.start_run(run_name="preproc_run",) as parent:
+    with mlflow.start_run(run_name=parent_run_name) as parent:
 
         parent_id = parent.info.run_id
         joblib.dump(

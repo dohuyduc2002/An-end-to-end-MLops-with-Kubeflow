@@ -9,11 +9,10 @@
 #    minio_endpoint: str
 #    minio_secret_key: str
 #    mlflow_endpoint: str
-#    model_name: str
 #    n_features_to_select: str
+#    parent_run_name: str
 #    test_csv: system.Dataset
 #    train_csv: system.Dataset
-#    version: str
 # Outputs:
 #    mlflow_run_id: system.Artifact
 #    output_test_csv: system.Dataset
@@ -49,11 +48,9 @@ components:
           parameterType: STRING
         mlflow_endpoint:
           parameterType: STRING
-        model_name:
-          parameterType: STRING
         n_features_to_select:
           parameterType: STRING
-        version:
+        parent_run_name:
           parameterType: STRING
     outputDefinitions:
       artifacts:
@@ -105,11 +102,11 @@ deploymentSpec:
           \    transformer_joblib: Output[Artifact],\n    output_train_csv: Output[Dataset],\n\
           \    output_test_csv: Output[Dataset],\n    mlflow_run_id: Output[Artifact],\n\
           \    minio_endpoint: str,\n    minio_access_key: str,\n    minio_secret_key:\
-          \ str,\n    mlflow_endpoint: str,\n    dest_train_object: str,\n    dest_test_object:\
-          \ str,\n    n_features_to_select: str,\n    data_version: str,\n    model_name:\
-          \ str,\n    version: str,\n    experiment_name: str,\n) :\n\n    import\
-          \ os\n    import pandas as pd \n    import numpy as np\n    import joblib\n\
-          \    from pathlib import Path\n    import mlflow\n    from optbinning import\
+          \ str,\n    mlflow_endpoint: str,\n    parent_run_name: str,\n    dest_train_object:\
+          \ str,\n    dest_test_object: str,\n    n_features_to_select: str,\n   \
+          \ data_version: str,\n    experiment_name: str,\n) :\n\n    import os\n\
+          \    import pandas as pd \n    import numpy as np\n    import joblib\n \
+          \   from pathlib import Path\n    import mlflow\n    from optbinning import\
           \ BinningProcess\n    from sklearn.feature_selection import SelectKBest,\
           \ f_classif\n\n    os.environ[\"MLFLOW_S3_ENDPOINT_URL\"] = f\"http://{minio_endpoint}\"\
           \n    os.environ[\"AWS_ACCESS_KEY_ID\"] = minio_access_key\n    os.environ[\"\
@@ -161,16 +158,16 @@ deploymentSpec:
           \    )\n    out_tr.to_csv(art_dir / train_artifact_name, index=False)\n\
           \    out_te.to_csv(art_dir / test_artifact_name, index=False)\n\n    # Log\
           \ to MLflow\n    mlflow.set_tracking_uri(os.environ[\"MLFLOW_ENDPOINT\"\
-          ])\n    mlflow.set_experiment(experiment_name)\n\n    with mlflow.start_run(run_name=\"\
-          preproc_run\",) as parent:\n\n        parent_id = parent.info.run_id\n \
-          \       joblib.dump(\n            {\"opt_binning_process\": opt_binning_process,\
-          \ \"selector\": selector},\n            transformer_joblib.path,\n     \
-          \   )\n        out_tr.to_csv(output_train_csv.path, index=False)\n     \
-          \   out_te.to_csv(output_test_csv.path, index=False)\n\n        mlflow.log_artifact(transformer_joblib.path,\
-          \ artifact_path=\"prep\")\n        mlflow.log_artifact(output_train_csv.path,\
-          \ artifact_path=\"prep\")\n        mlflow.log_artifact(output_test_csv.path,\
-          \ artifact_path=\"prep\")\n\n    Path(mlflow_run_id.path).parent.mkdir(parents=True,\
-          \ exist_ok=True)\n    Path(mlflow_run_id.path).write_text(parent_id)\n\n"
+          ])\n    mlflow.set_experiment(experiment_name)\n\n    with mlflow.start_run(run_name=parent_run_name)\
+          \ as parent:\n\n        parent_id = parent.info.run_id\n        joblib.dump(\n\
+          \            {\"opt_binning_process\": opt_binning_process, \"selector\"\
+          : selector},\n            transformer_joblib.path,\n        )\n        out_tr.to_csv(output_train_csv.path,\
+          \ index=False)\n        out_te.to_csv(output_test_csv.path, index=False)\n\
+          \n        mlflow.log_artifact(transformer_joblib.path, artifact_path=\"\
+          prep\")\n        mlflow.log_artifact(output_train_csv.path, artifact_path=\"\
+          prep\")\n        mlflow.log_artifact(output_test_csv.path, artifact_path=\"\
+          prep\")\n\n    Path(mlflow_run_id.path).parent.mkdir(parents=True, exist_ok=True)\n\
+          \    Path(mlflow_run_id.path).write_text(parent_id)\n\n"
         image: microwave1005/scipy-img:latest
 pipelineInfo:
   name: preprocess
@@ -223,12 +220,10 @@ root:
               componentInputParameter: minio_secret_key
             mlflow_endpoint:
               componentInputParameter: mlflow_endpoint
-            model_name:
-              componentInputParameter: model_name
             n_features_to_select:
               componentInputParameter: n_features_to_select
-            version:
-              componentInputParameter: version
+            parent_run_name:
+              componentInputParameter: parent_run_name
         taskInfo:
           name: preprocess
   inputDefinitions:
@@ -258,11 +253,9 @@ root:
         parameterType: STRING
       mlflow_endpoint:
         parameterType: STRING
-      model_name:
-        parameterType: STRING
       n_features_to_select:
         parameterType: STRING
-      version:
+      parent_run_name:
         parameterType: STRING
   outputDefinitions:
     artifacts:

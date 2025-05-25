@@ -9,25 +9,27 @@ dataloader_op = load_component_from_file(COMP_DIR / "dataloader.yaml")
 preprocess_op = load_component_from_file(COMP_DIR / "preprocess.yaml")
 modeling_op   = load_component_from_file(COMP_DIR / "model.yaml")
 
+
 @dsl.pipeline(
     name="UnderwritingWorkflow",
     description="Download raw → preprocess → download processed → train & register",
 )
 def underwriting_pipeline(
-    minio_endpoint:       str,
-    mlflow_endpoint:     str,
-    minio_access_key:     str,
-    minio_secret_key:     str,
-    bucket_name:          str,
-    raw_train_object:     str,
-    raw_test_object:      str,
-    dest_train_object:    str,
-    dest_test_object:     str,
-    n_features_to_select: str ,
-    data_version:         str ,
-    model_name:           str ,
-    version:              str ,
-    experiment_name:      str ,
+    minio_endpoint: str,
+    mlflow_endpoint: str,
+    minio_access_key: str,
+    minio_secret_key: str,
+    bucket_name: str,
+    raw_train_object: str,
+    raw_test_object: str,
+    parent_run_name: str,
+    dest_train_object: str,
+    dest_test_object: str,
+    n_features_to_select: str,
+    data_version: str,
+    model_name: str,
+    suffix: str,
+    experiment_name: str,
 ):
     # 1️⃣ Download raw train
     raw_tr = dataloader_op(
@@ -56,8 +58,7 @@ def underwriting_pipeline(
         minio_access_key=minio_access_key,
         minio_secret_key=minio_secret_key,
         experiment_name=experiment_name,
-        model_name=model_name,
-        version=version,
+        parent_run_name=parent_run_name,
         dest_train_object=dest_train_object,
         dest_test_object=dest_test_object,
         n_features_to_select=n_features_to_select,
@@ -74,7 +75,7 @@ def underwriting_pipeline(
         minio_access_key=minio_access_key,
         minio_secret_key=minio_secret_key,
         model_name=model_name,
-        version=version,
+        suffix=suffix,
         experiment_name=experiment_name,
     ).after(prep)
 

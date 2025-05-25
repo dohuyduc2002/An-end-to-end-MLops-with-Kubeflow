@@ -8,9 +8,9 @@
 #    mlflow_endpoint: str
 #    mlflow_run_id: system.Artifact
 #    model_name: str
+#    suffix: str
 #    test_csv: system.Dataset
 #    train_csv: system.Dataset
-#    version: str
 # Outputs:
 #    model_joblib: system.Artifact
 #    registered_model: system.Artifact
@@ -44,7 +44,7 @@ components:
           parameterType: STRING
         model_name:
           parameterType: STRING
-        version:
+        suffix:
           parameterType: STRING
     outputDefinitions:
       artifacts:
@@ -84,15 +84,15 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef modeling(\n    train_csv: Input[Dataset],\n    test_csv: Input[Dataset],\
-          \  \n    model_joblib: Output[Artifact],  \n    registered_model: Output[Artifact],\n\
-          \    mlflow_run_id: Input[Artifact],  \n    minio_endpoint: str,\n    minio_access_key:\
+          \ *\n\ndef modeling(\n    train_csv: Input[Dataset],\n    test_csv: Input[Dataset],\n\
+          \    model_joblib: Output[Artifact],\n    registered_model: Output[Artifact],\n\
+          \    mlflow_run_id: Input[Artifact],\n    minio_endpoint: str,\n    minio_access_key:\
           \ str,\n    minio_secret_key: str,\n    mlflow_endpoint: str,\n    experiment_name:\
-          \ str,\n    model_name: str,  \n    version: str,  \n):\n    import os,\
-          \ json, optuna, shap, joblib, matplotlib.pyplot as plt\n    import pandas\
-          \ as pd\n    from pathlib import Path\n    import mlflow, xgboost as xgb\n\
-          \    from lightgbm import LGBMClassifier\n    from sklearn.model_selection\
-          \ import train_test_split\n    from sklearn.metrics import (\n        accuracy_score,\n\
+          \ str,\n    model_name: str,\n    suffix: str,\n):\n    import os, json,\
+          \ optuna, shap, joblib, matplotlib.pyplot as plt\n    import pandas as pd\n\
+          \    from pathlib import Path\n    import mlflow, xgboost as xgb\n    from\
+          \ lightgbm import LGBMClassifier\n    from sklearn.model_selection import\
+          \ train_test_split\n    from sklearn.metrics import (\n        accuracy_score,\n\
           \        classification_report\n    )\n\n    os.environ[\"MLFLOW_S3_ENDPOINT_URL\"\
           ] = f\"http://{minio_endpoint}\"\n    os.environ[\"AWS_ACCESS_KEY_ID\"]\
           \ = minio_access_key\n    os.environ[\"AWS_SECRET_ACCESS_KEY\"] = minio_secret_key\n\
@@ -137,7 +137,7 @@ deploymentSpec:
           \ n_trials=5)\n\n        best_trial = study.best_trial\n        best_run_id\
           \ = best_trial.user_attrs[\"mlflow_run_id\"]\n\n        best_model_uri =\
           \ f\"runs:/{best_run_id}/model\"\n        registry = mlflow.register_model(best_model_uri,\
-          \ name=f\"{model_name}_{version}_prod\")\n\n    Path(registered_model.path).parent.mkdir(parents=True,\
+          \ name=f\"{model_name}_{suffix}\")\n\n    Path(registered_model.path).parent.mkdir(parents=True,\
           \ exist_ok=True)\n    Path(registered_model.path).write_text(\n        json.dumps(\n\
           \            {\n                \"parent_run\": parent_id,\n           \
           \     \"best_trial\": best_trial.number,\n                \"best_trial_run\"\
@@ -186,8 +186,8 @@ root:
               componentInputParameter: mlflow_endpoint
             model_name:
               componentInputParameter: model_name
-            version:
-              componentInputParameter: version
+            suffix:
+              componentInputParameter: suffix
         taskInfo:
           name: modeling
   inputDefinitions:
@@ -217,7 +217,7 @@ root:
         parameterType: STRING
       model_name:
         parameterType: STRING
-      version:
+      suffix:
         parameterType: STRING
   outputDefinitions:
     artifacts:

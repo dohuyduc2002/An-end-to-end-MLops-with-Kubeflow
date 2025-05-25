@@ -12,8 +12,8 @@ from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.sdk.metrics import MeterProvider
 from prometheus_client import start_http_server
 
-from schema import RawItem
-from utils import ApiConfig, Predictor
+from client.api.schema import RawItem
+from client.api.utils import ApiConfig, Predictor
 
 
 def entropy(p: np.ndarray) -> float:
@@ -135,35 +135,34 @@ class PredictionService:
 # ----------------------------------------------------------------------
 # 4) FastAPI app
 # ----------------------------------------------------------------------
-cfg = ApiConfig()  # Predictor sẽ tự gọi cfg.configure_mlflow()
+def create_app():
+    cfg = ApiConfig()
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        app.state.service = await PredictionService.create(cfg)
+        yield
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.state.service = await PredictionService.create(cfg)
-    yield
+    app = FastAPI(lifespan=lifespan)
 
+    def get_service() -> PredictionService:
+        return app.state.service
 
-app = FastAPI(lifespan=lifespan)
+    @app.get("/")
+    def health():
+        return {"status": "ok"}
 
+    @app.post("/Prediction")
+    def predict(
+        items: List[RawItem] = Body(...),
+        service: PredictionService = Depends(get_service),
+    ):
+        return service.predict_items(items)
 
-def get_service() -> PredictionService:
-    return app.state.service
+    @app.post("/Prediction-by-id")
+    def predict_by_id(id: int, service: PredictionService = Depends(get_service)):
+        return service.predict_by_id(id)
 
+    return app
 
-@app.get("/")
-def health():
-    return {"status": "ok"}
-
-
-@app.post("/Prediction")
-def predict(
-    items: List[RawItem] = Body(...),
-    service: PredictionService = Depends(get_service),
-):
-    return service.predict_items(items)
-
-
-@app.post("/Prediction-by-id")
-def predict_by_id(id: int, service: PredictionService = Depends(get_service)):
-    return service.predict_by_id(id)
+app = create_app()

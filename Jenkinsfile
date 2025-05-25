@@ -6,8 +6,8 @@ pipeline {
     }
 
     parameters {
-        string (name: 'MODEL_NAME', defaultValue: 'v1_xgb_XGB', description: 'Model Name to Build & Promote')
-        choice (name: 'MODEL_TYPE', choices: ['xgb','lgbm'],        description: 'Model implementation')
+        string(name: 'MODEL_NAME', defaultValue: 'v1_xgb_XGB', description: 'Model Name to Build & Promote')
+        choice(name: 'MODEL_TYPE', choices: ['xgb','lgbm'], description: 'Model implementation')
     }
 
     environment {
@@ -31,20 +31,27 @@ pipeline {
         AWS_ACCESS_KEY_ID      = "${MINIO_CREDS_USR}"
         AWS_SECRET_ACCESS_KEY  = "${MINIO_CREDS_PSW}"
         MLFLOW_S3_ENDPOINT_URL = "http://${MINIO_ENDPOINT}"
+
+        TAG = "v.${env.BUILD_NUMBER}"
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
 
         stage('Test') {
             agent { 
                 docker { 
                     image 'microwave1005/kfp-ci-jenkins' 
-                        } 
-                    }
+                } 
+            }
             steps {
                 dir('tests') {
                     sh '''
-                        pytest -m unittest
+                        PYTHONPATH=src pytest -m unittest
                         echo "[INFO] Failing if coverage < 80%"
                         coverage report --fail-under=80
                     '''
@@ -52,20 +59,22 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build & Push Image') {
             steps {
                 script {
                     echo "Building image MODEL_NAME=${params.MODEL_NAME}, MODEL_TYPE=${params.MODEL_TYPE}"
+                    def tag = env.TAG
                     def img = docker.build(
-                        "${registry}:${BUILD_NUMBER}",
+                        "${env.registry}:${tag}",
                         "--build-arg MODEL_NAME=${params.MODEL_NAME} " +
                         "--build-arg MODEL_TYPE=${params.MODEL_TYPE} " +
                         "-f dockerfiles/Dockerfile.app ."
                     )
-                    echo '[INFO] Pushing image to Docker Hub…'
-                    docker.withRegistry('', registryCredential) {
+                    echo "Pushing image with tags: ${tag}, latest"
+                    docker.withRegistry('', env.registryCredential) {
                         img.push()
-                        img.push('latest')
+                        sh "docker tag ${env.registry}:${tag} ${env.registry}:latest"
+                        sh "docker push ${env.registry}:latest"
                     }
                 }
             }
@@ -75,8 +84,8 @@ pipeline {
             agent { 
                 docker { 
                     image 'microwave1005/kfp-ci-jenkins'
-                        }
-                    }
+                }
+            }
             steps {
                 sh '''
                     python3 src/promote_model.py \
@@ -98,8 +107,8 @@ pipeline {
             agent { 
                 docker { 
                     image 'microwave1005/kfp-ci-jenkins'
-                        }
-                    }
+                }
+            }
             steps {
                 sh '''
                     python3 src/promote_model.py \
@@ -112,29 +121,21 @@ pipeline {
         }
 
         stage('Deploy to Google Kubernetes Engine') {
+            agent {
+                kubernetes {
+                    cloud 'prediction-api-gke'
+                }
+            }
             steps {
-                sh '''
-                    set -e
-                    echo "[INFO] Authenticating to GCP…"
-                    gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-
-                    echo "[INFO] Fetching cluster creds…"
-                    gcloud container clusters get-credentials $CLUSTER_NAME --zone $ZONE --project $PROJECT_ID
-
-                    echo "[INFO] Rolling upgrade with Helm…"
-                    cd helm-charts/api
-                    helm upgrade api . \
-                      --namespace api --create-namespace --reuse-values \
-                      --set monitoring.enabled=true \
-                      --set image.tag=latest \
-                      --set replicaCount=1 \
-                      --set ingress.enabled=true \
-                      --set ingress.rules[0].host=api.ducdh.com \
-                      --set ingress.rules[0].paths[0].path="/" \
-                      --set ingress.rules[0].paths[0].pathType=Prefix \
-                      --set ingress.rules[0].paths[0].serviceName=prediction-api \
-                      --set ingress.rules[0].paths[0].servicePort=8000
-                '''
+                sh """
+                    helm upgrade --install api ./helm-charts/api \
+                        --reuse-values \
+                        --namespace api \
+                        --set version=${TAG} \
+                        --set monitoring.enabled=true \
+                        --set image.tag=${TAG} \
+                        --set replicaCount=1
+                """
             }
         }
     }

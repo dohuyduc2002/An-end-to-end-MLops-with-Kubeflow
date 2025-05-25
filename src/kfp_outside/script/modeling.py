@@ -11,17 +11,17 @@ from utils import SCIPY_IMAGE
 @dsl.component(base_image=SCIPY_IMAGE)
 def modeling(
     train_csv: Input[Dataset],
-    test_csv: Input[Dataset],  
-    model_joblib: Output[Artifact],  
+    test_csv: Input[Dataset],
+    model_joblib: Output[Artifact],
     registered_model: Output[Artifact],
-    mlflow_run_id: Input[Artifact],  
+    mlflow_run_id: Input[Artifact],
     minio_endpoint: str,
     minio_access_key: str,
     minio_secret_key: str,
     mlflow_endpoint: str,
     experiment_name: str,
-    model_name: str,  
-    version: str,  
+    model_name: str,
+    suffix: str,
 ):
     import os, json, optuna, shap, joblib, matplotlib.pyplot as plt
     import pandas as pd
@@ -66,7 +66,7 @@ def modeling(
             )
 
             clf = (
-                xgb.XGBClassifier(use_label_encoder=False, eval_metric="auc", **params)
+                xgb.XGBClassifier(eval_metric="auc", **params)
                 if model_name == "xgb"
                 else LGBMClassifier(**params)
             )
@@ -117,7 +117,7 @@ def modeling(
         best_run_id = best_trial.user_attrs["mlflow_run_id"]
 
         best_model_uri = f"runs:/{best_run_id}/model"
-        registry = mlflow.register_model(best_model_uri, name=f"{model_name}_{version}_prod")
+        registry = mlflow.register_model(best_model_uri, name=f"{model_name}_{suffix}")
 
     Path(registered_model.path).parent.mkdir(parents=True, exist_ok=True)
     Path(registered_model.path).write_text(

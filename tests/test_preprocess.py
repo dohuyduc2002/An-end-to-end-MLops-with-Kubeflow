@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+import uuid
 from pathlib import Path
 from kfp.dsl import Dataset, Artifact
 from tests.utils import make_test_artifact
@@ -19,6 +20,7 @@ def test_preprocess(tmp_path: Path, fake_csv: Path):
     output_train_csv = kfp_dataset(uri=str(tmp_path / "out_train.csv"))
     output_test_csv = kfp_dataset(uri=str(tmp_path / "out_test.csv"))
     transformer_joblib = kfp_artifact(uri=str(tmp_path / "transformer.joblib"))
+    mlflow_run_id = kfp_artifact(uri=str(tmp_path / "mlflow_run_id.txt"))
 
     keys = preprocess.python_func(
         train_csv=train_csv,
@@ -26,12 +28,17 @@ def test_preprocess(tmp_path: Path, fake_csv: Path):
         output_train_csv=output_train_csv,
         output_test_csv=output_test_csv,
         transformer_joblib=transformer_joblib,
+        mlflow_run_id=mlflow_run_id,
         minio_endpoint="fake:9000",
         minio_access_key="a",
         minio_secret_key="b",
-        bucket_name="bk",
+        mlflow_endpoint="fake:5000",
+        parent_run_name="unittest_parent_run_name",
         dest_train_object="train.csv",
         dest_test_object="test.csv",
+        n_features_to_select="auto",
+        data_version="unittest",
+        experiment_name="unittest_experiment",
     )
 
     assert Path(transformer_joblib.path).exists()
@@ -44,5 +51,11 @@ def test_preprocess(tmp_path: Path, fake_csv: Path):
     assert "TARGET" in df_tr.columns
     assert df_tr.shape[0] > 0
     assert df_te.shape[0] > 0
-    assert keys[0].startswith("train_")
-    assert keys[1].startswith("test_")
+
+    run_id = Path(mlflow_run_id.path).read_text().strip()
+
+    try:
+        uuid_obj = uuid.UUID(run_id)
+        assert str(uuid_obj) == run_id
+    except ValueError:
+        assert False, f"Invalid run_id format: {run_id}"

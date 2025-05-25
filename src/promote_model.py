@@ -19,7 +19,7 @@ if __name__ == "__main__":
     model = os.getenv("MODEL_NAME")
     from_stage = os.getenv("FROM_STAGE", "none")
     to_stage = os.getenv("TO_STAGE")
-    tracking_uri = os.getenv("TRACKING_URI", "http://mlflow.ducdh.com")
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow.ducdh.com")
 
     if not model:
         print("[ERROR] MODEL_NAME environment variable is required")

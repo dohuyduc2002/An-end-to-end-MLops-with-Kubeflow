@@ -13,7 +13,6 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
-      - ../gcp-key.json:/root/gcp-key.json:ro   
       - ${HOME}/.kube:/root/.kube:ro                      
       - ${HOME}/.config/gcloud:/root/.config/gcloud:ro    
     environment:
