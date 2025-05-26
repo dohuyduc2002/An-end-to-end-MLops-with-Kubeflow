@@ -84,7 +84,14 @@ pipeline {
                     image 'microwave1005/kfp-ci-jenkins:latest'
                 }
             }
-            steps {
+            steps 
+                withEnv([
+                    "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+                    "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
+                    "MLFLOW_S3_ENDPOINT_URL=${env.MLFLOW_S3_ENDPOINT_URL}",
+                    "MLFLOW_TRACKING_URI=${env.MLFLOW_TRACKING_URI}",
+                    "MODEL_NAME=${params.MODEL_NAME}"
+            ]){
                 sh '''
                     python3 src/promote_model.py \
                         --model       "${MODEL_NAME}" \
@@ -107,7 +114,14 @@ pipeline {
                     image 'microwave1005/kfp-jenkins-ci:latest'
                 }
             }
-            steps {
+            steps 
+                withEnv([
+                    "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+                    "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
+                    "MLFLOW_S3_ENDPOINT_URL=${env.MLFLOW_S3_ENDPOINT_URL}",
+                    "MLFLOW_TRACKING_URI=${env.MLFLOW_TRACKING_URI}",
+                    "MODEL_NAME=${params.MODEL_NAME}"
+            ]){
                 sh '''
                     python3 src/promote_model.py \
                         --model       "${MODEL_NAME}" \
