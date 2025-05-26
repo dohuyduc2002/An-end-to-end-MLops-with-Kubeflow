@@ -1,7 +1,7 @@
 FROM python:3.11.11-slim AS builder
 WORKDIR /app
 
-COPY ../src/client/requirements.txt ./requirements.txt
+COPY src/client/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 FROM python:3.11.11-slim
@@ -17,7 +17,7 @@ ENV PYTHONPATH="/app"
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-COPY ../src/client ./client
+COPY src/client ./client
 
 EXPOSE 8000
 EXPOSE 8001

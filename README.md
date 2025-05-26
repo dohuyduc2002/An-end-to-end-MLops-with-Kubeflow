@@ -548,12 +548,19 @@ k rollout restart deployment centraldashboard -n kubeflow
 
 ### Jenkins local
 1. Initialize Jenkins 
-Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.custom_jenkins` file. This image is used to run Jenkins pipeline and build Docker images for the project.
+Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.custom_jenkins` file. This image is used to run Jenkins pipeline and build Docker images for the project. Also, the stage `test` and `promote` in jenkins is using `dockerfiles/Dockerfile.kfp_jenkins_ci` to run 
 
 ```bash
 docker build -t microwave1005/custom-jenkins:latest -f dockerfiles/Dockerfile.custom_jenkins .
+docker build -t microwave1005/kfp-jenkins-ci:latest -f dockerfiles/Dockerfile.kfp_jenkins_ci .
+
+docker push microwave1005/kfp-jenkins-ci:latest
+docker push microwave1005/custom-jenkins:latest
 ```
 
+Then, you can run Jenkins using docker-compose file in `jenkins` folder. This docker-compose file will run Jenkins with the custom image and expose port 8081 to access Jenkins UI. 
+```
+  
 2. Run Jenkins container
 ```bash
 docker-compose -f jenkins/docker-compose.yaml up -d 

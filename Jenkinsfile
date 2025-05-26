@@ -45,7 +45,7 @@ pipeline {
         stage('Test') {
             agent { 
                 docker { 
-                    image 'microwave1005/kfp-ci-jenkins:latest'
+                    image 'microwave1005/kfp-jenkins-ci:latest'
                 } 
             }
             steps {
@@ -104,7 +104,7 @@ pipeline {
         stage('Promote to Production') {
             agent { 
                 docker { 
-                    image 'microwave1005/kfp-ci-jenkins'
+                    image 'microwave1005/kfp-jenkins-ci:latest'
                 }
             }
             steps {

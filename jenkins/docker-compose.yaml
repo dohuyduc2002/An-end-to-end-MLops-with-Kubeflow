@@ -3,6 +3,7 @@ version: '3.8'
 services:
   jenkins:
     image: microwave1005/custom-jenkins:latest
+    platform: linux/amd64
     container_name: jenkins
     restart: unless-stopped
     privileged: true
@@ -15,8 +16,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${HOME}/.kube:/root/.kube:ro                      
       - ${HOME}/.config/gcloud:/root/.config/gcloud:ro    
-    environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/root/gcp-key.json
+
 
 volumes:
   jenkins_home:

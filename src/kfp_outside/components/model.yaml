@@ -110,13 +110,13 @@ deploymentSpec:
           \                \"colsample_bytree\": trial.suggest_float(\"colsample_bytree\"\
           , 0.5, 1.0),\n            }\n\n            X_tr, X_val, y_tr, y_val = train_test_split(\n\
           \                X, y, test_size=0.2, random_state=42\n            )\n\n\
-          \            clf = (\n                xgb.XGBClassifier(use_label_encoder=False,\
-          \ eval_metric=\"auc\", **params)\n                if model_name == \"xgb\"\
-          \n                else LGBMClassifier(**params)\n            )\n\n     \
-          \       # ----- Hyperparameter optimization -----\n            with mlflow.start_run(nested=True,\
-          \ run_name=f\"optuna_{trial.number}\") as trial_run:\n                clf.fit(X_tr,\
-          \ y_tr)\n                acc = accuracy_score(y_val, clf.predict(X_val))\n\
-          \n                mlflow.log_params(params)\n                mlflow.log_metric(\"\
+          \            clf = (\n                xgb.XGBClassifier(eval_metric=\"auc\"\
+          , **params)\n                if model_name == \"xgb\"\n                else\
+          \ LGBMClassifier(**params)\n            )\n\n            # ----- Hyperparameter\
+          \ optimization -----\n            with mlflow.start_run(nested=True, run_name=f\"\
+          optuna_{trial.number}\") as trial_run:\n                clf.fit(X_tr, y_tr)\n\
+          \                acc = accuracy_score(y_val, clf.predict(X_val))\n\n   \
+          \             mlflow.log_params(params)\n                mlflow.log_metric(\"\
           accuracy\", acc)\n\n                # log model\n                if model_name\
           \ == \"xgb\":\n                    mlflow.xgboost.log_model(clf, artifact_path=\"\
           model\")\n                else:\n                    mlflow.lightgbm.log_model(clf,\
