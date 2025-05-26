@@ -43,10 +43,10 @@ pipeline {
         }
 
         stage('Test') {
-            agent { 
-                docker { 
+            agent {
+                docker {
                     image 'microwave1005/kfp-jenkins-ci:latest'
-                } 
+                }
             }
             steps {
                 sh '''
@@ -79,26 +79,27 @@ pipeline {
         }
 
         stage('Promote to Staging') {
-            agent { 
-                docker { 
+            agent {
+                docker {
                     image 'microwave1005/kfp-ci-jenkins:latest'
                 }
             }
-            steps 
+            steps {
                 withEnv([
                     "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
                     "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
                     "MLFLOW_S3_ENDPOINT_URL=${env.MLFLOW_S3_ENDPOINT_URL}",
                     "MLFLOW_TRACKING_URI=${env.MLFLOW_TRACKING_URI}",
                     "MODEL_NAME=${params.MODEL_NAME}"
-            ]){
-                sh '''
-                    python3 src/promote_model.py \
-                        --model       "${MODEL_NAME}" \
-                        --from-stage  none \
-                        --to-stage    staging \
-                        --tracking-uri "${MLFLOW_TRACKING_URI}"
-                '''
+                ]) {
+                    sh '''
+                        python3 src/promote_model.py \
+                            --model       "${MODEL_NAME}" \
+                            --from-stage  none \
+                            --to-stage    staging \
+                            --tracking-uri "${MLFLOW_TRACKING_URI}"
+                    '''
+                }
             }
         }
 
@@ -109,26 +110,27 @@ pipeline {
         }
 
         stage('Promote to Production') {
-            agent { 
-                docker { 
+            agent {
+                docker {
                     image 'microwave1005/kfp-jenkins-ci:latest'
                 }
             }
-            steps 
+            steps {
                 withEnv([
                     "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
                     "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
                     "MLFLOW_S3_ENDPOINT_URL=${env.MLFLOW_S3_ENDPOINT_URL}",
                     "MLFLOW_TRACKING_URI=${env.MLFLOW_TRACKING_URI}",
                     "MODEL_NAME=${params.MODEL_NAME}"
-            ]){
-                sh '''
-                    python3 src/promote_model.py \
-                        --model       "${MODEL_NAME}" \
-                        --from-stage  staging \
-                        --to-stage    production \
-                        --tracking-uri "${MLFLOW_TRACKING_URI}"
-                '''
+                ]) {
+                    sh '''
+                        python3 src/promote_model.py \
+                            --model       "${MODEL_NAME}" \
+                            --from-stage  staging \
+                            --to-stage    production \
+                            --tracking-uri "${MLFLOW_TRACKING_URI}"
+                    '''
+                }
             }
         }
 
@@ -153,7 +155,12 @@ pipeline {
     }
 
     post {
-        always  { echo '[INFO] Pipeline execution complete.' }
-        cleanup { sh 'docker image prune -f'; echo '[INFO] Docker images cleaned.' }
+        always {
+            echo '[INFO] Pipeline execution complete.'
+        }
+        cleanup {
+            sh 'docker image prune -f'
+            echo '[INFO] Docker images cleaned.'
+        }
     }
 }
