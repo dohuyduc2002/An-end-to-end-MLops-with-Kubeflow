@@ -64,7 +64,6 @@ Root
 - [ ] Add media files 
 - [ ] Artifact storage in pipeline 
 ## Setting up GCP
-# jenkins file chi chay stage xx neu co change tu folder xx 
 1. Create a Google Cloud account and set up billing.
 After creating GCP account, create a new project and enable billing for it. You can follow the official [GCP account registration guide](https://cloud.google.com/free/docs/free-cloud-features) to create a GCP account and set up billing.
 

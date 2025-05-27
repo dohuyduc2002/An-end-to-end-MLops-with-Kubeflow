@@ -22,7 +22,7 @@ pipeline {
     environment {
         /* Dockerhub config */
         registry           = 'microwave1005/prediction-api'
-        registryCredential = 'dockerhub-creds'
+        dockerhub_credential = 'dockerhub-creds'
 
         /* MLflow config */
         MLFLOW_TRACKING_URI = 'http://mlflow.ducdh.com'
@@ -33,10 +33,10 @@ pipeline {
 
         /*Kubeflow pipeline config */
         KFP_API_URL = 'http://kubeflow.dhduc.com/pipeline'
-        registryCredential = 'kubeflow-creds'
+        kubeflow_credential = 'kubeflow-creds'
 
         /*Minio config for mlflow artifact store */ 
-        MINIO_CREDS = credentials('minio-creds')
+        MINIO_CREDS = minio_credentials('minio-creds')
         AWS_ACCESS_KEY_ID      = "${MINIO_CREDS_USR}"
         AWS_SECRET_ACCESS_KEY  = "${MINIO_CREDS_PSW}"
         MLFLOW_S3_ENDPOINT_URL = "http://${MINIO_ENDPOINT}"
@@ -97,7 +97,7 @@ pipeline {
                         "-f dockerfiles/Dockerfile.app ."
                     )
                     echo "Pushing image with tags: ${tag}, latest"
-                    docker.withRegistry('', env.registryCredential) {
+                    docker.withRegistry('', env.dockerhub_credential) {
                         img.push()
                         sh "docker tag ${env.registry}:${tag} ${env.registry}:latest"
                         sh "docker push ${env.registry}:latest"
