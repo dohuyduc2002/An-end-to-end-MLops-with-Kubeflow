@@ -5,6 +5,8 @@ import kfp
 import requests
 import urllib3
 
+SCIPY_IMAGE = "microwave1005/scipy-img:latest"
+
 class KFPClientManager:
     """
     Class to create a kfp.Client authenticated via Dex.
@@ -33,13 +35,13 @@ class KFPClientManager:
             )
 
     def _get_session_cookies(self) -> str:
-        s = requests.Session()
-        resp = s.get(self._api_url, allow_redirects=True, verify=not self._skip_tls_verify)
+        session = requests.Session()
+        resp = session.get(self._api_url, allow_redirects=True, verify=not self._skip_tls_verify)
         if resp.status_code == 403:
             url_obj = urlsplit(resp.url)._replace(
                 path="/oauth2/start", query=urlencode({"rd": urlsplit(resp.url).path})
             )
-            resp = s.get(url_obj.geturl(), allow_redirects=True, verify=not self._skip_tls_verify)
+            resp = session.get(url_obj.geturl(), allow_redirects=True, verify=not self._skip_tls_verify)
         elif resp.status_code != 200:
             raise RuntimeError(f"GET {self._api_url} returned {resp.status_code}")
 
@@ -50,13 +52,13 @@ class KFPClientManager:
         url_obj = urlsplit(resp.url)
         if url_obj.path.endswith("/auth"):
             url_obj = url_obj._replace(path=url_obj.path + f"/{self._dex_auth_type}")
-        resp = s.get(url_obj.geturl(), allow_redirects=True, verify=not self._skip_tls_verify)
+        resp = session.get(url_obj.geturl(), allow_redirects=True, verify=not self._skip_tls_verify)
         if resp.status_code != 200:
             raise RuntimeError(f"GET {url_obj.geturl()} returned {resp.status_code}")
         dex_login_url = resp.url
 
         # post credentials
-        resp = s.post(dex_login_url,
+        resp = session.post(dex_login_url,
                       data={"login": self._dex_username, "password": self._dex_password},
                       allow_redirects=True, verify=not self._skip_tls_verify)
         if resp.status_code != 200 or len(resp.history) == 0:
@@ -64,12 +66,12 @@ class KFPClientManager:
 
         # if approval step
         if resp.url.endswith("/approval"):
-            resp = s.post(resp.url, data={"approval": "approve"},
+            resp = session.post(resp.url, data={"approval": "approve"},
                           allow_redirects=True, verify=not self._skip_tls_verify)
             if resp.status_code != 200:
                 raise RuntimeError("Dex approval failed")
 
-        return "; ".join(f"{c.name}={c.value}" for c in s.cookies)
+        return "; ".join(f"{c.name}={c.value}" for c in session.cookies)
 
     def _create_kfp_client(self) -> kfp.Client:
         cookies = self._get_session_cookies()

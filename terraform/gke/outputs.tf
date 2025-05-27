@@ -12,3 +12,8 @@ output "project_id" {
   description = "GCP Project ID used"
   value       = var.project_id
 }
+
+output "zone" {
+  description = "GCP Region used"
+  value       = var.zone
+}

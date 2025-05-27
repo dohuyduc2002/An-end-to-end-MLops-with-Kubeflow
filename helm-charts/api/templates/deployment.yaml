@@ -18,25 +18,26 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: MLFLOW_URI
-              value: {{ .Values.env.MLFLOW_URI | quote }}
-            - name: MLFLOW_S3_ENDPOINT_URL
-              value: {{ .Values.env.MLFLOW_S3_ENDPOINT_URL | quote }}
-            - name: AWS_USE_SSL
-              value: {{ .Values.env.AWS_USE_SSL | quote }}
-            - name: AWS_REGION
-              value: {{ .Values.env.AWS_REGION | quote }}
-            - name: AWS_ACCESS_KEY_ID
+            - name: S3_ENDPOINT
+              value: {{ .Values.env.S3_ENDPOINT | quote }}
+            - name: MLFLOW_ENDPOINT
+              value: {{ .Values.env.MLFLOW_ENDPOINT | quote }}
+            - name: PARENT_RUN_ID
+              value: {{ .Values.env.PARENT_RUN_ID | quote }}
+            - name: TRANSFORMER_ARTIFACT_PATH
+              value: {{ .Values.env.TRANSFORMER_ARTIFACT_PATH | quote }}
+
+            - name: S3_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.accessKeyName }}
-                  key: {{ .Values.secrets.accessKeyId }}
-            - name: AWS_SECRET_ACCESS_KEY
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.accessKeyIdKey }}
+
+            - name: S3_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.accessKeyName }}
-                  key: {{ .Values.secrets.secretAccessKey }}
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.secretAccessKeyKey }}
           ports:
             - containerPort: {{ .Values.service.ports.http }}
             - containerPort: {{ .Values.service.ports.metrics }}
-

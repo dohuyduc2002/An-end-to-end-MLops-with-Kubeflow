@@ -1,1 +1,6 @@
-gdown --folder https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVKY35Z-p44?usp=drive_link
+echo "Downloading data..."
+mkdir -p data
+
+gdown --folder "https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVKY35Z-p44?usp=drive_link" -O ./data
+
+echo "Download complete. Data saved to: $(pwd)/data"

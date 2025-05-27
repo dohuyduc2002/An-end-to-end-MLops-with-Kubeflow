@@ -8,13 +8,13 @@ mlflow==2.8.1
 pydantic==1.10.8
 ortools==9.7.2996        
 xgboost==2.1.4
-scikit-learn 
+evidently==0.4.15
+scikit-learn==1.6.1
 optbinning
 boto3
 requests
 urllib3
 minio
-evidently
 lightgbm
 opentelemetry-sdk
 opentelemetry-instrumentation-fastapi
