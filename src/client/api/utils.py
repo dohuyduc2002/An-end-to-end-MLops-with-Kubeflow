@@ -9,7 +9,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from mlflow.tracking import MlflowClient
 
-load_dotenv(override=False)
+load_dotenv(override=False) # just for local testing, in production, the env is define in Docker image and Kubernetes
 
 
 class ApiConfig:
@@ -50,39 +50,34 @@ class Predictor:
         self.cfg.configure_mlflow()
 
     # Artifact loader
-    async def load_artifacts_async(self) -> None:
+    def load_artifacts(self) -> None:
+        client = MlflowClient()
+        downloaded_path = client.download_artifacts(
+            run_id=self.cfg.parent_run_id,
+            path=self.cfg.transformer_artifact_path,  
+            dst_path="/tmp",
+        )
+        self.transformer = joblib.load(downloaded_path)
 
-        def _sync_load():
-            client = MlflowClient()
-
-            downloaded_path = client.download_artifacts(
-                run_id=self.cfg.parent_run_id,
-                path=self.cfg.transformer_artifact_path,  
-                dst_path="/tmp",
-            )
-            self.transformer = joblib.load(downloaded_path)
-
+        versions = client.get_latest_versions(
+            self.cfg.model_name, stages=["Production"]
+        )
+        if not versions:
             versions = client.get_latest_versions(
-                self.cfg.model_name, stages=["Production"]
+                self.cfg.model_name, stages=["None"]
             )
-            if not versions:
-                versions = client.get_latest_versions(
-                    self.cfg.model_name, stages=["None"]
-                )
-            if not versions:
-                raise RuntimeError(
-                    f"Model '{self.cfg.model_name}' not found in MLflow."
-                )
+        if not versions:
+            raise RuntimeError(
+                f"Model '{self.cfg.model_name}' not found in MLflow."
+            )
 
-            model_uri = f"models:/{self.cfg.model_name}/{versions[0].version}"
-            if self.cfg.model_type == "xgb":
-                self.model = mlflow.xgboost.load_model(model_uri)
-            elif self.cfg.model_type == "lgbm":
-                self.model = mlflow.lightgbm.load_model(model_uri)
-            else:
-                raise ValueError(f"Unsupported model type: {self.cfg.model_type}")
-
-        await asyncio.to_thread(_sync_load)
+        model_uri = f"models:/{self.cfg.model_name}/{versions[0].version}"
+        if self.cfg.model_type == "xgb":
+            self.model = mlflow.xgboost.load_model(model_uri)
+        elif self.cfg.model_type == "lgbm":
+            self.model = mlflow.lightgbm.load_model(model_uri)
+        else:
+            raise ValueError(f"Unsupported model type: {self.cfg.model_type}")
 
     # Inference
     def inference(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:

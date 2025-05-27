@@ -1,4 +1,3 @@
-# scripts/modeling.py  –  final layout
 from kfp import dsl
 from kfp.dsl import Input, Output, Dataset, Artifact
 from pathlib import Path
@@ -29,10 +28,7 @@ def modeling(
     import mlflow, xgboost as xgb
     from lightgbm import LGBMClassifier
     from sklearn.model_selection import train_test_split
-    from sklearn.metrics import (
-        accuracy_score,
-        classification_report
-    )
+    from sklearn.metrics import accuracy_score, classification_report
 
     os.environ["MLFLOW_S3_ENDPOINT_URL"] = f"http://{minio_endpoint}"
     os.environ["AWS_ACCESS_KEY_ID"] = minio_access_key
@@ -47,8 +43,8 @@ def modeling(
     df = pd.read_csv(train_csv.path)
     X, y = df.drop("TARGET", axis=1), df["TARGET"]
 
-    mlflow.end_run()  
-    with mlflow.start_run(run_id=parent_id):  
+    mlflow.end_run()
+    with mlflow.start_run(run_id=parent_id):
 
         def objective(trial):
             params = {
@@ -61,7 +57,7 @@ def modeling(
                 "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
             }
 
-            X_tr, X_val, y_tr, y_val = train_test_split(
+            X_train, X_val, y_train, y_val = train_test_split(
                 X, y, test_size=0.2, random_state=42
             )
 
@@ -72,8 +68,10 @@ def modeling(
             )
 
             # ----- Hyperparameter optimization -----
-            with mlflow.start_run(nested=True, run_name=f"optuna_{trial.number}") as trial_run:
-                clf.fit(X_tr, y_tr)
+            with mlflow.start_run(
+                nested=True, run_name=f"optuna_{trial.number}"
+            ) as trial_run:
+                clf.fit(X_train, y_train)
                 acc = accuracy_score(y_val, clf.predict(X_val))
 
                 mlflow.log_params(params)
@@ -133,7 +131,6 @@ def modeling(
     )
 
 
-# ---------- helper compile khi chạy độc lập ----------
 if __name__ == "__main__":
     import kfp.compiler as compiler
 

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from functools import wraps
 from io import BytesIO
+import asyncio
 from time import time
 from typing import List, Dict, Any
 
@@ -49,7 +50,13 @@ class MetricsHandler:
 
 
 # ----------------------------------------------------------------------
-# 2) Decorator tính metrics
+"""
+Create a decorator to handle OpenTelemetry metrics, for further metrics collection you can modify 
+- MetricHandler class: define gauge and counter
+- otel_metric decorator: define object to be collected by OpenTelemetry in the POST request of the API 
+"""
+
+
 # ----------------------------------------------------------------------
 def otel_metric(fn):
     @wraps(fn)
@@ -72,7 +79,13 @@ def otel_metric(fn):
 
 
 # ----------------------------------------------------------------------
-# 3) Service lớp chính
+""" 
+The main class for to creating the prediction service, which initializes the predictor and handles prediction requests.
+This will create a new instance of `Predictor` with provided configuration from `ApiConfig`
+The asynchonous function `create` is used to ensure Predictor is loaded in a separate thread, allowing the FastAPI app to start without blocking.
+"""
+
+
 # ----------------------------------------------------------------------
 class PredictionService:
     def __init__(self, cfg: ApiConfig, predictor: Predictor):
@@ -82,9 +95,12 @@ class PredictionService:
 
     @classmethod
     async def create(cls, cfg: ApiConfig):
-        predictor = Predictor(cfg)  
-        await predictor.load_artifacts_async()  
-        return cls(cfg, predictor)
+        def _init():
+            predictor = Predictor(cfg)
+            predictor.load_artifacts()
+            return cls(cfg, predictor)
+
+        return await asyncio.to_thread(_init)
 
     # --------------------------------------------------------------
     # helper build response
@@ -133,7 +149,13 @@ class PredictionService:
 
 
 # ----------------------------------------------------------------------
-# 4) FastAPI app
+"""
+The main FastAPI app which initializes the PredictionService and defines the API endpoints.
+
+The `contextmanager` is used to manage the lifespan the app, ensure PredictionService is available before handling requests.
+"""
+
+
 # ----------------------------------------------------------------------
 def create_app():
     cfg = ApiConfig()
@@ -164,5 +186,6 @@ def create_app():
         return service.predict_by_id(id)
 
     return app
+
 
 app = create_app()

@@ -6,8 +6,17 @@ pipeline {
     }
 
     parameters {
-        string(name: 'MODEL_NAME', defaultValue: 'v1_xgb_XGB', description: 'Model Name to Build & Promote')
+        /* The model name will be model_name + suffix in `src/kfp_outside/main.py` */
+        string(name: 'MODEL_NAME', defaultValue: 'xgb_underwriting', description: 'Model Name to Build & Promote')
         choice(name: 'MODEL_TYPE', choices: ['xgb','lgbm'], description: 'Model implementation')
+
+        /* KFP config */
+        string(name: 'dex_auth_type', defaultValue: 'local', description: 'Kubeflow Dex Auth Type')
+        string(name: 'kfp_skip_tls_verify', defaultValue: True, description: 'Skip TLS verification for KFP API if http')
+
+        /* MinIO config */
+        string(name: 'BASE_RUN_ID', defaultValue: 'b4a73df0-cac0-4bbb-8d57-55612c32ae43', description: 'Run ID of KFP pipeline to convert to recurring run')
+        string(name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * *', description: 'Cron expression for KFP recurring run')
     }
 
     environment {
@@ -15,18 +24,18 @@ pipeline {
         registry           = 'microwave1005/prediction-api'
         registryCredential = 'dockerhub-creds'
 
-        /* GKE config */
-        CLUSTER_NAME       = 'prediction-platform'
-        ZONE               = 'us-central1-c'
-        PROJECT_ID         = 'mlops-fsds'
-
         /* MLflow config */
         MLFLOW_TRACKING_URI = 'http://mlflow.ducdh.com'
 
         /* MinIO config */
         MINIO_ENDPOINT      = 'minio.dhduc.com'
         MINIO_BUCKET_NAME   = 'sample-data'
-         
+
+        /*Kubeflow pipeline config */
+        KFP_API_URL = 'http://kubeflow.dhduc.com/pipeline'
+        registryCredential = 'kubeflow-creds'
+
+        /*Minio config for mlflow artifact store */ 
         MINIO_CREDS = credentials('minio-creds')
         AWS_ACCESS_KEY_ID      = "${MINIO_CREDS_USR}"
         AWS_SECRET_ACCESS_KEY  = "${MINIO_CREDS_PSW}"
@@ -54,6 +63,30 @@ pipeline {
                     echo "[INFO] Failing if coverage < 80%"
                     coverage report --fail-under=80
                 '''
+            }
+        }
+        stage('Enable KFP recurring run') {
+            agent {
+                docker {
+                    image 'microwave1005/kfp-jenkins-ci:latest'
+                }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'kubeflow-creds', variable: 'KFP_DEX_USERNAME'),
+                    string(credentialsId: 'kubeflow-creds', variable: 'KFP_DEX_PASSWORD')
+                ]) {
+                    sh '''
+                        python3 src/schedule_kfp_run.py \
+                            --kfp-api-url "${KFP_API_URL}" \
+                            --kfp-dex-username "${KFP_DEX_USERNAME}" \
+                            --kfp-dex-password "${KFP_DEX_PASSWORD}" \
+                            --kfp-dex-auth-type "${KFP_DEX_AUTH_TYPE}" \
+                            --kfp-skip-tls-verify "${KFP_SKIP_TLS_VERIFY}" \
+                            --run-id "${BASE_RUN_ID}" \
+                            --cron-expr "${KFP_CRON_EXPR:-0 3 * * *}"
+                    '''
+                }
             }
         }
 

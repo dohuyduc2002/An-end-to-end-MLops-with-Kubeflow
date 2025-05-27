@@ -1,50 +1,89 @@
-from datetime import datetime
-import os
+import argparse
 from kfp_outside.utils import KFPClientManager
 
 
-def main(run_id: str):
-    client_auth_manager = KFPClientManager(
-        api_url=os.getenv("KFP_API_URL"),
-        dex_username=os.getenv("KFP_DEX_USERNAME"),
-        dex_password=os.getenv("KFP_DEX_PASSWORD"),
-        dex_auth_type=os.getenv("KFP_DEX_AUTH_TYPE", "local"),
-        skip_tls_verify=os.getenv("KFP_SKIP_TLS_VERIFY", "false").lower() == "true",
+def get_run_params(kfp_client, run_id):
+    run = kfp_client.get_run(run_id)
+    pipeline_version_reference = getattr(run, "pipeline_version_reference", None)
+
+    pipeline_id = getattr(pipeline_version_reference, "pipeline_id", None)
+    pipeline_version_id = getattr(
+        pipeline_version_reference, "pipeline_version_id", None
     )
-    client = client_auth_manager.create_kfp_client()
-    run_detail = client.get_run(run_id)
+    params = getattr(run.runtime_config, "parameters", None)
+    return {
+        "experiment_id": run.experiment_id,
+        "pipeline_id": pipeline_id,
+        "pipeline_version_id": pipeline_version_id,
+        "params": params,
+    }
 
-    print("run_detail fields:", dir(run_detail))
-    print("pipeline_version_id:", getattr(run_detail, "pipeline_version_id", None))
-    print(
-        "pipeline_version_reference:",
-        getattr(run_detail, "pipeline_version_reference", None),
+
+def create_recurring_run(kfp_client, run_id, cron_expr):
+    run_info = get_run_params(kfp_client, run_id)
+    job_name = f"Recurring Job from {run_id}"
+
+    job = kfp_client.create_recurring_run(
+        experiment_id=run_info["experiment_id"],
+        job_name=job_name,
+        description=f"Recurring run for {job_name}",
+        cron_expression=cron_expr,
+        pipeline_id=run_info["pipeline_id"],
+        params=run_info["params"],
+        enabled=True,
+        no_catchup=True,
     )
-    print("pipeline_id:", getattr(run_detail, "pipeline_id", None))
-    print("pipeline_spec:", run_detail.pipeline_spec)
-
-    pipeline_version_ref = getattr(run_detail, "pipeline_version_reference", None)
-    if pipeline_version_ref:
-        print(
-            "pipeline_version_reference __dict__:",
-            getattr(pipeline_version_ref, "__dict__", pipeline_version_ref),
-        )
-
-    # Nếu vẫn None, lấy id từ list_pipelines
-    pipelines = client.list_pipelines().pipelines
-    for pl in pipelines:
-        print("Pipeline:", pl.id, pl.display_name)
-        versions = client.list_pipeline_versions(pipeline_id=pl.id).pipeline_versions
-        for v in versions:
-            print("  Version:", v.id, v.name)
-
-    # Tạm dừng ở đây, bạn sẽ nhìn thấy id thật để điền vào cho recurring run!
+    print("⏰ Recurring run created:", job)
+    return job
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--run-id", required=True)
+    parser = argparse.ArgumentParser(
+        description="Schedule a recurring KFP run from an existing run_id."
+    )
+    parser.add_argument(
+        "--kfp-api-url", required=True, help="Kubeflow Pipelines API URL"
+    )
+    parser.add_argument(
+        "--kfp-dex-username", required=True, help="Dex username for KFP authentication"
+    )
+    parser.add_argument(
+        "--kfp-dex-password", required=True, help="Dex password for KFP authentication"
+    )
+    parser.add_argument(
+        "--kfp-dex-auth-type",
+        default="local",
+        help="Dex authentication type (default: local)",
+    )
+    parser.add_argument(
+        "--kfp-skip-tls-verify",
+        default="false",
+        help="Skip TLS verification (true/false)",
+    )
+    parser.add_argument(
+        "--run-id",
+        required=True,
+        help="Base KFP run_id to schedule recurring run from.",
+    )
+    parser.add_argument(
+        "--cron-expr",
+        default="0 3 * * *",
+        help="Cron expression for recurring run schedule.",
+    )
     args = parser.parse_args()
-    main(args.run_id)
+
+    client_auth_manager = KFPClientManager(
+        api_url=args.kfp_api_url,
+        dex_username=args.kfp_dex_username,
+        dex_password=args.kfp_dex_password,
+        dex_auth_type=args.kfp_dex_auth_type,
+        skip_tls_verify=args.kfp_skip_tls_verify,
+    )
+    kfp_client = client_auth_manager.create_kfp_client()
+    print("✅ Authenticated KFP client created.")
+
+    create_recurring_run(
+        kfp_client=kfp_client,
+        run_id=args.run_id,
+        cron_expr=args.cron_expr,
+    )

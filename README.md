@@ -585,7 +585,7 @@ curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
   && sudo apt install ngrok
 
 ngrok config add-authtoken <your-ngrok-token>
-ngrok http 8081
+ngrok http --url=pheasant-crack-curiously.ngrok-free.app 80
 ```
 5. Configure Jenkins
 
