@@ -11,10 +11,9 @@ pipeline {
         choice(name: 'MODEL_TYPE', choices: ['xgb','lgbm'], description: 'Model implementation')
 
         /* KFP config */
-        string(name: 'dex_auth_type', defaultValue: 'local', description: 'Kubeflow Dex Auth Type')
-        string(name: 'kfp_skip_tls_verify', defaultValue: 'true', description: 'Skip TLS verification for KFP API if http')
+        string(name: 'KFP_DEX_AUTH_TYPE', defaultValue: 'local', description: 'Kubeflow Dex Auth Type')
 
-        /* MinIO config */
+        /* Recurring job config */
         string(name: 'BASE_RUN_ID', defaultValue: 'b4a73df0-cac0-4bbb-8d57-55612c32ae43', description: 'Run ID of KFP pipeline to convert to recurring run')
         string(name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * *', description: 'Cron expression for KFP recurring run')
     }
@@ -68,19 +67,20 @@ pipeline {
             }
             steps {
                 withCredentials([
-                    string(credentialsId: 'kubeflow-creds', variable: 'KFP_DEX_USERNAME'),
-                    string(credentialsId: 'kubeflow-creds', variable: 'KFP_DEX_PASSWORD')
+                    usernamePassword(credentialsId: 'kubeflow-creds', usernameVariable: 'KFP_DEX_USERNAME', passwordVariable: 'KFP_DEX_PASSWORD')
                 ]) {
-                    sh '''
-                        python3 src/schedule_kfp_run.py \
-                            --kfp-api-url "${KFP_API_URL}" \
-                            --kfp-dex-username "${KFP_DEX_USERNAME}" \
-                            --kfp-dex-password "${KFP_DEX_PASSWORD}" \
-                            --kfp-dex-auth-type "${KFP_DEX_AUTH_TYPE}" \
-                            --kfp-skip-tls-verify "${KFP_SKIP_TLS_VERIFY}" \
-                            --run-id "${BASE_RUN_ID}" \
-                            --cron-expr "${KFP_CRON_EXPR:-0 3 * * *}"
-                    '''
+                    script {
+                        def cronExpr = params.KFP_CRON_EXPR ?: '0 3 * * *'
+                        sh """
+                            python3 src/schedule_kfp_run.py \
+                                --kfp-api-url "${env.KFP_API_URL}" \
+                                --kfp-dex-username "${KFP_DEX_USERNAME}" \
+                                --kfp-dex-password "${KFP_DEX_PASSWORD}" \
+                                --kfp-dex-auth-type "${params.KFP_DEX_AUTH_TYPE}" \
+                                --run-id "${params.BASE_RUN_ID}" \
+                                --cron-expr "${cronExpr}"
+                        """
+                    }
                 }
             }
         }

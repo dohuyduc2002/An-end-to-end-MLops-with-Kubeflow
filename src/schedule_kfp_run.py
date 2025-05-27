@@ -2,10 +2,6 @@ import argparse
 from kfp_outside.utils import KFPClientManager
 
 
-def str_to_bool(v):
-    return str(v).lower() in ("yes", "true", "t", "1")
-
-
 def get_run_params(kfp_client, run_id):
     run = kfp_client.get_run(run_id)
     pipeline_version_reference = getattr(run, "pipeline_version_reference", None)
@@ -60,12 +56,6 @@ if __name__ == "__main__":
         help="Dex authentication type (default: local)",
     )
     parser.add_argument(
-        "--kfp-skip-tls-verify",
-        type=str_to_bool,
-        default="true",
-        help="Skip TLS verification (true/false)",
-    )
-    parser.add_argument(
         "--run-id",
         required=True,
         help="Base KFP run_id to schedule recurring run from.",
@@ -82,7 +72,7 @@ if __name__ == "__main__":
         dex_username=args.kfp_dex_username,
         dex_password=args.kfp_dex_password,
         dex_auth_type=args.kfp_dex_auth_type,
-        skip_tls_verify=args.kfp_skip_tls_verify,
+        skip_tls_verify=True,
     )
     kfp_client = client_auth_manager.create_kfp_client()
     print("✅ Authenticated KFP client created.")
