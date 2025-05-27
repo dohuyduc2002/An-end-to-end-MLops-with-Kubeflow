@@ -36,7 +36,7 @@ pipeline {
         kubeflow_credential = 'kubeflow-creds'
 
         /*Minio config for mlflow artifact store */ 
-        MINIO_CREDS = minio_credentials('minio-creds')
+        MINIO_CREDS = credentials('minio-creds')
         AWS_ACCESS_KEY_ID      = "${MINIO_CREDS_USR}"
         AWS_SECRET_ACCESS_KEY  = "${MINIO_CREDS_PSW}"
         MLFLOW_S3_ENDPOINT_URL = "http://${MINIO_ENDPOINT}"
