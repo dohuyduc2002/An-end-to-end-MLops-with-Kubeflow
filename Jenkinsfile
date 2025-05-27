@@ -31,7 +31,7 @@ pipeline {
         MINIO_BUCKET_NAME   = 'sample-data'
 
         /*Kubeflow pipeline config */
-        KFP_API_URL = 'http://kubeflow.dhduc.com/pipeline'
+        KFP_API_URL = 'http://kubeflow.ducdh.com/pipeline'
         kubeflow_credential = 'kubeflow-creds'
 
         /*Minio config for mlflow artifact store */ 

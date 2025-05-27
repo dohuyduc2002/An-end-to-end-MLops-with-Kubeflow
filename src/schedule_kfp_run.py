@@ -29,6 +29,7 @@ def create_recurring_run(kfp_client, run_id, cron_expr):
         description=f"Recurring run for {job_name}",
         cron_expression=cron_expr,
         pipeline_id=run_info["pipeline_id"],
+        version_id=run_info["pipeline_version_id"],
         params=run_info["params"],
         enabled=True,
         no_catchup=True,
@@ -81,4 +82,5 @@ if __name__ == "__main__":
         kfp_client=kfp_client,
         run_id=args.run_id,
         cron_expr=args.cron_expr,
+        
     )
