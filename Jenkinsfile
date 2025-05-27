@@ -12,7 +12,7 @@ pipeline {
 
         /* KFP config */
         string(name: 'dex_auth_type', defaultValue: 'local', description: 'Kubeflow Dex Auth Type')
-        string(name: 'kfp_skip_tls_verify', defaultValue: True, description: 'Skip TLS verification for KFP API if http')
+        string(name: 'kfp_skip_tls_verify', defaultValue: 'true', description: 'Skip TLS verification for KFP API if http')
 
         /* MinIO config */
         string(name: 'BASE_RUN_ID', defaultValue: 'b4a73df0-cac0-4bbb-8d57-55612c32ae43', description: 'Run ID of KFP pipeline to convert to recurring run')

@@ -2,6 +2,10 @@ import argparse
 from kfp_outside.utils import KFPClientManager
 
 
+def str_to_bool(v):
+    return str(v).lower() in ("yes", "true", "t", "1")
+
+
 def get_run_params(kfp_client, run_id):
     run = kfp_client.get_run(run_id)
     pipeline_version_reference = getattr(run, "pipeline_version_reference", None)
@@ -57,7 +61,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--kfp-skip-tls-verify",
-        default="false",
+        type=str_to_bool,
+        default="true",
         help="Skip TLS verification (true/false)",
     )
     parser.add_argument(
