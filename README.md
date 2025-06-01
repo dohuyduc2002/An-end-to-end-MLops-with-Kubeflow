@@ -252,7 +252,7 @@ gdown --folder https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVKY
 2. After that, you can push data to Minio using the following command:
 ```bash
 
-mc alias set localMinio http://minio.ducdh.com minio minio123
+mc alias set localMinio http://localhost:9000 minio minio123
 mc mb localMinio/sample-data
 mc mb localMinio/mlflow
 
@@ -271,7 +271,7 @@ Im using MLflow community helm chart to deploy MLflow in this project. You can f
 ```bash
 cd helm-charts/mlflow
 k create ns mlflow
-k apply -f postgres.yaml
+k apply -f helm-charts/mlflow/postgres.yaml
 ```
 
 2. Then install Mlflow using helm chart
@@ -281,10 +281,9 @@ helm repo add community-charts https://community-charts.github.io/helm-charts
 helm install mlflow community-charts/mlflow \
   --namespace mlflow \
   --set ingress.enabled=false \
-  -f custom-values.yaml
+  -f helm-charts/mlflow/custom-values.yaml
 
 ```
-
 I'm using Postgres as backend store and Minio as artifact store. This can be configure using this cmd
 
 ```bash
@@ -319,7 +318,8 @@ helm upgrade --install mlflow community-charts/mlflow \
 ```bash
 helm upgrade --install mlflow community-charts/mlflow \
   --namespace mlflow \
-  -f helm-charts/mlflow/values.yaml \
+  --reuse-values \
+  -f helm-charts/mlflow/custom-values.yaml \
   --set ingress.enabled=true \
   --set ingress.hosts[0].host=mlflow.ducdh.com \
   --set ingress.hosts[0].paths[0].path=/ \
@@ -348,10 +348,10 @@ Create json for Grafana dashboard, apply it through configmap in `src/client/gra
 ```bash
 kubectl create configmap model-dashboard \
   --from-file=model-dashboard.json=helm-charts/monitoring/dashboard/model-dashboard.json \
-  -n monitoring \
-  --dry-run=client -o yaml | \
-kubectl label -f - grafana_dashboard=1 --overwrite | \
-kubectl apply -f -
+  -n monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl label configmap model-dashboard grafana_dashboard=1 -n monitoring --overwrite
+
 
 ```
 In this command, I'm create a new configmap named `model-dashboard` with the content of `model-dashboard.json` file. The `--dry-run=client -o yaml` option is used to generate the YAML manifest without applying it immediately, allowing you to label it before applying. The tmp file then is apply to the cluster with the label `grafana_dashboard=1` as a sidecar to Grafana deployment.
@@ -359,6 +359,13 @@ In this command, I'm create a new configmap named `model-dashboard` with the con
 You can also check other Grafana dashboards in [Grafana lab](https://grafana.com/grafana/dashboards/), in this project, I'm using Node Exporter Full dashboard to monitor the all cluster nodes.
 
 media ... 
+
+```bash
+helm upgrade kps prometheus-community/kube-prometheus-stack \
+  -n monitoring \
+  -f helm-charts/monitoring/custom-values.yaml \
+  --reuse-values
+```
 
 ### Serve model with FastAPI and collect log 
 In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpieline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 
@@ -396,14 +403,28 @@ docker buildx build \
 ```
 
 In my api helm chart, I used `microwave1005/prediction-api:latest` as the default image. The other version is also build to revert when necessary.
+
+First, due to my api need to use Minio to pull artetfact, you need to create a namespace for the API and then create a secret for Minio credentials. 
+
+```bash
+k create namespace api
+
+k create secret generic minio-creds \
+  --from-literal=access_key=minio \
+  --from-literal=secret_key=minio123 \
+  -n api
+```
+
+Then, you can install the API helm chart with the following command `After model is registered in Mlflow model registry`
+** Note: Remember to check parent run id in Mlfow UI or kubeflow downstream artifact
 ```bash
 helm install api ./helm-charts/api \
   --namespace api \
-  --create-namespace \
   --set version=v0.1 \
   --set monitoring.enabled=true \
   --set image.tag=v0.1 \
   --set replicaCount=1 \
+  --set env.PARENT_RUN_ID=8848ff4bc23843c6a5857aa5b3017c9e \ 
   --set ingress.enabled=true \
   --set ingress.rules[0].host=api.ducdh.com \
   --set ingress.rules[0].paths[0].path="/" \
@@ -411,14 +432,6 @@ helm install api ./helm-charts/api \
   --set ingress.rules[0].paths[0].serviceName=prediction-api \
   --set ingress.rules[0].paths[0].servicePort=8000
 ```
-Because endpoint app is pulling artefact from Minio, you need to add secret to this namespace. 
-```bash
-k create secret generic minio-creds \
-  --from-literal=access_key=minio \
-  --from-literal=secret_key=minio123 \
-  -n api
-```
-##########
 
 ### Mapping domain name to external IP
 This step is optional, but it will help you to access the services easily without using IP address. You can use any domain name that you own, in this project, I'm using `ducdh.com` domain name. Previously, I have already mapped the Istio external IP to `kubeflow.ducdh.com` in the `/etc/hosts` file.
@@ -487,6 +500,7 @@ KFP_DEX_PASSWORD=12341234
 KFP_DEX_AUTH_TYPE=local
 
 MLFLOW_ENDPOINT=mlflow.mlflow.svc.cluster.local:5000
+KFP_NAMESPACE='kubeflow-user-exmaple-com'
 ```
 3. Running the pipeline
 a. Components
@@ -534,19 +548,68 @@ k rollout restart deployment centraldashboard -n kubeflow
 ## CICD pipeline 
 ### Cloud Build
 
-### Jenkins local
+### Jenkins Azure VM
 1. Initialize Jenkins 
 Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.custom_jenkins` file. This image is used to run Jenkins pipeline and build Docker images for the project. Also, the stage `test` and `promote` in jenkins is using `dockerfiles/Dockerfile.kfp_jenkins_ci` to run 
 
 ```bash
-docker build -t microwave1005/custom-jenkins:latest -f dockerfiles/Dockerfile.custom_jenkins .
+docker build --no-cache -t microwave1005/custom-jenkins:latest -f dockerfiles/Dockerfile.custom_jenkins .
 docker build -t microwave1005/kfp-jenkins-ci:latest -f dockerfiles/Dockerfile.kfp_jenkins_ci .
 
 docker push microwave1005/kfp-jenkins-ci:latest
 docker push microwave1005/custom-jenkins:latest
 ```
 
+2. Generate key pair 
+To allow your local machine to access the Azure VM, you need to generate a key pair. You can use the following command to generate a key pair:
+
+```bash
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
+```
+
+2. Init Azure VM for Jenkins
 
 
+Due to Azure does not using default network like GCP, you need to configure NIC, Subnet and VPC manually iny
+
+```bash
+terraform apply -var="subscription_id=<YOUR_SUBSCRIPTION_ID>" 
+```
+
+
+After creating the VM, you need to refresh the tf state to retrieve your dynamic public IP, then ssh to the VM using the following command:
+
+```bash
+
+ssh -i ~/.ssh/id_rsa <your_admin_usrname>@<your_vm_public_ip>
+```
+After wait a few minitues for VM to install docker, check the container status by running the following command:
+
+```bash
+sudo docker ps
+```
+
+sudo cat /var/log/cloud-init-output.log
+
+3. Access Jenkins 
+I already open port 8080 for Jenkins in Azure VM, so you can access Jenkins by going to `http://<your_vm_public_ip>:8080` in your browser. You can also map the public IP to a domain name in your `/etc/hosts` file for convenience. 
+
+To get the initial admin password, you can run the following command:
+
+```bash
+sudo docker exec -it jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+In my Jenkinsfile, I declared my Minio, Mlflow and Kubeflow as a mock dns, so you have to map it in the VM by using 
+
+```bash
+sudo nano /etc/hosts
+<EXTERNAL-IP-NGINX> mlflow.ducdh.com
+<EXTERNAL-IP-NGINX> minio.ducdh.com
+<ISTIO-EXTERNAL-IP> kubeflow.ducdh.com
+```
+
+4. Configure Jenkins
 
 ### Cloud Build
+

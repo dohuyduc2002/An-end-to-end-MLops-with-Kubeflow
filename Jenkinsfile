@@ -12,16 +12,18 @@ pipeline {
 
         /* KFP config */
         string(name: 'KFP_DEX_AUTH_TYPE', defaultValue: 'local', description: 'Kubeflow Dex Auth Type')
-
-        /* Recurring job config */
-        string(name: 'BASE_RUN_ID', defaultValue: 'b4a73df0-cac0-4bbb-8d57-55612c32ae43', description: 'Run ID of KFP pipeline to convert to recurring run')
+        string(name: 'PIPELINE_NAME', defaultValue: 'kfp-outside-pipeline', description: 'Base run ID for KFP recurring run')
+        string(name: 'PIPELINE_VERSION', defaultValue: 'v1', description: 'Base run ID for KFP recurring run')
         string(name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * *', description: 'Cron expression for KFP recurring run')
+
+        /* MLFlow config */
+        string(name: 'MLFLOW_EXPERIMENT_NAME', defaultValue: 'Kubeflow Pipeline outside', description: 'MLFlow Experiment Name')
+        string(name: 'MLFLOW_RUN_NAME', defaultValue: 'xgb_optuna_search', description: 'Model run name registered in MLFlow through Kubeflow Pipeline')
     }
 
     environment {
         /* Dockerhub config */
         registry           = 'microwave1005/prediction-api'
-        dockerhub_credential = 'dockerhub-creds'
 
         /* MLflow config */
         MLFLOW_TRACKING_URI = 'http://mlflow.ducdh.com'
@@ -32,7 +34,6 @@ pipeline {
 
         /*Kubeflow pipeline config */
         KFP_API_URL = 'http://kubeflow.ducdh.com/pipeline'
-        kubeflow_credential = 'kubeflow-creds'
 
         /*Minio config for mlflow artifact store */ 
         MINIO_CREDS = credentials('minio-creds')
@@ -59,74 +60,79 @@ pipeline {
                 '''
             }
         }
-        stage('Enable KFP recurring run') {
-            agent {
-                docker {
-                    image 'microwave1005/kfp-jenkins-ci:latest'
-                }
-            }
-            steps {
-                withCredentials([
-                    usernamePassword(credentialsId: 'kubeflow-creds', usernameVariable: 'KFP_DEX_USERNAME', passwordVariable: 'KFP_DEX_PASSWORD')
-                ]) {
-                    script {
-                        def cronExpr = params.KFP_CRON_EXPR ?: '0 3 * * *'
-                        sh """
-                            python3 src/schedule_kfp_run.py \
-                                --kfp-api-url "${env.KFP_API_URL}" \
-                                --kfp-dex-username "${KFP_DEX_USERNAME}" \
-                                --kfp-dex-password "${KFP_DEX_PASSWORD}" \
-                                --kfp-dex-auth-type "${params.KFP_DEX_AUTH_TYPE}" \
-                                --run-id "${params.BASE_RUN_ID}" \
-                                --cron-expr "${cronExpr}"
-                        """
-                    }
-                }
-            }
-        }
+        // stage('Enable KFP recurring run') {
+        //     agent {
+        //         docker {
+        //             image 'microwave1005/kfp-jenkins-ci:latest'
+        //         }
+        //     }
+        //     steps {
+        //         withCredentials([
+        //             usernamePassword(credentialsId: 'kubeflow-creds', usernameVariable: 'KFP_DEX_USERNAME', passwordVariable: 'KFP_DEX_PASSWORD')
+        //         ]) {
+        //             script {
+        //                 def cronExpr = params.KFP_CRON_EXPR ?: '0 3 * * *'
+        //                 sh """
+        //                     python3 src/schedule_kfp_run.py \
+        //                         --kfp-api-url "${env.KFP_API_URL}" \
+        //                         --kfp-dex-username "${KFP_DEX_USERNAME}" \
+        //                         --kfp-dex-password "${KFP_DEX_PASSWORD}" \
+        //                         --kfp-dex-auth-type "${params.KFP_DEX_AUTH_TYPE}" \
+        //                         --pipeline-name "${params.PIPELINE_NAME}" \
+        //                         --pipeline-version "${params.PIPELINE_VERSION}" \
+        //                         --cron-expr "${cronExpr}"
+        //                 """
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Build & Push Image') {
             steps {
                 script {
                     echo "Building image MODEL_NAME=${params.MODEL_NAME}, MODEL_TYPE=${params.MODEL_TYPE}"
                     def tag = env.TAG
+                    def imageName = "${env.registry}:${tag}"
+
                     def img = docker.build(
-                        "${env.registry}:${tag}",
+                        imageName,
                         "--build-arg MODEL_NAME=${params.MODEL_NAME} " +
                         "--build-arg MODEL_TYPE=${params.MODEL_TYPE} " +
                         "-f dockerfiles/Dockerfile.app ."
                     )
+
                     echo "Pushing image with tags: ${tag}, latest"
-                    docker.withRegistry('', env.dockerhub_credential) {
-                        img.push()
-                        sh "docker tag ${env.registry}:${tag} ${env.registry}:latest"
+
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub_creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        docker.withRegistry("https://${env.registry}", "${DOCKER_USER}:${DOCKER_PASS}") {
+                            img.push()
+                        }
+
+                        // Push "latest" tag separately
+                        sh "docker tag ${imageName} ${env.registry}:latest"
+                        sh "echo $DOCKER_PASS | docker login ${env.registry} -u $DOCKER_USER --password-stdin"
                         sh "docker push ${env.registry}:latest"
                     }
                 }
             }
         }
 
+
         stage('Promote to Staging') {
             agent {
                 docker {
-                    image 'microwave1005/kfp-ci-jenkins:latest'
+                image 'microwave1005/kfp-jenkins-ci:latest'
                 }
             }
             steps {
-                withEnv([
-                    "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
-                    "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
-                    "MLFLOW_S3_ENDPOINT_URL=${env.MLFLOW_S3_ENDPOINT_URL}",
-                    "MLFLOW_TRACKING_URI=${env.MLFLOW_TRACKING_URI}",
-                    "MODEL_NAME=${params.MODEL_NAME}"
-                ]) {
-                    sh '''
-                        python3 src/promote_model.py \
-                            --model       "${MODEL_NAME}" \
-                            --from-stage  none \
-                            --to-stage    staging \
-                            --tracking-uri "${MLFLOW_TRACKING_URI}"
-                    '''
+                script {
+                sh """
+                    python3 src/promote_model.py \
+                    --model       "${params.MODEL_NAME}" \
+                    --from-stage  none \
+                    --to-stage    stagging \
+                    --tracking-uri "${env.MLFLOW_TRACKING_URI}"
+                """
                 }
             }
         }
@@ -140,24 +146,18 @@ pipeline {
         stage('Promote to Production') {
             agent {
                 docker {
-                    image 'microwave1005/kfp-jenkins-ci:latest'
+                image 'microwave1005/kfp-jenkins-ci:latest'
                 }
             }
             steps {
-                withEnv([
-                    "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
-                    "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
-                    "MLFLOW_S3_ENDPOINT_URL=${env.MLFLOW_S3_ENDPOINT_URL}",
-                    "MLFLOW_TRACKING_URI=${env.MLFLOW_TRACKING_URI}",
-                    "MODEL_NAME=${params.MODEL_NAME}"
-                ]) {
-                    sh '''
-                        python3 src/promote_model.py \
-                            --model       "${MODEL_NAME}" \
-                            --from-stage  staging \
-                            --to-stage    production \
-                            --tracking-uri "${MLFLOW_TRACKING_URI}"
-                    '''
+                script {
+                sh """
+                    python3 src/promote_model.py \
+                    --model       "${params.MODEL_NAME}" \
+                    --from-stage  staging \
+                    --to-stage    production \
+                    --tracking-uri "${env.MLFLOW_TRACKING_URI}"
+                """
                 }
             }
         }
@@ -169,10 +169,25 @@ pipeline {
                 }
             }
             steps {
+                script {
+                    // 1. Fetch the latest model version from MLFlow
+                    def run_id = sh(
+                        script: """
+                            python3 src/fetch_mlflow_run.py \
+                                --tracking-uri "${MLFLOW_TRACKING_URI}" \
+                                --experiment-name "${params.MLFLOW_EXPERIMENT_NAME}" \
+                                --run-name "${params.MLFLOW_RUN_NAME}" \
+                        """,
+                        returnStdout: true
+                    ).trim()
+                }
+                echo "[INFO] Fetched run ID: ${run_id}"
+                // 2. Set the PARENT_RUN_ID environment variable for Helm
                 sh """
                     helm upgrade --install api ./helm-charts/api \
                         --reuse-values \
                         --namespace api \
+                        --set env.PARENT_RUN_ID=${run_id} \
                         --set version=${TAG} \
                         --set monitoring.enabled=true \
                         --set image.tag=${TAG} \
