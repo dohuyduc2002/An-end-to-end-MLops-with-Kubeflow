@@ -106,7 +106,7 @@ pipeline {
         /* ---------------------------------------------------------- */
         stage('Enable KFP recurring run') {
             steps {
-                input message: "Approve KFP recurring run for ${params.PIPELINE_NAME}?"
+                input message: "Approve KFP recurring run for ?"
             }
         }
 
