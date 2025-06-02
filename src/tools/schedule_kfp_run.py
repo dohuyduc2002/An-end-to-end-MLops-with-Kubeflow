@@ -4,7 +4,7 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from src.kfp_outside.utils import (
+from kfp_outside.utils import (
     KFPClientManager,
     get_or_upload_pipeline,
     create_recurring_run,
