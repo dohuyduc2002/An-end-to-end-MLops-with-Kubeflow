@@ -1,5 +1,9 @@
-# schedule_kfp.py
 import argparse
+from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 from src.kfp_outside.utils import (
     KFPClientManager,
     get_or_upload_pipeline,
