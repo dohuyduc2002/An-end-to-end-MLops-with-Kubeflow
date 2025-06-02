@@ -60,12 +60,12 @@ Root
 - [ ] Code refactoring and deduplication
 - [ ] Add integration test 
 - [ ] Add media files 
-- [ ] Artifact storage in pipeline 
+
 ## Setting up GCP
 1. Create a Google Cloud account and set up billing.
 After creating GCP account, create a new project and enable billing for it. You can follow the official [GCP account registration guide](https://cloud.google.com/free/docs/free-cloud-features) to create a GCP account and set up billing.
 
-media...
+
 
 Next, navigate to [Compute Engine API UI](https://console.cloud.google.com/marketplace/product/google/compute.googleapis.com) to "ENABLE" Compute Engine API:
 
@@ -104,7 +104,6 @@ sudo mv kustomize /usr/local/bin/
 ```
 
 Install Krew for Kubectl plugins, you can install Krew by following this link: [Krew installation](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
-
 
 For convinience when using Kubeflow, you can install these Kubectl plugins and alias:
 ```bash
@@ -194,7 +193,9 @@ After Kubeflow manifests version v1.7, the default button to allow pipeline to r
 cd kubeflow/kfp-access
 k apply -f kfp-access.yaml
 ```
-You can also based on this template to add your own configuration button like add GCP credential, Wandb credential, etc.
+You can also based on this template to add your own configuration button like add GCP credential, Wandb credential, etc. 
+
+![Dashboard](media/diagram.jpg)
 
 ### Ingress controller for all services
 While using GKE cluster, you can not use `kubectl port-forward` to access the services. To expose all services to the internet, you need to install NginX ingress controller and create ingress for each service. Kubeflow is already exposed in previous step.
@@ -351,14 +352,15 @@ kubectl create configmap model-dashboard \
   -n monitoring --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl label configmap model-dashboard grafana_dashboard=1 -n monitoring --overwrite
-
-
 ```
+
+[Custom Grafana dashboard](media/graf_predict.png)
+
 In this command, I'm create a new configmap named `model-dashboard` with the content of `model-dashboard.json` file. The `--dry-run=client -o yaml` option is used to generate the YAML manifest without applying it immediately, allowing you to label it before applying. The tmp file then is apply to the cluster with the label `grafana_dashboard=1` as a sidecar to Grafana deployment.
 
 You can also check other Grafana dashboards in [Grafana lab](https://grafana.com/grafana/dashboards/), in this project, I'm using Node Exporter Full dashboard to monitor the all cluster nodes.
 
-media ... 
+[Grafana Node Exporter Full dashboard](media/graf_node.png)
 
 ```bash
 helm upgrade kps prometheus-community/kube-prometheus-stack \
@@ -536,7 +538,7 @@ There is 2 ways to add new components to the dashboard:
 1. Internal Link: Run inside Kubeflow central dashboard, require sidecar proxy to Istio
 2. External Link: Create a link to external service, no need sidecar proxy to Istio
 
-For simplicity, I'm using external link method the Central Dashboard configmap is already created in `kubeflow/dashboard` folder. In this configmap, I added external link to Mlflow, Minio, Grafana and Jenkins.
+For simplicity, I'm using external link method the Central Dashboard configmap is already created in `kubeflow/dashboard` folder. In this configmap, I added external link to Mlflow, Minio, Grafana and Jenkins. You can also use vim or nano to edit the dashboard-configmap.yaml file to add your own components.
 
 ```bash
 cd kubeflow/dashboard
@@ -544,6 +546,8 @@ k delete configmap centraldashboard-config -n kubeflow
 k apply -f dashboard-configmap.yaml
 k rollout restart deployment centraldashboard -n kubeflow
 ```
+
+[Dashboard configmap](media/dashboard.png)
 
 ## CICD pipeline 
 My CICD pipeline flow consists in unittesting my components running on KFP. If the test fail the coverage, the pipeline is stopped. After testing stage complete, we create a new recurring run based on previous one-off `run_id`, `pipeline_name` and `version_name` then build Dockerfile for the app along with model promotion to `stagging`. 
@@ -570,6 +574,11 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
 2. Init Azure VM for Jenkins
 Due to Azure does not using default network like GCP, you need to configure NIC, Subnet and VPC manually in the `terraform/azure/main.tf` file. You can refer to the Terrafom Azurerm documentation [Azurerm 4.1.0 docs]('https://registry.terraform.io/providers/hashicorp/azurerm/4.1.0/docs')
 
+To get your Azure subscription ID, login to your Azure account and navigave to `Subscriptions` in the Azure portal. You can find your subscription ID in the `Overview` tab of your subscription.
+After that, you can run the following command to create the Azure VM for Jenkins:
+
+[Azure subscription ID](media/azure_subcription.png)
+
 ```bash
 terraform destroy -var="subscription_id=<YOUR_SUBSCRIPTION_ID>" 
 ```
@@ -579,7 +588,7 @@ After creating the VM, you need to refresh the tf state to retrieve your dynamic
 ```bash
 terraform refresh -var="subscription_id=<YOUR_SUBSCRIPTION_ID>" 
 ``` 
-To access the VM, you can use the following command:
+To access the VM, you can use the following command, in this repo, my `<your_admin_usrname>` is `ducdh`
 
 ```bash
 ssh -i ~/.ssh/id_rsa <your_admin_usrname>@<your_vm_public_ip>
@@ -620,6 +629,7 @@ To allow my CICD pipeline to build docker, using helm upgrade in gke cluster, yo
 - Kubernetes CLI
 - Google Kubernetes Engine
 
+[Jenkins plugins](media/jenkins_plugins.png)
 
 c. Adding GKE credentials
 First, you have to prepare your Service account json, in the [Create GCP service account](#create-gcp-service-account) I have already created it, you can also use this credential. After that, go to `Mange Jenkins/Cloud` to add new cloud with `Kubernetes`, to add new Cloud to Jenkins. There is 2 field named `Kubenertes IP` and `Certificate`, you have to go to your console in GKE to get that.

@@ -13,7 +13,7 @@ pipeline {
         choice (name: 'MODEL_TYPE', choices: ['xgb','lgbm'])
         /* --- KFP recurring run --- */
         string (name: 'KFP_DEX_AUTH_TYPE', defaultValue: 'local')
-        string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * *')
+        string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * 6') // every Saturday at 3:00 AM
         string (name: 'KUBEFLOW_NAMESPACE', defaultValue: 'kubeflow-user-example-com')
         /* --- MLflow run to deploy --- */
         string (name: 'MLFLOW_EXPERIMENT_NAME', defaultValue: 'Underwriting_kfp')
@@ -119,7 +119,7 @@ pipeline {
                     usernameVariable: 'KFP_DEX_USERNAME',
                     passwordVariable: 'KFP_DEX_PASSWORD')]) {
                     script {
-                        def cronExpr = params.KFP_CRON_EXPR ?: '0 3 * * *'
+                        def cronExpr = params.KFP_CRON_EXPR
                         dir('src') {
                             sh """
                                 PYTHONPATH=. python3 tools/schedule_kfp_run.py \
@@ -208,7 +208,6 @@ pipeline {
 
         /* ---------------------------------------------------------- */
         stage('Deploy to Google Kubernetes Engine') {
-            agent { kubernetes { cloud 'prediction-api-gke' } }
             steps {
                 script {
                     echo "[INFO] Deploying tag ${TAG} (run_id=${env.RUN_ID})"
