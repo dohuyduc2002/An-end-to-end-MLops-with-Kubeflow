@@ -123,14 +123,14 @@ pipeline {
                         def cronExpr = params.KFP_CRON_EXPR ?: '0 3 * * *'
                         dir('src') {
                             sh """
-                                python3 tools/schedule_kfp_run.py \
-                                   --kfp-api-url       "${KFP_API_URL}" \
-                                   --kfp-dex-username  "${KFP_DEX_USERNAME}" \
-                                   --kfp-dex-password  "${KFP_DEX_PASSWORD}" \
-                                   --kfp-dex-auth-type "${params.KFP_DEX_AUTH_TYPE}" \
-                                   --pipeline-name     "${params.PIPELINE_NAME}" \
-                                   --version-name      "${params.PIPELINE_VERSION}" \
-                                   --cron-expr         "${cronExpr}"
+                                PYTHONPATH=. python3 tools/schedule_kfp_run.py \
+                                    --kfp-api-url       "${KFP_API_URL}" \
+                                    --kfp-dex-username  "${KFP_DEX_USERNAME}" \
+                                    --kfp-dex-password  "${KFP_DEX_PASSWORD}" \
+                                    --kfp-dex-auth-type "${params.KFP_DEX_AUTH_TYPE}" \
+                                    --pipeline-name     "${params.PIPELINE_NAME}" \
+                                    --version-name      "${params.PIPELINE_VERSION}" \
+                                    --cron-expr         "${cronExpr}"
                             """
                         }
                     }
