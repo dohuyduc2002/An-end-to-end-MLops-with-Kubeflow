@@ -37,10 +37,7 @@ pipeline {
         MLFLOW_S3_ENDPOINT_URL = "http://${MINIO_ENDPOINT}"
 
         TAG = "v.${env.BUILD_NUMBER}"
-    }
 
-    /* ========= GLOBAL FLAGS (default) for checking ========= */
-    environment {
         CODE_CHANGED        = 'true'   
         NEED_PROMOTE        = 'true'
         IMAGE_EXISTS        = 'false'
