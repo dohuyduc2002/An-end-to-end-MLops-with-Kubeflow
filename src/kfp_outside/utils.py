@@ -146,7 +146,7 @@ def get_or_upload_pipeline(kfp_client, pipeline_yaml, pipeline_name, version_nam
         pipeline = kfp_client.upload_pipeline(
             pipeline_package_path=pipeline_yaml,
             pipeline_name=pipeline_name,
-            namespace="kubeflow-user-example-com",
+            namespace="kubeflow-user-example-com",  # Adjust namespace as needed
         )
         pipeline_id = getattr(pipeline, "pipeline_id")
         print(f"⬆️  Uploaded pipeline: {pipeline_name} (id={pipeline_id})")
@@ -162,25 +162,35 @@ def get_or_upload_pipeline(kfp_client, pipeline_yaml, pipeline_name, version_nam
     return pipeline_id, version_id, version_name
 
 
-def get_run_params(kfp_client, run_id):
-    run = kfp_client.get_run(run_id)
-    pipeline_version_reference = getattr(run, "pipeline_version_reference", None)
+def get_runs_reponse(kfp_client, namespace):
+    runs = kfp_client.list_runs(
+        page_size=10,
+        sort_by="created_at desc",
+        namespace=namespace,
+    ).runs
 
-    pipeline_id = getattr(pipeline_version_reference, "pipeline_id", None)
-    pipeline_version_id = getattr(
-        pipeline_version_reference, "pipeline_version_id", None
-    )
-    params = getattr(run.runtime_config, "parameters", None)
+    latest_run = runs[0]
+    run_id = latest_run.run_id
+
+    run = kfp_client.get_run(run_id)
+    pipeline_version_reference = getattr(run, "pipeline_version_reference")
+
+    pipeline_id = getattr(pipeline_version_reference, "pipeline_id")
+    pipeline_version_id = getattr(pipeline_version_reference, "pipeline_version_id")
+    params = getattr(run.runtime_config, "parameters")
+
     return {
         "experiment_id": run.experiment_id,
         "pipeline_id": pipeline_id,
         "pipeline_version_id": pipeline_version_id,
         "params": params,
+        "run_id": run_id,
     }
 
-def create_recurring_run(kfp_client, run_id, cron_expr):
-    run_info = get_run_params(kfp_client, run_id)
-    job_name = f"Recurring Job from {run_id}"
+
+def create_recurring_run_with_params(kfp_client, cron_expr, run_info: dict):
+    job_name = f"Recurring Job from {run_info['run_id']}"
+    
     job = kfp_client.create_recurring_run(
         experiment_id=run_info["experiment_id"],
         job_name=job_name,
@@ -193,19 +203,3 @@ def create_recurring_run(kfp_client, run_id, cron_expr):
         no_catchup=True,
     )
     print("Recurring run created:", job)
-    return job
-
-
-def get_latest_run_id_from_version(kfp_client, experiment_id, version_id):
-    """Find latest run in experiment that uses the given version_id."""
-    runs = (
-        kfp_client.list_runs(
-            experiment_id=experiment_id, page_size=100, sort_by="created_at desc"
-        ).runs
-        or []
-    )
-    for run in runs:
-        ref = getattr(run, "pipeline_version_reference", None)
-        if ref and getattr(ref, "pipeline_version_id", None) == version_id:
-            return run.run_id
-    raise ValueError("No run found for this version in the experiment.")

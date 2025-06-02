@@ -13,9 +13,8 @@ pipeline {
         choice (name: 'MODEL_TYPE', choices: ['xgb','lgbm'])
         /* --- KFP recurring run --- */
         string (name: 'KFP_DEX_AUTH_TYPE', defaultValue: 'local')
-        string (name: 'PIPELINE_NAME'      , defaultValue: 'kfp-outside-pipeline')
-        string (name: 'PIPELINE_VERSION'   , defaultValue: 'v1')
-        string (name: 'KFP_CRON_EXPR'      , defaultValue: '0 3 * * *')
+        string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * *')
+        string (name: 'KUBEFLOW_NAMESPACE', defaultValue: 'kubeflow-user-example-com')
         /* --- MLflow run to deploy --- */
         string (name: 'MLFLOW_EXPERIMENT_NAME', defaultValue: 'Kubeflow Pipeline outside')
         string (name: 'MLFLOW_RUN_NAME'       , defaultValue: 'xgb_optuna_search')
@@ -83,7 +82,7 @@ pipeline {
                                 python3 src/tools/fetch_mlflow_run.py \
                                    --tracking-uri "${MLFLOW_TRACKING_URI}" \
                                    --experiment "${params.MLFLOW_EXPERIMENT_NAME}" \
-                                   --run-name       "${params.MLFLOW_RUN_NAME}"
+                                   --run-name   "${params.MLFLOW_RUN_NAME}"
                             """, returnStdout: true).trim()
                     }
 
@@ -128,8 +127,7 @@ pipeline {
                                     --kfp-dex-username  "${KFP_DEX_USERNAME}" \
                                     --kfp-dex-password  "${KFP_DEX_PASSWORD}" \
                                     --kfp-dex-auth-type "${params.KFP_DEX_AUTH_TYPE}" \
-                                    --pipeline-name     "${params.PIPELINE_NAME}" \
-                                    --version-name      "${params.PIPELINE_VERSION}" \
+                                    --kfp-namespace     "${params.KUBEFLOW_NAMESPACE}" \
                                     --cron-expr         "${cronExpr}"
                             """
                         }
