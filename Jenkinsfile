@@ -82,7 +82,7 @@ pipeline {
                             script: """
                                 python3 src/tools/fetch_mlflow_run.py \
                                    --tracking-uri "${MLFLOW_TRACKING_URI}" \
-                                   --experiment-name "${params.MLFLOW_EXPERIMENT_NAME}" \
+                                   --experiment "${params.MLFLOW_EXPERIMENT_NAME}" \
                                    --run-name       "${params.MLFLOW_RUN_NAME}"
                             """, returnStdout: true).trim()
                     }
