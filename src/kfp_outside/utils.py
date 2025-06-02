@@ -104,61 +104,25 @@ class KFPClientManager:
         return self._create_kfp_client()
 
 
-def get_or_upload_pipeline(kfp_client, pipeline_yaml, pipeline_name, version_name):
-    pipeline_id = None
-    version_id = None
+def upload_pipeline(kfp_client, pipeline_yaml, pipeline_name, version_name):
 
-    # Get pipeline id by display_name in the dict
-    pipelines_resp = kfp_client.list_pipelines(page_size=1000)
-    pipelines = pipelines_resp.pipelines
-    for pipeline in pipelines:
-        if getattr(pipeline, "display_name") == pipeline_name:
-            pipeline_id = getattr(pipeline, "pipeline_id")
-            break
+    # Upload pipeline
+    pipeline = kfp_client.upload_pipeline(
+        pipeline_package_path=pipeline_yaml,
+        pipeline_name=pipeline_name,
+        namespace="kubeflow-user-example-com",  # Adjust namespace as needed
+    )
+    pipeline_id = getattr(pipeline, "pipeline_id")
+    print(f"⬆️  Uploaded pipeline: {pipeline_name} (id={pipeline_id})")
 
-    if pipeline_id:
-        print(f"✅ Found existing pipeline: {pipeline_name} (id={pipeline_id})")
-        # check if version_name exists
-        versions_list = kfp_client.list_pipeline_versions(
-            pipeline_id=pipeline_id, page_size=100
-        )
-        versions = versions_list.pipeline_versions
-        for version in versions:
-            name = getattr(version, "display_name")
-            if name == version_name:
-                version_id = getattr(version, "pipeline_version_id")
-
-                print(
-                    f"✅ Found existing pipeline version: {version_name} (id={version_id})"
-                )
-                break
-        if not version_id:
-            # Upload version if not found
-            pipeline_version = kfp_client.upload_pipeline_version(
-                pipeline_package_path=pipeline_yaml,
-                pipeline_version_name=version_name,
-                pipeline_id=pipeline_id,
-            )
-            version_id = getattr(pipeline_version, "pipeline_version_id")
-            print(f"⬆️  Uploaded new pipeline version: {version_name} (id={version_id})")
-    else:
-        # Upload pipeline
-        pipeline = kfp_client.upload_pipeline(
-            pipeline_package_path=pipeline_yaml,
-            pipeline_name=pipeline_name,
-            namespace="kubeflow-user-example-com",  # Adjust namespace as needed
-        )
-        pipeline_id = getattr(pipeline, "pipeline_id")
-        print(f"⬆️  Uploaded pipeline: {pipeline_name} (id={pipeline_id})")
-        pipeline_version = kfp_client.upload_pipeline_version(
-            pipeline_package_path=pipeline_yaml,
-            pipeline_version_name=version_name,
-            pipeline_id=pipeline_id,
-        )
-        version_id = getattr(pipeline_version, "pipeline_version_id")
-
-        print(f"⬆️  Uploaded pipeline version: {version_name} (id={version_id})")
-
+    pipeline_version = kfp_client.upload_pipeline_version(
+        pipeline_package_path=pipeline_yaml,
+        pipeline_version_name=version_name,
+        pipeline_id=pipeline_id,
+    )
+    version_id = getattr(pipeline_version, "pipeline_version_id")
+    print(f"⬆️  Uploaded pipeline version: {version_name} (id={version_id})")
+    
     return pipeline_id, version_id, version_name
 
 
@@ -190,7 +154,7 @@ def get_runs_reponse(kfp_client, namespace):
 
 def create_recurring_run_with_params(kfp_client, cron_expr, run_info: dict):
     job_name = f"Recurring Job from {run_info['run_id']}"
-    
+
     job = kfp_client.create_recurring_run(
         experiment_id=run_info["experiment_id"],
         job_name=job_name,

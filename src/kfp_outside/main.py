@@ -1,9 +1,8 @@
 import os
 from dotenv import load_dotenv
-from utils import KFPClientManager, get_or_upload_pipeline
+from utils import KFPClientManager, upload_pipeline
 
 load_dotenv(dotenv_path=".env")
-
 
 
 if __name__ == "__main__":
@@ -39,21 +38,21 @@ if __name__ == "__main__":
         "n_features_to_select": "auto",
         "data_version": "v1",
         "model_name": "xgb", #xgb or lgbm
-        "suffix": "underwriting",
-        "experiment_name": "Kubeflow Pipeline outside",
+        "suffix": "underwrite",
+        "experiment_name": "Underwriting_kfp",
     }
 
     pipeline_yaml = "pipeline.yaml"
-    pipeline_name = "kfp-outside-pipeline"  # due to my code, the 1st version will be uploaded with this name and version_name
+    pipeline_name = "xgb_model"  # due to my code, the 1st version will be uploaded with this name and version_name
     version_name = "v1"  # this version will be a reference for recurring runs in cicd
 
     # Upload pipeline/version and get IDs
-    pipeline_id, version_id, version_name = get_or_upload_pipeline(
+    pipeline_id, version_id, version_name = upload_pipeline(
         kfp_client, pipeline_yaml, pipeline_name, version_name
     )
 
     namespace = os.getenv("KFP_NAMESPACE")
-    experiment = kfp_client.create_experiment(name="kfp_outside_cluster", namespace=namespace)
+    experiment = kfp_client.create_experiment(name="underwrite_experiment", namespace=namespace)
     experiment_id = getattr(experiment, "experiment_id")
 
     run = kfp_client.run_pipeline(

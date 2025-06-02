@@ -9,14 +9,14 @@ pipeline {
 
     /* ========= PARAMETERS ========= */
     parameters {
-        string (name: 'MODEL_NAME', defaultValue: 'xgb_underwriting')
+        string (name: 'MODEL_NAME', defaultValue: 'xgb_underwrite')
         choice (name: 'MODEL_TYPE', choices: ['xgb','lgbm'])
         /* --- KFP recurring run --- */
         string (name: 'KFP_DEX_AUTH_TYPE', defaultValue: 'local')
         string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * *')
         string (name: 'KUBEFLOW_NAMESPACE', defaultValue: 'kubeflow-user-example-com')
         /* --- MLflow run to deploy --- */
-        string (name: 'MLFLOW_EXPERIMENT_NAME', defaultValue: 'Kubeflow Pipeline outside')
+        string (name: 'MLFLOW_EXPERIMENT_NAME', defaultValue: 'Underwriting_kfp')
         string (name: 'MLFLOW_RUN_NAME'       , defaultValue: 'xgb_optuna_search')
     }
 
