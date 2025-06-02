@@ -157,21 +157,26 @@ pipeline {
         stage('Build & Push Image') {
             when { expression { env.CODE_CHANGED == 'true' && env.IMAGE_EXISTS == 'false' } }
             steps {
-                script {
-                    echo "📦  Building image ${registry}:${TAG}"
-                    def img = docker.build(
-                        "${registry}:${TAG}",
-                        "--build-arg MODEL_NAME=${params.MODEL_NAME} " +
-                        "--build-arg MODEL_TYPE=${params.MODEL_TYPE} " +
-                        "-f dockerfiles/Dockerfile.app ."
-                    )
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS')]) {
-                        docker.withRegistry("https://${env.registry}", "${DOCKER_USER}:${DOCKER_PASS}") {
-                            img.push(); img.push('latest')
-                        }
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS')]) {
+                    
+                    script {
+                        echo "📦  Building image ${registry}:${TAG}"
+                        def img = docker.build(
+                            "${registry}:${TAG}",
+                            "--build-arg MODEL_NAME=${params.MODEL_NAME} " +
+                            "--build-arg MODEL_TYPE=${params.MODEL_TYPE} " +
+                            "-f dockerfiles/Dockerfile.app ."
+                        )
+
+                        sh """
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                            docker push ${registry}:${TAG}
+                            docker tag ${registry}:${TAG} ${registry}:latest
+                            docker push ${registry}:latest
+                        """
                     }
                 }
             }
