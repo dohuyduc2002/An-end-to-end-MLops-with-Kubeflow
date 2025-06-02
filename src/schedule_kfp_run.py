@@ -1,6 +1,6 @@
 # schedule_kfp.py
 import argparse
-from utils import (
+from src.kfp_outside.utils import (
     KFPClientManager,
     get_or_upload_pipeline,
     create_recurring_run,
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     create_recurring_run_after_upload(
         kfp_client,
-        yaml_path='pipeline.yaml',
+        yaml_path="kfp_outside/pipeline.yaml",
         pipeline_name=args.pipeline_name,
         version_name=args.version_name,
         cron_expr=args.cron_expr,

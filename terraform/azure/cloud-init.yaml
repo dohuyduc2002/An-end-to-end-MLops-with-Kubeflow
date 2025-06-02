@@ -9,13 +9,24 @@ packages:
   - lsb-release
 
 runcmd:
+  # Add docker repo
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
   - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
   - apt-get update
   - apt-get install -y docker-ce docker-ce-cli containerd.io
+
+  # Add docker permissions for user
   - usermod -aG docker ducdh
+
+  # Add domain mappings to /etc/hosts
+  - echo "34.132.114.28 kubeflow.ducdh.com" >> /etc/hosts
+  - echo "34.66.241.142 minio.ducdh.com" >> /etc/hosts
+  - echo "34.66.241.142 mlflow.ducdh.com" >> /etc/hosts
+
+  # Create Jenkins home dir
   - mkdir -p /var/jenkins_home
-  - chown 1000:1000 /var/jenkins_home
+
+  # Start Docker and run Jenkins with /etc/hosts mounted
   - systemctl start docker
   - systemctl enable docker
   - >
@@ -24,6 +35,8 @@ runcmd:
     -p 8080:8080
     -p 50000:50000
     --name jenkins
+    --user root
+    -v /etc/hosts:/etc/hosts:ro
     -v /var/jenkins_home:/var/jenkins_home
     -v /var/run/docker.sock:/var/run/docker.sock
     microwave1005/custom-jenkins

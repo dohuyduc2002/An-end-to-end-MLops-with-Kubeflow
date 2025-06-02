@@ -192,7 +192,7 @@ def create_recurring_run(kfp_client, run_id, cron_expr):
         enabled=True,
         no_catchup=True,
     )
-    print("⏰ Recurring run created:", job)
+    print("Recurring run created:", job)
     return job
 
 
@@ -208,4 +208,4 @@ def get_latest_run_id_from_version(kfp_client, experiment_id, version_id):
         ref = getattr(run, "pipeline_version_reference", None)
         if ref and getattr(ref, "pipeline_version_id", None) == version_id:
             return run.run_id
-    raise ValueError("❌ No run found for this version in the experiment.")
+    raise ValueError("No run found for this version in the experiment.")

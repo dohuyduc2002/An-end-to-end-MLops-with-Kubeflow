@@ -546,8 +546,9 @@ k rollout restart deployment centraldashboard -n kubeflow
 ```
 
 ## CICD pipeline 
-### Cloud Build
+My CICD pipeline flow consists in unittesting my components running on KFP. If the test fail the coverage, the pipeline is stopped. After testing stage complete, we create a new recurring run based on previous one-off `run_id`, `pipeline_name` and `version_name` then build Dockerfile for the app along with model promotion to `stagging`. 
 
+When the build process is complete, there is a mannuall approval in Jenkins to promote the model into the `production` tag, if approved, we retrieve the Mlflow run_id to get artifact for `transformer.joblib` which contain preprocessing step and parse it to helm argument to upgrade to model pod via `api` namespace.
 ### Jenkins Azure VM
 1. Initialize Jenkins 
 Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.custom_jenkins` file. This image is used to run Jenkins pipeline and build Docker images for the project. Also, the stage `test` and `promote` in jenkins is using `dockerfiles/Dockerfile.kfp_jenkins_ci` to run 
@@ -561,55 +562,77 @@ docker push microwave1005/custom-jenkins:latest
 ```
 
 2. Generate key pair 
-To allow your local machine to access the Azure VM, you need to generate a key pair. You can use the following command to generate a key pair:
-
+To allow your local machine to access the Azure VM, you need to generate a key pair. `terraform/azure/main.tf`, I already added my public key to the VM so you can SSH to connect to the VM later once the VM is created.
 ```bash
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
 ```
 
 2. Init Azure VM for Jenkins
-
-
-Due to Azure does not using default network like GCP, you need to configure NIC, Subnet and VPC manually iny
+Due to Azure does not using default network like GCP, you need to configure NIC, Subnet and VPC manually in the `terraform/azure/main.tf` file. You can refer to the Terrafom Azurerm documentation [Azurerm 4.1.0 docs]('https://registry.terraform.io/providers/hashicorp/azurerm/4.1.0/docs')
 
 ```bash
-terraform apply -var="subscription_id=<YOUR_SUBSCRIPTION_ID>" 
+terraform destroy -var="subscription_id=<YOUR_SUBSCRIPTION_ID>" 
 ```
-
 
 After creating the VM, you need to refresh the tf state to retrieve your dynamic public IP, then ssh to the VM using the following command:
 
 ```bash
+terraform refresh -var="subscription_id=<YOUR_SUBSCRIPTION_ID>" 
+``` 
+To access the VM, you can use the following command:
 
+```bash
 ssh -i ~/.ssh/id_rsa <your_admin_usrname>@<your_vm_public_ip>
 ```
+
 After wait a few minitues for VM to install docker, check the container status by running the following command:
 
 ```bash
-sudo docker ps
+sudo cat /var/log/cloud-init-output.log
 ```
 
-sudo cat /var/log/cloud-init-output.log
-
 3. Access Jenkins 
-I already open port 8080 for Jenkins in Azure VM, so you can access Jenkins by going to `http://<your_vm_public_ip>:8080` in your browser. You can also map the public IP to a domain name in your `/etc/hosts` file for convenience. 
+I already open port 8080 for Jenkins in Azure VM, so you can access Jenkins by going to `http://<your_vm_public_ip>:8080` in your browser. In my `cloud-init.yaml` file, I have already add my IP to of Kubeflow, Minio and Mlflow to VM and mount it as read only to Jenkins so we don't have to use `--add-host` option when running Jenkins container.
 
 To get the initial admin password, you can run the following command:
 
 ```bash
 sudo docker exec -it jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 ```
-
-In my Jenkinsfile, I declared my Minio, Mlflow and Kubeflow as a mock dns, so you have to map it in the VM by using 
-
-```bash
-sudo nano /etc/hosts
-<EXTERNAL-IP-NGINX> mlflow.ducdh.com
-<EXTERNAL-IP-NGINX> minio.ducdh.com
-<ISTIO-EXTERNAL-IP> kubeflow.ducdh.com
-```
+And then login to Jenkins to install `Reccomended plugins` and login with the admin user.
 
 4. Configure Jenkins
+a. Adding webhook to Github
+We adding webhook to Github to trigger Jenkins pipeline when there is a new commit to the repository. You can add webhook by going to your GitHub repository settings and then click on `Webhooks` and then click on `Add webhook`. In the `Payload URL` field, you can enter the following URL:
+
+```
+http://<your_vm_public_ip>:8080/github-webhook/
+```
+
+b. Install Jenkins plugins
+To allow my CICD pipeline to build docker, using helm upgrade in gke cluster, you need to install these plugins too:
+- Docker
+- Docker Commons
+- Docker Pipeline
+- Docker API
+- Kubenetes
+- Kubernetes Client API
+- Kubernetes CLI
+- Google Kubernetes Engine
+
+
+c. Adding GKE credentials
+First, you have to prepare your Service account json, in the [Create GCP service account](#create-gcp-service-account) I have already created it, you can also use this credential. After that, go to `Mange Jenkins/Cloud` to add new cloud with `Kubernetes`, to add new Cloud to Jenkins. There is 2 field named `Kubenertes IP` and `Certificate`, you have to go to your console in GKE to get that.
+
+vid...
+
+d. Adding Dockerhub, Github, Minio and Kubeflow credentials
+We will add these credentials to Jenkins with `username with password`
+For Dockerhub, Github, you need to create your secret key, you can following this video. For Minio, Kubeflow, since we already have these creadentials in the initial setup we add it alongside with Dockerhub and Github.
+
+vid ...
+
+e. Testing cicd
 
 ### Cloud Build
 
