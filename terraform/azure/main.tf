@@ -45,6 +45,19 @@ resource "azurerm_network_security_group" "nsg" {
     source_port_range      = "*"
     destination_address_prefix = "*"
   }
+
+    security_rule {
+    name                       = "AllowJenkinsAgent"
+    priority                   = 1003
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    destination_port_range     = "50000"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+  }
+
 }
 
 resource "azurerm_public_ip" "public_ip" {
