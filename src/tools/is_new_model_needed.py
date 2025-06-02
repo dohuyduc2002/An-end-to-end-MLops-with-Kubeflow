@@ -57,11 +57,11 @@ def main() -> None:
 
     if need_promote(client, args.model_name, args.stage):
         # 0 = need promotion
-        print(f"✅ Need promote: newest version chưa ở stage '{args.stage}'.")
+        print(f"✅ Need promote: newest version not in stage '{args.stage}'.")
         sys.exit(0)
     else:
         # 1 = skip
-        print(f"ℹ️  Latest version đã ở stage '{args.stage}', skip promote.")
+        print(f"ℹ️  Latest version already in stage '{args.stage}', skip promote.")
         sys.exit(1)
 
 
