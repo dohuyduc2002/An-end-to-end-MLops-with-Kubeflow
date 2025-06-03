@@ -50,8 +50,7 @@ pipeline {
 
             steps {
                 script {
-
-                    /* ---------- 2. model promote? ---------- */
+                    /* ---------- 1. model promote? ---------- */
                     def needPromote = sh(
                         returnStatus: true,
                         script: """
@@ -62,7 +61,7 @@ pipeline {
                         """) == 0
                     env.NEED_PROMOTE = needPromote.toString()
 
-                    /* ---------- 3. docker image exists? ---------- */
+                    /* ---------- 2. docker image exists? ---------- */
                     def imageExists = sh(
                         returnStatus: true,
                         script: """
@@ -70,16 +69,14 @@ pipeline {
                         """) == 0
                     env.IMAGE_EXISTS = imageExists.toString()
 
-                    /* ---------- 4. fetch run_id mlflow ---------- */
-                    if (changed) {
-                        env.RUN_ID = sh(
-                            script: """
-                                python3 src/tools/fetch_mlflow_run.py \
-                                   --tracking-uri "${MLFLOW_TRACKING_URI}" \
-                                   --experiment   "${params.MLFLOW_EXPERIMENT_NAME}" \
-                                   --run-name     "${params.MLFLOW_RUN_NAME}"
-                            """, returnStdout: true).trim()
-                    }
+                    /* ---------- 3. fetch run_id mlflow ---------- */
+                    env.RUN_ID = sh(
+                        script: """
+                            python3 src/tools/fetch_mlflow_run.py \
+                                --tracking-uri "${MLFLOW_TRACKING_URI}" \
+                                --experiment   "${params.MLFLOW_EXPERIMENT_NAME}" \
+                                --run-name     "${params.MLFLOW_RUN_NAME}"
+                        """, returnStdout: true).trim()
                 }
             }
         }
