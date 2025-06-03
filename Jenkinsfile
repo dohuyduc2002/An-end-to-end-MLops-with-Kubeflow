@@ -37,7 +37,7 @@ pipeline {
 
         TAG = "v.${env.BUILD_NUMBER}"
 
-        CODE_CHANGED        = 'true'   
+        CODE_CHANGED        = 'true'
         NEED_PROMOTE        = 'true'
         IMAGE_EXISTS        = 'false'
         RUN_ID              = ''
@@ -81,11 +81,10 @@ pipeline {
                             script: """
                                 python3 src/tools/fetch_mlflow_run.py \
                                    --tracking-uri "${MLFLOW_TRACKING_URI}" \
-                                   --experiment "${params.MLFLOW_EXPERIMENT_NAME}" \
-                                   --run-name   "${params.MLFLOW_RUN_NAME}"
+                                   --experiment   "${params.MLFLOW_EXPERIMENT_NAME}" \
+                                   --run-name     "${params.MLFLOW_RUN_NAME}"
                             """, returnStdout: true).trim()
                     }
-
                 }
             }
         }
@@ -95,11 +94,13 @@ pipeline {
             when { expression { env.CODE_CHANGED == 'true' } }
             agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
             steps {
-                sh '''
-                    PYTHONPATH=src pytest -m unittest tests/
-                    echo "[INFO] Failing if coverage < 80%"
-                    coverage report --fail-under=80
-                '''
+                script {
+                    sh '''
+                        PYTHONPATH=src pytest -m unittest tests/
+                        echo "[INFO] Failing if coverage < 80%"
+                        coverage report --fail-under=80
+                    '''
+                }
             }
         }
 
@@ -141,14 +142,16 @@ pipeline {
             when { expression { env.CODE_CHANGED == 'true' && env.NEED_PROMOTE == 'true' } }
             agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
             steps {
-                dir('src') {
-                    sh """
-                        python3 tools/promote_model.py \
-                           --model       "${params.MODEL_NAME}" \
-                           --from-stage  none \
-                           --to-stage    staging \
-                           --tracking-uri "${MLFLOW_TRACKING_URI}"
-                    """
+                script {
+                    dir('src') {
+                        sh """
+                            python3 tools/promote_model.py \
+                               --model       "${params.MODEL_NAME}" \
+                               --from-stage  none \
+                               --to-stage    staging \
+                               --tracking-uri "${MLFLOW_TRACKING_URI}"
+                        """
+                    }
                 }
             }
         }
@@ -161,7 +164,7 @@ pipeline {
                     credentialsId: 'dockerhub-creds',
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS')]) {
-                    
+
                     script {
                         echo "📦  Building image ${registry}:${TAG}"
                         def img = docker.build(
@@ -194,44 +197,83 @@ pipeline {
             when { expression { env.CODE_CHANGED == 'true' && env.NEED_PROMOTE == 'true' } }
             agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
             steps {
-                dir('src') {
-                    sh """
-                        python3 tools/promote_model.py \
-                           --model       "${params.MODEL_NAME}" \
-                           --from-stage  staging \
-                           --to-stage    production \
-                           --tracking-uri "${MLFLOW_TRACKING_URI}"
-                    """
+                script {
+                    dir('src') {
+                        sh """
+                            python3 tools/promote_model.py \
+                               --model       "${params.MODEL_NAME}" \
+                               --from-stage  staging \
+                               --to-stage    production \
+                               --tracking-uri "${MLFLOW_TRACKING_URI}"
+                        """
+                    }
                 }
             }
         }
 
         /* ---------------------------------------------------------- */
         stage('Deploy to Google Kubernetes Engine') {
-            steps {
-                script {
-                    echo "[INFO] Deploying tag ${TAG} (run_id=${env.RUN_ID})"
-                    sh """
-                        helm upgrade --install api ./helm-charts/api \
-                            --reuse-values \
-                            --namespace api \
-                            --set env.PARENT_RUN_ID=${env.RUN_ID} \
-                            --set version=${TAG} \
-                            --set monitoring.enabled=true \
-                            --set image.tag=${TAG} \
-                            --set replicaCount=1
+            agent {
+                kubernetes {
+                    cloud 'prediction-api-gke'
+                    yaml """
+                    apiVersion: v1
+                    kind: Pod
+                    metadata:
+                      labels:
+                        jenkins-agent: gke-deploy
+                    spec:
+                      containers:
+                      - name: helm
+                        image: microwave1005/gke-helm-agent:latest
+                        command: ['cat']
+                        tty: true
+                        volumeMounts:
+                        - name: gcp-key
+                          mountPath: /secrets
+                          readOnly: true
+                      volumes:
+                      - name: gcp-key
+                        secret:
+                          secretName: gcp-key
                     """
                 }
             }
+            steps {
+                script {
+                    container('helm') {
+                        sh '''
+                            echo "[INFO] Deploying tag ${TAG} (run_id=${RUN_ID})"
+
+                            gcloud auth activate-service-account --key-file=/secrets/gcp-key.json
+                            gcloud config set project mlops-fsds
+                            gcloud container clusters get-credentials prediction-platform --zone us-central1-c
+
+                            helm upgrade --install api ./helm-charts/api \
+                                --reuse-values \
+                                --namespace api \
+                                --set env.PARENT_RUN_ID=${RUN_ID} \
+                                --set version=${TAG} \
+                                --set monitoring.enabled=true \
+                                --set image.tag=${TAG} \
+                                --set replicaCount=1
+                        '''
+                    }
+                }
+            }
         }
-    }  /* end stages */
+    } /* end stages */
 
     /* ---------------------------------------------------------- */
     post {
-        always   { echo '[INFO] Pipeline finished (success/abort/fail)' }
-        cleanup  {
-            sh 'docker image prune -f'
-            echo '[INFO] Local Docker cache cleaned'
+        always {
+            script { echo '[INFO] Pipeline finished (success/abort/fail)' }
+        }
+        cleanup {
+            script {
+                sh 'docker image prune -f'
+                echo '[INFO] Local Docker cache cleaned'
+            }
         }
     }
 }

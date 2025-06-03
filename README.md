@@ -558,15 +558,20 @@ When the build process is complete, there is a mannuall approval in Jenkins to p
 Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.custom_jenkins` file. This image is used to run Jenkins pipeline and build Docker images for the project. Also, the stage `test` and `promote` in jenkins is using `dockerfiles/Dockerfile.kfp_jenkins_ci` to run 
 
 ```bash
-docker build --no-cache -t microwave1005/custom-jenkins:latest -f dockerfiles/Dockerfile.custom_jenkins .
+docker build -t microwave1005/custom-jenkins:latest -f dockerfiles/Dockerfile.custom_jenkins .
 docker build -t microwave1005/kfp-jenkins-ci:latest -f dockerfiles/Dockerfile.kfp_jenkins_ci .
+docker build -t microwave1005/gke-helm-agent:latest -f dockerfiles/Dockerfile.jenkins_agent .
 
 docker push microwave1005/kfp-jenkins-ci:latest
 docker push microwave1005/custom-jenkins:latest
+docker push microwave1005/gke-helm-agent:latest
 ```
+
+Then, you can run the Jenkins container with the following command:
 
 2. Generate key pair 
 To allow your local machine to access the Azure VM, you need to generate a key pair. `terraform/azure/main.tf`, I already added my public key to the VM so you can SSH to connect to the VM later once the VM is created.
+
 ```bash
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
 ```
@@ -636,6 +641,14 @@ First, you have to prepare your Service account json, in the [Create GCP service
 
 vid...
 
+Due to the VM is running outside GCP, you have to add GCP SA key to the namespace that Jenkins agent is running in to authenticate to GKE cluster. [Refer to this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication#applications_in_other_environments)
+```bash
+k create secret generic gcp-key \
+  --from-file=gcp-key.json=gcp-key.json \
+  -n api
+```
+
+
 d. Adding Dockerhub, Github, Minio and Kubeflow credentials
 We will add these credentials to Jenkins with `username with password`
 For Dockerhub, Github, you need to create your secret key, you can following this video. For Minio, Kubeflow, since we already have these creadentials in the initial setup we add it alongside with Dockerhub and Github.
@@ -643,6 +656,18 @@ For Dockerhub, Github, you need to create your secret key, you can following thi
 vid ...
 
 e. Testing cicd
+My cicd pipeline consist of 9 stages:
+- Detect changes & set flags: This stage will detect if there is any changes in the repository and set the flags for the next stages.
+- Unit test: This stage will run the unit tests for the project, if the tests fail, the pipeline will stop.
+- Approve recurrung run: This stage will wait for the manual approval to schedule a recurring run for the pipeline.
+- Schedule recurring run: This stage will schedule a recurring run for the pipeline with the latest commit hash and the latest version of the pipeline.
+- Build Docker image: This stage will build the Docker image for the project and push it to Dockerhub.
+- Promote model to stagging: This stage will promote the model to the `stagging` tag in Mlflow model registry.
+- Approve model: This stage will wait for the manual approval to promote the model to the `production` tag in Mlflow model registry.
+- Promote model to production: This stage will promote the model to the `production` tag in Mlflow model registry.
+- Deploy model: This stage will deploy the model to the GKE cluster using Helm upgrade.
+
+After pipeline completed or failed, I have a cleanup stage to clean up docker images to save space
 
 ### Cloud Build
 

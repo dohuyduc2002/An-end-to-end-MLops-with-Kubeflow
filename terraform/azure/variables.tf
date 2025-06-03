@@ -18,6 +18,7 @@ variable "public_key_path" {
   default = "/Users/microwave/.ssh/id_rsa.pub"
 }
 
+
 variable "subscription_id" {
   description = "Azure Subscription ID"
   type        = string
