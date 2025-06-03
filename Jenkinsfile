@@ -226,6 +226,7 @@ pipeline {
                       containers:
                       - name: helm
                         image: microwave1005/gke-helm-agent:latest
+                        imagePullPolicy: Always
                         command: ['cat']
                         tty: true
                         volumeMounts:
