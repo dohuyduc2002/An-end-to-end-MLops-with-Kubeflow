@@ -44,7 +44,7 @@ def parse_arguments():
     parser.add_argument(
         "--kfp-namespace", default="kubeflow-user-example-com", help="KFP namespace"
     )
-    parser.add_argument("--cron-expr", default="0 3 * * *", help="Cron expression")
+    parser.add_argument("--cron-expr", help="Cron expression")
 
     return parser.parse_args()
 
