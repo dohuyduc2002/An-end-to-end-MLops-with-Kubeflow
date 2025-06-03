@@ -10,7 +10,7 @@ RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | b
 
 # Install git & gke-gcloud-auth-plugin
 RUN apt-get update && \
-    apt-get install google-cloud-sdk-gke-gcloud-auth-plugin && \
+    apt-get install -y git google-cloud-cli-gke-gcloud-auth-plugin && \
     apt-get clean
 
 # Dummy entrypoint for Jenkins agent attach

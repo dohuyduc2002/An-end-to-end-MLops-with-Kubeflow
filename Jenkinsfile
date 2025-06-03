@@ -37,7 +37,6 @@ pipeline {
 
         TAG = "v.${env.BUILD_NUMBER}"
 
-        CODE_CHANGED        = 'true'
         NEED_PROMOTE        = 'true'
         IMAGE_EXISTS        = 'false'
         RUN_ID              = ''
@@ -51,10 +50,6 @@ pipeline {
 
             steps {
                 script {
-                    /* ---------- 1. code diff ---------- */
-                    def changed = sh(returnStatus: true,
-                                     script: 'git diff --quiet HEAD~1 HEAD') != 0
-                    env.CODE_CHANGED = changed.toString()
 
                     /* ---------- 2. model promote? ---------- */
                     def needPromote = sh(
@@ -63,7 +58,7 @@ pipeline {
                             python3 src/tools/is_new_model_needed.py \
                               --tracking-uri "${MLFLOW_TRACKING_URI}" \
                               --model-name   "${params.MODEL_NAME}" \
-                              --stage        staging
+                              --stage        production
                         """) == 0
                     env.NEED_PROMOTE = needPromote.toString()
 
@@ -91,7 +86,6 @@ pipeline {
 
         /* ---------------------------------------------------------- */
         stage('Unit tests + coverage') {
-            when { expression { env.CODE_CHANGED == 'true' } }
             agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
             steps {
                 script {
@@ -112,7 +106,6 @@ pipeline {
         }
 
         stage('Schedule KFP recurring run') {
-            when { expression { env.CODE_CHANGED == 'true' } }
             agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
             steps {
                 withCredentials([usernamePassword(
@@ -139,7 +132,7 @@ pipeline {
 
         /* ---------------------------------------------------------- */
         stage('Promote to Staging') {
-            when { expression { env.CODE_CHANGED == 'true' && env.NEED_PROMOTE == 'true' } }
+            when { expression {env.NEED_PROMOTE == 'true' } }
             agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
             steps {
                 script {
@@ -158,7 +151,7 @@ pipeline {
 
         /* ---------------------------------------------------------- */
         stage('Build & Push Image') {
-            when { expression { env.CODE_CHANGED == 'true' && env.IMAGE_EXISTS == 'false' } }
+            when { expression {env.IMAGE_EXISTS == 'false' } }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
@@ -187,14 +180,14 @@ pipeline {
 
         /* ---------------------------------------------------------- */
         stage('Approve to Production') {
-            when { expression { env.CODE_CHANGED == 'true' && env.NEED_PROMOTE == 'true' } }
+            when { expression {env.NEED_PROMOTE == 'true' } }
             steps {
                 input message: "Approve promotion of ${params.MODEL_NAME} to Production?"
             }
         }
 
         stage('Promote to Production') {
-            when { expression { env.CODE_CHANGED == 'true' && env.NEED_PROMOTE == 'true' } }
+            when { expression {env.NEED_PROMOTE == 'true' } }
             agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
             steps {
                 script {
