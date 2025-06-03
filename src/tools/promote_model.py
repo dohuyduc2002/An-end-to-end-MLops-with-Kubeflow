@@ -25,9 +25,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--to-stage", required=True, help="Target stage (e.g., staging, production)"
     )
-    parser.add_argument(
-        "--tracking-uri", default="http://mlflow.ducdh.com", help="MLflow tracking URI"
-    )
+    parser.add_argument("--tracking-uri", required=True, help="MLflow tracking URI")
     args = parser.parse_args()
 
     promote(args.model, args.from_stage, args.to_stage, args.tracking_uri)

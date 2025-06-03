@@ -28,7 +28,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fetch MLflow parent run_id.")
     parser.add_argument(
         "--tracking-uri",
-        default=os.getenv("MLFLOW_TRACKING_URI"),
         help="MLflow tracking URI (env: MLFLOW_TRACKING_URI)",
     )
     parser.add_argument(

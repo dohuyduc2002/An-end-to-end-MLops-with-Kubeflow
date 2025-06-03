@@ -40,11 +40,9 @@ def parse_arguments():
     )
     parser.add_argument("--kfp-dex-username", required=True, help="Dex username")
     parser.add_argument("--kfp-dex-password", required=True, help="Dex password")
-    parser.add_argument("--kfp-dex-auth-type", default="local", help="Dex auth type")
-    parser.add_argument(
-        "--kfp-namespace", default="kubeflow-user-example-com", help="KFP namespace"
-    )
-    parser.add_argument("--cron-expr", help="Cron expression")
+    parser.add_argument("--kfp-dex-auth-type", required=True, help="Dex auth type")
+    parser.add_argument("--kfp-namespace", required=True, help="KFP namespace")
+    parser.add_argument("--cron-expr", required=True, help="Cron expression")
 
     return parser.parse_args()
 

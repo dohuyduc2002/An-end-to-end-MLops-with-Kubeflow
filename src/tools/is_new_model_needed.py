@@ -10,7 +10,7 @@ def parse_args() -> argparse.Namespace:
         description="Determine if a new model should be promoted."
     )
     parser.add_argument(
-        "--tracking-uri", help="MLflow tracking URI (http://...)", required=False
+        "--tracking-uri", required=True, help="MLflow tracking URI (http://...)"
     )
     parser.add_argument(
         "--model-name", required=True, help="Registered model name in MLflow"
