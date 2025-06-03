@@ -560,11 +560,9 @@ Firstly, my CICD pipeline is using custom Jenkins image which is built from `doc
 ```bash
 docker build -t microwave1005/custom-jenkins:latest -f dockerfiles/Dockerfile.custom_jenkins .
 docker build -t microwave1005/kfp-jenkins-ci:latest -f dockerfiles/Dockerfile.kfp_jenkins_ci .
-docker build -t microwave1005/gke-helm-agent:latest -f dockerfiles/Dockerfile.jenkins_agent .
 
 docker push microwave1005/kfp-jenkins-ci:latest
 docker push microwave1005/custom-jenkins:latest
-docker push microwave1005/gke-helm-agent:latest
 ```
 
 Then, you can run the Jenkins container with the following command:
@@ -641,13 +639,22 @@ First, you have to prepare your Service account json, in the [Create GCP service
 
 vid...
 
+This will only allow Jenkins controller which is on Azure VM to access GKE cluster, the following step will guide you to add GCP service account key to allow Jenkins agent to `helm upgrade` or `kubectl` commands to GKE cluster.
+
 Due to the VM is running outside GCP, you have to add GCP SA key to the namespace that Jenkins agent is running in to authenticate to GKE cluster. [Refer to this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication#applications_in_other_environments)
+
 ```bash
 k create secret generic gcp-key \
   --from-file=gcp-key.json=gcp-key.json \
   -n api
 ```
 
+In the Jenkinsfile, I have created an inline yaml script to configure the Jenkins agent to use the GCP service account key to authenticate to GKE cluster. This is done by creating a Kubernetes secret in the `api` namespace with the name `gcp-key` and mounting it as a volume in the Jenkins agent pod. This pod will use an Docker image which contain `gcloud`, `gcloud auth` and `kubectl` and `helm` commands to run the pipeline. 
+
+```bash
+docker build -t microwave1005/gke-helm-agent:latest -f dockerfiles/Dockerfile.jenkins_agent .
+docker push microwave1005/gke-helm-agent:latest
+```
 
 d. Adding Dockerhub, Github, Minio and Kubeflow credentials
 We will add these credentials to Jenkins with `username with password`
@@ -669,5 +676,9 @@ My cicd pipeline consist of 9 stages:
 
 After pipeline completed or failed, I have a cleanup stage to clean up docker images to save space
 
+
+[Jenkins complete](media/jenkins_complete.png)
+
 ### Cloud Build
 
+Under implementation
