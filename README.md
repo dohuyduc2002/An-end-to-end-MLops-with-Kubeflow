@@ -252,6 +252,7 @@ gdown --folder https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVKY
 
 2. After that, you can push data to Minio using the following command:
 ```bash
+k port-forward svc/minio 9000:9000 -n minio
 
 mc alias set localMinio http://localhost:9000 minio minio123
 mc mb localMinio/sample-data

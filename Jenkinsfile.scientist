@@ -1,0 +1,41 @@
+pipeline {
+    agent any
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5', daysToKeepStr: '5'))
+        timestamps()
+    }
+
+    /* ========= PARAMETERS ========= */
+    parameters {
+        /* --- KFP recurring run --- */
+        string (name: 'KFP_DEX_AUTH_TYPE', defaultValue: 'local')
+        string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * 6') // every Saturday at 3:00 AM
+        string (name: 'KUBEFLOW_NAMESPACE', defaultValue: 'kubeflow-user-example-com')
+        /* --- MLflow run to deploy --- */
+        string (name: 'MLFLOW_EXPERIMENT_NAME', defaultValue: 'Underwriting_kfp')
+        string (name: 'MLFLOW_RUN_NAME'       , defaultValue: 'xgb_optuna_search')
+    }
+
+    /* ========= ENV ========= */
+    environment {
+        registry               = 'microwave1005/prediction-api'
+
+        MLFLOW_TRACKING_URI    = 'http://mlflow.ducdh.com'
+        MINIO_ENDPOINT         = 'minio.dhduc.com'
+        MINIO_BUCKET_NAME      = 'sample-data'
+
+        KFP_API_URL            = 'http://kubeflow.ducdh.com/pipeline'
+
+        MINIO_CREDS            = credentials('minio-creds')
+        AWS_ACCESS_KEY_ID      = "${MINIO_CREDS_USR}"
+        AWS_SECRET_ACCESS_KEY  = "${MINIO_CREDS_PSW}"
+        MLFLOW_S3_ENDPOINT_URL = "http://${MINIO_ENDPOINT}"
+
+        TAG = "v.${env.BUILD_NUMBER}"
+
+        NEED_PROMOTE        = 'true'
+        IMAGE_EXISTS        = 'false'
+        RUN_ID              = ''
+    }
+
+}
