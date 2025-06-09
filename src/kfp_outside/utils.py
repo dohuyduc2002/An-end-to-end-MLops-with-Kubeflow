@@ -152,7 +152,7 @@ def get_runs_reponse(kfp_client, namespace):
     }
 
 
-def create_recurring_run_with_params(kfp_client, cron_expr, run_info: dict):
+def create_recurring_run_with_params(kfp_client, cron_expr, run_info, params):
     job_name = f"Recurring Job from {run_info['run_id']}"
 
     job = kfp_client.create_recurring_run(
@@ -162,7 +162,7 @@ def create_recurring_run_with_params(kfp_client, cron_expr, run_info: dict):
         cron_expression=cron_expr,
         pipeline_id=run_info["pipeline_id"],
         version_id=run_info["pipeline_version_id"],
-        params=run_info["params"],
+        params=params,
         enabled=True,
         no_catchup=True,
     )

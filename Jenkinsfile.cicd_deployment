@@ -7,12 +7,10 @@ pipeline {
 
     /* ========= PARAMETERS ========= */
     parameters {
+        /* --- Model image--- */
         string (name: 'MODEL_NAME', defaultValue: 'xgb_underwrite')
         choice (name: 'MODEL_TYPE', choices: ['xgb','lgbm'])
-        /* --- KFP recurring run --- */
-        string (name: 'KFP_DEX_AUTH_TYPE', defaultValue: 'local')
-        string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * 6') // every Saturday at 3:00 AM
-        string (name: 'KUBEFLOW_NAMESPACE', defaultValue: 'kubeflow-user-example-com')
+
         /* --- MLflow run to deploy --- */
         string (name: 'MLFLOW_EXPERIMENT_NAME', defaultValue: 'Underwriting_kfp')
         string (name: 'MLFLOW_RUN_NAME'       , defaultValue: 'xgb_optuna_search')
@@ -93,35 +91,10 @@ pipeline {
             }
         }
 
-        /* ---------------------------------------------------------- */
-        stage('Enable KFP recurring run') {
+        stage('Approve to Staging') {
+            when { expression {env.NEED_PROMOTE == 'true' } }
             steps {
-                input message: "Approve KFP recurring run for ?"
-            }
-        }
-
-        stage('Schedule KFP recurring run') {
-            agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'kubeflow-creds',
-                    usernameVariable: 'KFP_DEX_USERNAME',
-                    passwordVariable: 'KFP_DEX_PASSWORD')]) {
-                    script {
-                        def cronExpr = params.KFP_CRON_EXPR
-                        dir('src') {
-                            sh """
-                                PYTHONPATH=. python3 tools/schedule_kfp_run.py \
-                                    --kfp-api-url       "${KFP_API_URL}" \
-                                    --kfp-dex-username  "${KFP_DEX_USERNAME}" \
-                                    --kfp-dex-password  "${KFP_DEX_PASSWORD}" \
-                                    --kfp-dex-auth-type "${params.KFP_DEX_AUTH_TYPE}" \
-                                    --kfp-namespace     "${params.KUBEFLOW_NAMESPACE}" \
-                                    --cron-expr         "${cronExpr}"
-                            """
-                        }
-                    }
-                }
+                input message: "Approve promotion of ${params.MODEL_NAME} to Staging?"
             }
         }
 

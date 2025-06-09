@@ -19,9 +19,9 @@ runcmd:
   - usermod -aG docker ducdh
 
   # Add domain mappings to /etc/hosts
-  - echo "34.132.114.28 kubeflow.ducdh.com" >> /etc/hosts
-  - echo "34.66.241.142 minio.ducdh.com" >> /etc/hosts
-  - echo "34.66.241.142 mlflow.ducdh.com" >> /etc/hosts
+  - echo "35.192.103.219 kubeflow.ducdh.com" >> /etc/hosts
+  - echo "35.239.155.17 minio.ducdh.com" >> /etc/hosts
+  - echo "35.239.155.17 mlflow.ducdh.com" >> /etc/hosts
 
   # Create Jenkins home dir
   - mkdir -p /var/jenkins_home
