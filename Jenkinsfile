@@ -15,6 +15,18 @@ pipeline {
         string (name: 'KFP_DEX_AUTH_TYPE', defaultValue: 'local')
         string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * 6') // every Saturday at 3:00 AM
         string (name: 'KUBEFLOW_NAMESPACE', defaultValue: 'kubeflow-user-example-com')
+        /* --- KFP params --- */
+        string(name: 'MINIO_BUCKET_NAME',defaultValue: 'sample-data', description: 'Minio data bucket name')
+        string(name: 'RAW_TRAIN_OBJECT',defaultValue: 'data/application_train.csv', description: 'Raw train object path')
+        string(name: 'RAW_TEST_OBJECT',defaultValue: 'data/application_test.csv', description: 'Raw test object path')
+        string(name: 'DEST_TRAIN_OBJECT',defaultValue: 'preprocessed_train.csv', description: 'Destination train object')
+        string(name: 'DEST_TEST_OBJECT',defaultValue: 'preprocessed_test.csv', description: 'Destination test object')
+        string(name: 'PARENT_RUN_NAME',defaultValue: 'lgbm_optuna_search', description: 'Parent run name')
+        string(name: 'N_FEATURES_TO_SELECT',defaultValue: 'auto', description: 'Number of features to select')
+        string(name: 'DATA_VERSION',defaultValue: 'v1_lgbm', description: 'Data version')
+        choice(name: 'MODEL_NAME', choices: ['lgbm', 'xgb'], description: 'Model name')
+        string(name: 'SUFFIX',defaultValue: 'underwrite', description: 'Suffix')
+        string(name: 'EXPERIMENT_NAME',defaultValue: 'lgbm_kfp_test', description: 'Experiment name')
         /* --- MLflow run to deploy --- */
         string (name: 'MLFLOW_EXPERIMENT_NAME', defaultValue: 'Underwriting_kfp')
         string (name: 'MLFLOW_RUN_NAME'       , defaultValue: 'xgb_optuna_search')
@@ -119,7 +131,22 @@ pipeline {
                                     --kfp-dex-password  "${KFP_DEX_PASSWORD}" \
                                     --kfp-dex-auth-type "${params.KFP_DEX_AUTH_TYPE}" \
                                     --kfp-namespace     "${params.KUBEFLOW_NAMESPACE}" \
-                                    --cron-expr         "${cronExpr}"
+                                    --cron-expr         "${cronExpr}" \
+                                    --minio-endpoint    "${env.MINIO_ENDPOINT}" \
+                                    --minio-access-key  "${env.MINIO_ACCESS_KEY}" \
+                                    --minio-secret-key  "${env.MINIO_SECRET_KEY}" \
+                                    --bucket-name       "${params.BUCKET_NAME}" \
+                                    --mlflow-endpoint   "${env.MLFLOW_ENDPOINT}" \
+                                    --raw-train-object  "${params.RAW_TRAIN_OBJECT}" \
+                                    --raw-test-object   "${params.RAW_TEST_OBJECT}" \
+                                    --dest-train-object "${params.DEST_TRAIN_OBJECT}" \
+                                    --dest-test-object  "${params.DEST_TEST_OBJECT}" \
+                                    --parent-run-name   "${params.PARENT_RUN_NAME}" \
+                                    --n-features-to-select "${params.N_FEATURES_TO_SELECT}" \
+                                    --data-version      "${params.DATA_VERSION}" \
+                                    --model-name        "${params.MODEL_NAME}" \
+                                    --suffix           "${params.SUFFIX}" \
+                                    --experiment-name   "${params.EXPERIMENT_NAME}"
                             """
                         }
                     }

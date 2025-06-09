@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evidently-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evidently-ui
+  template:
+    metadata:
+      labels:
+        app: evidently-ui
+    spec:
+      containers:
+      - name: evidently-ui
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: FSSPEC_S3_ENDPOINT_URL
+          value: "{{ .Values.minio.endpoint }}"
+        - name: FSSPEC_S3_KEY
+          value: "{{ .Values.minio.accessKey }}"
+        - name: FSSPEC_S3_SECRET
+          value: "{{ .Values.minio.secretKey }}"
+        - name: EVIDENTLY_WORKSPACE
+          value: "{{ .Values.workspace }}"
+        ports:
+        - containerPort: {{ .Values.service.targetPort }}
+        resources:
+          requests:
+            cpu: "10m"
+            memory: "64Mi"
+          limits:
+            cpu: "20m"
+            memory: "128Mi"
