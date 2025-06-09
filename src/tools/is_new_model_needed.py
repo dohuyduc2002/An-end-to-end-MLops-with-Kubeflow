@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def need_promote(client: MlflowClient, model_name: str, stage: str) -> bool:
+def need_promote(client: MlflowClient, model_name: str, stage: str):
     """Return True if latest version is *not* yet in `stage` ⇒ need promote."""
     versions = client.search_model_versions(f"name = '{model_name}'")
     if not versions:

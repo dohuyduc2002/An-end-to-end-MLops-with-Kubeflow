@@ -64,15 +64,6 @@ pipeline {
                               --stage        production
                         """) == 0
                     env.NEED_PROMOTE = needPromote.toString()
-
-                    /* ---------- 3. fetch run_id mlflow ---------- */
-                    env.RUN_ID = sh(
-                        script: """
-                            python3 src/tools/fetch_mlflow_run.py \
-                                --tracking-uri "${MLFLOW_TRACKING_URI}" \
-                                --experiment   "${params.MLFLOW_EXPERIMENT_NAME}" \
-                                --run-name     "${params.MLFLOW_RUN_NAME}"
-                        """, returnStdout: true).trim()
                 }
             }
         }
