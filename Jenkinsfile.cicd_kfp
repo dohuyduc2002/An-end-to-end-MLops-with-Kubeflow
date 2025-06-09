@@ -12,16 +12,17 @@ pipeline {
         string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * 6') // every Saturday at 3:00 AM
         string (name: 'KUBEFLOW_NAMESPACE', defaultValue: 'kubeflow-user-example-com')
         /* --- KFP params --- */
+        string(name: 'MINIO_BUCKET_NAME',defaultValue: 'sample-data', description: 'Minio data bucket name')
         string(name: 'RAW_TRAIN_OBJECT',defaultValue: 'data/application_train.csv', description: 'Raw train object path')
         string(name: 'RAW_TEST_OBJECT',defaultValue: 'data/application_test.csv', description: 'Raw test object path')
         string(name: 'DEST_TRAIN_OBJECT',defaultValue: 'preprocessed_train.csv', description: 'Destination train object')
         string(name: 'DEST_TEST_OBJECT',defaultValue: 'preprocessed_test.csv', description: 'Destination test object')
-        string(name: 'PARENT_RUN_NAME',defaultValue: 'xgb_optuna_search', description: 'Parent run name')
+        string(name: 'PARENT_RUN_NAME',defaultValue: 'lgbm_optuna_search', description: 'Parent run name')
         string(name: 'N_FEATURES_TO_SELECT',defaultValue: 'auto', description: 'Number of features to select')
-        string(name: 'DATA_VERSION',defaultValue: 'v1', description: 'Data version')
-        choice(name: 'MODEL_NAME', choices: ['xgb', 'lgbm'], description: 'Model name')
+        string(name: 'DATA_VERSION',defaultValue: 'v1_lgbm', description: 'Data version')
+        choice(name: 'MODEL_NAME', choices: ['lgbm', 'xgb'], description: 'Model name')
         string(name: 'SUFFIX',defaultValue: 'underwrite', description: 'Suffix')
-        string(name: 'EXPERIMENT_NAME',defaultValue: 'Underwriting_kfp', description: 'Experiment name')
+        string(name: 'EXPERIMENT_NAME',defaultValue: 'lgbm_kfp_test', description: 'Experiment name')
     }
 
     /* ========= ENV ========= */
@@ -29,15 +30,14 @@ pipeline {
         registry               = 'microwave1005/prediction-api'
 
         MLFLOW_TRACKING_URI    = 'http://mlflow.ducdh.com'
-        MINIO_ENDPOINT         = 'minio.dhduc.com'
-        MINIO_BUCKET_NAME      = 'sample-data'
+        MINIO_ENDPOINT         = 'http://minio.dhduc.com'
 
         KFP_API_URL            = 'http://kubeflow.ducdh.com/pipeline'
 
         MINIO_CREDS            = credentials('minio-creds')
         AWS_ACCESS_KEY_ID      = "${MINIO_CREDS_USR}"
         AWS_SECRET_ACCESS_KEY  = "${MINIO_CREDS_PSW}"
-        MLFLOW_S3_ENDPOINT_URL = "http://${MINIO_ENDPOINT}"
+        MLFLOW_S3_ENDPOINT_URL = 'http://minio.dhduc.com'
 
         TAG = "v.${env.BUILD_NUMBER}"
 
@@ -116,7 +116,21 @@ pipeline {
                                     --kfp-dex-auth-type "${params.KFP_DEX_AUTH_TYPE}" \
                                     --kfp-namespace     "${params.KUBEFLOW_NAMESPACE}" \
                                     --cron-expr         "${cronExpr}" \
-                                    --
+                                    --minio-endpoint    "${env.MINIO_ENDPOINT}" \
+                                    --minio-access-key  "${env.MINIO_ACCESS_KEY}" \
+                                    --minio-secret-key  "${env.MINIO_SECRET_KEY}" \
+                                    --bucket-name       "${params.BUCKET_NAME}" \
+                                    --mlflow-endpoint   "${env.MLFLOW_ENDPOINT}" \
+                                    --raw-train-object  "${params.RAW_TRAIN_OBJECT}" \
+                                    --raw-test-object   "${params.RAW_TEST_OBJECT}" \
+                                    --dest-train-object "${params.DEST_TRAIN_OBJECT}" \
+                                    --dest-test-object  "${params.DEST_TEST_OBJECT}" \
+                                    --parent-run-name   "${params.PARENT_RUN_NAME}" \
+                                    --n-features-to-select "${params.N_FEATURES_TO_SELECT}" \
+                                    --data-version      "${params.DATA_VERSION}" \
+                                    --model-name        "${params.MODEL_NAME}" \
+                                    --suffix           "${params.SUFFIX}" \
+                                    --experiment-name   "${params.EXPERIMENT_NAME}"
                             """
                         }
                     }
@@ -129,8 +143,6 @@ pipeline {
     post {
         always {
             script { echo '[INFO] Kubeflow recurring run cicd finished (success/abort/fail)' }
-        }
-        cleanup {
         }
     }
 }
