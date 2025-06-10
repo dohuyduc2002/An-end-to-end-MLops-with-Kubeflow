@@ -4,10 +4,12 @@ import mlflow
 
 def promote(model, from_stage, to_stage, tracking_uri):
     client = mlflow.tracking.MlflowClient(tracking_uri)
+    # We will find the stage metadata in the Postgres database. 
     stages = None if from_stage.lower() in ("none", "") else [from_stage.capitalize()]
     versions = client.get_latest_versions(model, stages=stages)
 
     version = versions[0].version
+    # Transition the model version to the new stage
     client.transition_model_version_stage(model, version, to_stage.capitalize())
     print(f"[INFO] {model}: v{version}  {from_stage} ➜ {to_stage}")
 

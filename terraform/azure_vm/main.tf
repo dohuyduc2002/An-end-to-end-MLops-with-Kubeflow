@@ -3,6 +3,7 @@ resource "azurerm_resource_group" "jenkins_rg" {
   location = var.location
 }
 
+# setup a virtual network, with the range 10.0.0.0/16
 resource "azurerm_virtual_network" "vnet" {
   name                = "${var.vm_name}-vnet"
   address_space       = ["10.0.0.0/16"]
@@ -10,6 +11,7 @@ resource "azurerm_virtual_network" "vnet" {
   resource_group_name = azurerm_resource_group.jenkins_rg.name
 }
 
+# setup a subnet, with the range 10.0.2.0/24 
 resource "azurerm_subnet" "subnet" {
   name                 = "${var.vm_name}-subnet"
   resource_group_name  = azurerm_resource_group.jenkins_rg.name
@@ -17,6 +19,7 @@ resource "azurerm_subnet" "subnet" {
   address_prefixes     = ["10.0.2.0/24"]
 }
 
+# setup a network security group, with rules to allow inbound traffic on port 8080 (Jenkins), port 22 (SSH), and port 50000 (Jenkins agent)
 resource "azurerm_network_security_group" "nsg" {
   name                = "${var.vm_name}-nsg"
   location            = var.location
@@ -60,6 +63,7 @@ resource "azurerm_network_security_group" "nsg" {
 
 }
 
+# setup a public IP address, which will be used to access the VM
 resource "azurerm_public_ip" "public_ip" {
   name                = "${var.vm_name}-public-ip"
   location            = var.location
@@ -68,6 +72,7 @@ resource "azurerm_public_ip" "public_ip" {
   sku                 = "Basic"
 }
 
+# setup a network interface, which will be used to connect the VM to the virtual network and public IP address
 resource "azurerm_network_interface" "nic" {
   name                = "${var.vm_name}-nic"
   location            = var.location
@@ -81,6 +86,7 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
+# associate the network interface with the network security group
 resource "azurerm_network_interface_security_group_association" "nic_nsg" {
   network_interface_id      = azurerm_network_interface.nic.id
   network_security_group_id = azurerm_network_security_group.nsg.id
@@ -94,8 +100,8 @@ resource "azurerm_linux_virtual_machine" "jenkins_vm" {
   admin_username        = var.admin_username
   network_interface_ids = [azurerm_network_interface.nic.id]
 
-  priority        = "Spot"
-  eviction_policy = "Deallocate"
+  priority        = "Spot" # Use Spot VM for cost efficiency
+  eviction_policy = "Deallocate" # Deallocate when evicted by Azure
 
   os_disk {
     caching              = "ReadWrite"

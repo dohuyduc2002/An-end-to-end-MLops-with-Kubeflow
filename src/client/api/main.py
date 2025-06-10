@@ -24,16 +24,16 @@ from client.api.utils import (
 )
 
 
-def entropy(p: np.ndarray) -> float:
+def entropy(p: np.ndarray):
     return float(np.sum(p * np.log2(p + 1e-10)))
 
 
-def confidence(p: np.ndarray) -> float:
+def confidence(p: np.ndarray):
     return float(p.max())
 
 
 class MetricsHandler:
-    def __init__(self) -> None:
+    def __init__(self) :
         self.avg_entropy = 0.0
         self.avg_confidence = 0.0
 
@@ -190,11 +190,10 @@ def create_app():
         return service.predict_by_id(id)
 
 
-    @app.get("/data-monitor")
+    @app.get("/data-monitor") #to do fix evidently workspace
     def data_monitor(service: PredictionService = Depends(get_service)):
         cfg = service.cfg
 
-        # workspace_path = "s3://evidently/workspace"
         workspace_path = cfg.evidently_workspace  
 
         evidently_ws = Workspace.create(workspace_path) 
@@ -212,11 +211,10 @@ def create_app():
         reference_data, current_data = map_evidently_data(cfg)
         snapshot = custom_evidently_report(reference_data, current_data)
 
-        run = evidently_ws.add_run(project.id, snapshot)
+        evidently_ws.add_run(project.id, snapshot)
 
         return {
             "status": "stored",
-            "run_id": run.id,
             "project_id": project.id,
             "project_name": project_name
         }

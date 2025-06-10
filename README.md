@@ -12,7 +12,6 @@
 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
 
-You can refer to this github repo that I pushed in Kubeflow notebook in this link : [git-underwrite-mlflow](https://github.com/dohuyduc2002/git-underwrite-mlflow), there also documentation in here to setup git and basic usage of Kubeflow notebook workspace. 
 
 ![Diagram](media/diagram.jpg)
 
@@ -158,6 +157,8 @@ While using GKE cluster, you can use `kubectl port-forward svc/istio-ingressgate
 
 1. Create Istio LoadBalancer service inside `istio-system` namespace
 Because we need to keep internal service mesh for Kubeflow services, the new Istio LoadBalancer service will take external IP from GKE cluster and route all traffic to the internal Istio ClusterIP service mesh. 
+
+** Note** : In my case, I have to create a new istio `LoadBalancer` service instead of change the default istio from `ClusterIP` -> `Loadbalancer` to expose Kubeflow to the internet because I don't have TLS certificate for the default Istio LoadBalancer service which is used to create, delete Notebook. You can still can use all Kubeflow services with the new istio LoadBalancer service.
 
 ```bash
 cd kubeflow/svc_mesh
@@ -440,7 +441,7 @@ helm install api ./helm-charts/api \
   --set ingress.rules[0].paths[0].serviceName=prediction-api \
   --set ingress.rules[0].paths[0].servicePort=8000
 ```
-helm uninstall api
+
 ### Mapping domain name to external IP
 This step is optional, but it will help you to access the services easily without using IP address. You can use any domain name that you own, in this project, I'm using `ducdh.com` domain name. Previously, I have already mapped the Istio external IP to `kubeflow.ducdh.com` in the `/etc/hosts` file.
 ```bash
@@ -477,65 +478,15 @@ With Kubeflow Pipelines, you can:
 
 Ideal for teams working on MLOps, Kubeflow Pipelines simplifies the path from prototype to production.
 
-image pipeline 
 
 ### Using Katib
 Under implementation
 
 #### Using Kubeflow Pipeline outside the cluster
-
-1. I'm using custom Kubeflow notebook image to run this pipeline, so need to build this and push it to dockerhub, the image configuration for each component is in `src/kfp_outside/utils.py` file with constant `SCIPY_IMAGE`. This image can also be used as base image to use Kubeflow notebook in the the next step.
-```bash
-docker build --no-cache -t microwave1005/scipy-img:latest -t microwave1005/scipy-img:v0.1 -f dockerfiles/Dockerfile.kubeflow_nb .
-
-docker push microwave1005/scipy-img:latest
-docker push microwave1005/scipy-img:v0.1
-```
-
-2. Second, you have to fill this .env file in `src/kfp_outside` folder to provide credential for Kubeflow pipeline, my credential is 
-```
-# MinIO configuration
-MINIO_ENDPOINT=minio.minio.svc.cluster.local:9000
-MINIO_ACCESS_KEY=minio
-MINIO_SECRET_KEY=minio123
-MINIO_BUCKET_NAME=sample-data
-
-# Kubeflow/Dex Auth Configuration
-KFP_API_URL=http://kubeflow.ducdh.com/pipeline # You cannot use internal DNS because dex verifies the certificate
-KFP_SKIP_TLS_VERIFY=True
-KFP_DEX_USERNAME=user@example.com
-KFP_DEX_PASSWORD=12341234
-KFP_DEX_AUTH_TYPE=local
-
-MLFLOW_ENDPOINT=mlflow.mlflow.svc.cluster.local:5000
-KFP_NAMESPACE='kubeflow-user-exmaple-com'
-```
-3. Running the pipeline
-a. Components
-There are 3 components in this pipeline:
-- `data_loader`: This component is used to load data from Minio bucket
-
-- `preprocess`: In this component, I have implemented a preprocessing and feature selection pipeline and then upload joblib to Mlflow as a parent run, the preprocessed data is uploaded into Minio bucket `sample-data` and Kubeflow pipeline artifact store. The preprocessing steps are:
-  - get list of categorical features and numerical features from the data
-  - exclude features if missing ratio is greater than 10%
-  - bins high cardinality and low cardinality features
-  - exclude features again using IV scrore threshold from 0.02 to 0.05
-  - auto binning again with `optbinning` library to minimize curse of dimensionality for high cardinality features
-  - feature selection using ANOVA F-test as a scoring function
-
-- `modeling`: This component is used to train the model using XGBoost, LightGBM through optuna trial. All the optuna trials is uploaded to Mlflow as a child run of the parent run. After all trials are finished, the `best_trial` is selected and `registered` to Mlflow model registry. 
-
-b. Submit the pipeline
-In my `src/kfp_outside/main.py`, the pipeline is submitted to Kubeflow as a one-off run under the pipeline and experiment name. The recurring run will be activated through the CICD step. 
-
-To run the pipeline, you can use the following command:
-```bash
-cd src/kfp_outside
-bash run.sh
-```
+To ensure the compliance from real world practice, we do not run KFP outside the cluster. This to ensure RBAC and Service account for each associated user. However, we need to access this outside the cluster for the CICD run.
 
 #### Using Kubeflow Pipeline inside the cluster
-Refer to this repo [git-underwrite-mlflow](https://github.com/dohuyduc2002/git-underwrite-mlflow) after add Pod default, RBAC and Service account to run pipeline inside the cluster.
+You can refer to this github repo that I pushed in Kubeflow notebook in this link : [kubeflow-nb](https://github.com/dohuyduc2002/kubeflow-nb), there also documentation in here to setup git and basic usage of Kubeflow notebook workspace. 
 
 ### Config Kubeflow Central Dashboard
 Kubeflow Central Dashboard allow users to manage their Kubeflow resources and access various components of the Kubeflow ecosystem. It provides a unified interface for users to interact with different Kubeflow components, such as Pipelines, Katib, Kserve, and more. It can also be used to add others outside components with Configmap through virtual service. 
@@ -544,7 +495,7 @@ There is 2 ways to add new components to the dashboard:
 1. Internal Link: Run inside Kubeflow central dashboard, require sidecar proxy to Istio
 2. External Link: Create a link to external service, no need sidecar proxy to Istio
 
-For simplicity, I'm using external link method the Central Dashboard configmap is already created in `kubeflow/dashboard` folder. In this configmap, I added external link to Mlflow, Minio, Grafana and Jenkins. You can also use vim or nano to edit the dashboard-configmap.yaml file to add your own components.
+For simplicity, I'm using external link method the Central Dashboard configmap is already created in `kubeflow/dashboard` folder. In this configmap, I added external link to Mlflow, Minio, Grafana and Jenkins. You can also use vim or nano to edit the `dashboard-configmap.yaml` file to add your own components.
 
 ```bash
 cd kubeflow/dashboard

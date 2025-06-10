@@ -1,4 +1,3 @@
-import os
 import argparse
 import mlflow
 
@@ -8,8 +7,9 @@ def fetch_parent_run_id(
     experiment_name: str,
     run_name: str,
     max_results: int = 10,
-) :
+):
     mlflow.set_tracking_uri(tracking_uri)
+    # refer to mlflow docs for moredetails on search_runs and get experiment_by_name: https://mlflow.org/docs/latest/api_reference/python_api/mlflow.client.html
 
     exp = mlflow.get_experiment_by_name(experiment_name)
     exp_id = exp.experiment_id
@@ -47,5 +47,4 @@ if __name__ == "__main__":
         experiment_name=args.experiment_name,
         run_name=args.run_name,
     )
-    print(rid)  # Jenkins sẽ capture stdout
-
+    print(rid)  # Jenkins will capture stdout, check the Jenkins file for more details

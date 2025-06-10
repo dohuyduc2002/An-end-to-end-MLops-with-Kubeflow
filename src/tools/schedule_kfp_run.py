@@ -1,16 +1,8 @@
 import argparse
-from pathlib import Path
-import sys
+from utils import KFPClientManager, create_recurring_run_with_params, get_runs_reponse
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-
-from kfp_outside.utils import (
-    KFPClientManager,
-    create_recurring_run_with_params,
-    get_runs_reponse,
-)
-
-
+# Due to running Kubeflow Pipeline outside cluster, we need to insantiate client through ClientManager class 
+# This class will handle authentication and client creation by disable TLS, and get session cookies
 def authenticate_kfp_client(args):
     client_auth_manager = KFPClientManager(
         api_url=args.kfp_api_url,
@@ -22,7 +14,7 @@ def authenticate_kfp_client(args):
     return client_auth_manager.create_kfp_client()
 
 
-def schedule_recurring_run(kfp_client, cron_expr, namespace,params):
+def schedule_recurring_run(kfp_client, cron_expr, namespace, params):
     run_info = get_runs_reponse(kfp_client, namespace=namespace)
     create_recurring_run_with_params(
         kfp_client=kfp_client,
@@ -50,16 +42,40 @@ def parse_arguments():
     parser.add_argument("--minio-secret-key", required=True, help="MinIO secret key")
     parser.add_argument("--bucket-name", required=True, help="Bucket name")
     parser.add_argument("--mlflow-endpoint", required=True, help="MLflow endpoint")
-    parser.add_argument("--raw-train-object", default="data/application_train.csv", help="Raw train object path")
-    parser.add_argument("--raw-test-object", default="data/application_test.csv", help="Raw test object path")
-    parser.add_argument("--dest-train-object", default="preprocessed_train.csv", help="Destination train object")
-    parser.add_argument("--dest-test-object", default="preprocessed_test.csv", help="Destination test object")
-    parser.add_argument("--parent-run-name", default="xgb_optuna_search", help="Parent run name")
-    parser.add_argument("--n-features-to-select", default="auto", help="Number of features to select")
+    parser.add_argument(
+        "--raw-train-object",
+        default="data/application_train.csv",
+        help="Raw train object path",
+    )
+    parser.add_argument(
+        "--raw-test-object",
+        default="data/application_test.csv",
+        help="Raw test object path",
+    )
+    parser.add_argument(
+        "--dest-train-object",
+        default="preprocessed_train.csv",
+        help="Destination train object",
+    )
+    parser.add_argument(
+        "--dest-test-object",
+        default="preprocessed_test.csv",
+        help="Destination test object",
+    )
+    parser.add_argument(
+        "--parent-run-name", default="xgb_optuna_search", help="Parent run name"
+    )
+    parser.add_argument(
+        "--n-features-to-select", default="auto", help="Number of features to select"
+    )
     parser.add_argument("--data-version", default="v1", help="Data version")
-    parser.add_argument("--model-name", default="xgb", choices=["xgb", "lgbm"], help="Model name")
+    parser.add_argument(
+        "--model-name", default="xgb", choices=["xgb", "lgbm"], help="Model name"
+    )
     parser.add_argument("--suffix", default="underwrite", help="Suffix")
-    parser.add_argument("--experiment-name", default="Underwriting_kfp", help="Experiment name")
+    parser.add_argument(
+        "--experiment-name", default="Underwriting_kfp", help="Experiment name"
+    )
 
     return parser.parse_args()
 

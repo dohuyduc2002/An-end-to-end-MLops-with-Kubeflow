@@ -1,17 +1,9 @@
-# kfp-access.yaml  ─────────────────────────────────────────────────────────────
-#
-# Namespace: kubeflow-user-example-com
-# Purpose: Grant permissions + attach SA token for Notebook
-# Effect: Spawner UI will show the checkbox “Allow access to Kubeflow Pipelines”
-
-# (1) ServiceAccount used for the Notebook
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: notebooks-pipelines
   namespace: kubeflow-user-example-com
 ---
-# (2) RoleBinding - assign “edit” permission on Kubeflow Pipelines to the SA created above
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -26,7 +18,6 @@ subjects:
   name: notebooks-pipelines
   namespace: kubeflow-user-example-com
 ---
-# (3) PodDefault – the “heart” of the checkbox
 apiVersion: kubeflow.org/v1alpha1
 kind: PodDefault
 metadata:
@@ -51,7 +42,7 @@ spec:
         sources:
           - serviceAccountToken:
               path: token
-              audience: pipelines.kubeflow.org   # must match TOKEN_REVIEW_AUDIENCE
+              audience: pipelines.kubeflow.org   
               expirationSeconds: 36000000 # Just a large number for testing; in real-world production, this might differ
   volumeMounts:
     - mountPath: /var/run/secrets/kubeflow/pipelines

@@ -26,7 +26,7 @@ load_dotenv(
     override=False
 )  # just for local testing, in production, the env is define in Docker image and Kubernetes
 
-
+# We create a Config class to hold all the API configuration parameters
 class ApiConfig:
     def __init__(self):
         self.s3_endpoint: str = os.getenv("S3_ENDPOINT")
@@ -54,9 +54,9 @@ class ApiConfig:
         )
 
 
+# Create a Predictor class to handle model loading and inference, this class will be used in both POST method 
 class Predictor:
-
-    def __init__(self, cfg: ApiConfig) -> None:
+    def __init__(self, cfg: ApiConfig):
         self.cfg = cfg
         self.transformer: Optional[dict] = None
         self.model: Optional[object] = None
@@ -64,8 +64,9 @@ class Predictor:
         self.cfg.configure_mlflow()
 
     # Artifact loader
-    def load_artifacts(self) -> None:
+    def load_artifacts(self):
         client = MlflowClient()
+        # Load transformer feature artifact from mlfow at the parent run
         downloaded_path = client.download_artifacts(
             run_id=self.cfg.parent_run_id,
             path=self.cfg.transformer_artifact_path,
@@ -73,6 +74,7 @@ class Predictor:
         )
         self.transformer = joblib.load(downloaded_path)
 
+        # Load model from MLflow with the registered stage, in this case we prioritize "Production" stage, the None stage is used for testing
         versions = client.get_latest_versions(
             self.cfg.model_name, stages=["Production"]
         )
@@ -81,6 +83,7 @@ class Predictor:
         if not versions:
             raise RuntimeError(f"Model '{self.cfg.model_name}' not found in MLflow.")
 
+        # In my case, I have 2 model type, one is XGB and LGBM, each has different class in mlflow so we need to load it accordingly
         model_uri = f"models:/{self.cfg.model_name}/{versions[0].version}"
         if self.cfg.model_type == "xgb":
             self.model = mlflow.xgboost.load_model(model_uri)
@@ -90,10 +93,11 @@ class Predictor:
             raise ValueError(f"Unsupported model type: {self.cfg.model_type}")
 
     # Inference
-    def inference(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+    def inference(self, df: pd.DataFrame):
+        # The transformer serialization joblib is a dict with 2 separate step:
         binning = self.transformer["opt_binning_process"]
         selector = self.transformer["selector"]
-        df = df[[c for c in df.columns if c in binning.variable_names]]
+        df = df[[col for col in df.columns if col in binning.variable_names]]
 
         X = selector.transform(binning.transform(df))
         proba = self.model.predict_proba(X)
@@ -102,6 +106,8 @@ class Predictor:
 
 
 def map_evidently_data(config):
+    # Refer to evidently docs for create a Evidently compatiable Dataset:
+    # https://docs.evidentlyai.com/docs/library/data_definition
     def get_lists(df):
         numeric = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
         category = df.select_dtypes(include=["object"]).columns.tolist()
@@ -116,6 +122,8 @@ def map_evidently_data(config):
     train_data = minio_client.get_object("sample-data", "data/application_train.csv")
     test_data = minio_client.get_object("sample-data", "data/application_test.csv")
 
+    # We can only read Minio Object as bytes, so we need to convert it to pandas DataFrame
+    # https://stackoverflow.com/questions/55223401/minio-python-client-upload-bytes-directly
     df_train = pd.read_csv(BytesIO(train_data.read()))
     df_test = pd.read_csv(BytesIO(test_data.read()))
 
@@ -133,6 +141,9 @@ def map_evidently_data(config):
 
 
 def custom_evidently_report(reference_data, current_data):
+    # After create a Evidently Dataset, we can create a Report with the metrics we want to calculate
+    # https://docs.evidentlyai.com/docs/library/tests
+    # In this case, I customize the report with some metrics that I want to calculate 
     metrics = [
         DatasetMissingValueCount(),
         DuplicatedColumnsCount(),
@@ -151,6 +162,8 @@ def custom_evidently_report(reference_data, current_data):
             ],
         ),
     ]
+    # The Report class is used to run the metrics on the reference and current data
     report = Report(metrics=metrics)
+    # MUST return the snapshot object to use it to add to workspace later
     snapshot = report.run(reference_data, current_data)
     return snapshot

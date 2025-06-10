@@ -17,7 +17,7 @@ env:
   MLFLOW_ENDPOINT: "http://mlflow.mlflow.svc.cluster.local:5000"
   PARENT_RUN_ID: "62f72503b9d243bda7dafca69258d494"
   TRANSFORMER_ARTIFACT_PATH: "prep/transformer_joblib"
-  EVIDENTLY_WORKSPACE: "s3://evidently/workspace"
+  EVIDENTLY_WORKSPACE: "workspace"
   FSSPEC_S3_ENDPOINT_URL: "http://minio.minio.svc.cluster.local:9000"
 
 secrets:
