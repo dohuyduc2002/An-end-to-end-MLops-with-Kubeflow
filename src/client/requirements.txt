@@ -10,6 +10,7 @@ ortools==9.7.2996
 xgboost==2.1.4
 scikit-learn==1.6.1
 evidently==0.7.7
+s3fs
 optbinning
 boto3
 requests

@@ -210,6 +210,11 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
   --set controller.service.externalTrafficPolicy=Cluster
   --set controller.resources.requests.cpu=100m \
   --set controller.resources.requests.memory=90Mi
+  --set controller.config.client-max-body-size=5T \
+  --set controller.config.proxy-connect-timeout="600" \
+  --set controller.config.proxy-send-timeout="600" \
+  --set controller.config.proxy-read-timeout="600" \
+  --set controller.config.send-timeout="600" 
 ```
 
 After that, wait for a few minutes until `ingress-nginx-controller` service got `EXTERNAL-IP` address. You can check the status of the service by running the following command:
@@ -383,14 +388,14 @@ In this section, we will use the manual way to deploy the endpoint API.
 
 **You have to build docker image for the endpoint API first which is `dockerfiles/Dockerfile.app`** 
 ```bash
-docker build \
-  -t microwave1005/prediction-api:latest \
+docker build --no-cache \
   -t microwave1005/prediction-api:v0.1 \
   -f dockerfiles/Dockerfile.app \
-  --build-arg MODEL_NAME=xgb_underwriting \
+  --build-arg MODEL_NAME=xgb_underwrite \
   --build-arg MODEL_TYPE=xgb \
   .
 
+docker push microwave1005/prediction-api:v0.1
 ```
 In case your machine is using ARM architecture (eg Mac m1,...), you can build image like this 
 ```bash
@@ -427,7 +432,7 @@ helm install api ./helm-charts/api \
   --set monitoring.enabled=true \
   --set image.tag=v0.1 \
   --set replicaCount=1 \
-  --set env.PARENT_RUN_ID=8848ff4bc23843c6a5857aa5b3017c9e \ 
+  --set env.PARENT_RUN_ID=916178d5b2c34f1b86d0752ecf6ee6c8 \
   --set ingress.enabled=true \
   --set ingress.rules[0].host=api.ducdh.com \
   --set ingress.rules[0].paths[0].path="/" \
@@ -435,7 +440,7 @@ helm install api ./helm-charts/api \
   --set ingress.rules[0].paths[0].serviceName=prediction-api \
   --set ingress.rules[0].paths[0].servicePort=8000
 ```
-
+helm uninstall api
 ### Mapping domain name to external IP
 This step is optional, but it will help you to access the services easily without using IP address. You can use any domain name that you own, in this project, I'm using `ducdh.com` domain name. Previously, I have already mapped the Istio external IP to `kubeflow.ducdh.com` in the `/etc/hosts` file.
 ```bash

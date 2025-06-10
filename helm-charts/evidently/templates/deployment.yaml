@@ -16,6 +16,13 @@ spec:
       - name: evidently-ui
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["evidently"]    
+        args:
+          - "ui"
+          - "--host"
+          - "0.0.0.0"
+          - "--workspace"
+          - "{{ .Values.workspace }}"
         env:
         - name: FSSPEC_S3_ENDPOINT_URL
           value: "{{ .Values.minio.endpoint }}"
@@ -27,10 +34,3 @@ spec:
           value: "{{ .Values.workspace }}"
         ports:
         - containerPort: {{ .Values.service.targetPort }}
-        resources:
-          requests:
-            cpu: "10m"
-            memory: "64Mi"
-          limits:
-            cpu: "20m"
-            memory: "128Mi"

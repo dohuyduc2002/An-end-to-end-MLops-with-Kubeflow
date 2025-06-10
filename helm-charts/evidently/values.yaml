@@ -9,13 +9,15 @@ minio:
   secretKey: minio123
 
 service:
-  type: ClusterIP
-  port: 80
-  targetPort: 8080
+  type: ClusterIP      
+  port: 8000
+  targetPort: 8000
 
 ingress:
   enabled: true
-  className: "nginx"
-  host: evidently.ducdh.com
+  className: nginx    
+  host: evidently.yourdomain.com
   path: /
-workspace: s3://evidently-snapshots/workspace
+
+  
+workspace: s3://evidently/snapshots

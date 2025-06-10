@@ -189,44 +189,37 @@ def create_app():
     def predict_by_id(id: int, service: PredictionService = Depends(get_service)):
         return service.predict_by_id(id)
 
+
     @app.get("/data-monitor")
     def data_monitor(service: PredictionService = Depends(get_service)):
         cfg = service.cfg
-        minio_client = cfg.get_minio_client()
 
-        # 1️⃣ Tạo snapshot
-        reference_data, current_data = map_evidently_data(cfg)
-        snapshot = custom_evidently_report(reference_data, current_data)
+        # workspace_path = "s3://evidently/workspace"
+        workspace_path = cfg.evidently_workspace  
 
-        # 2️⃣ Upload JSON lên MinIO
-        timestamp = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-        obj_name = f"snapshots/{timestamp}.json"
-        data = json.dumps(snapshot.dict()).encode()
-        minio_client.put_object(
-            bucket_name=cfg.evidently_bucket,
-            object_name=obj_name,
-            data=BytesIO(data),
-            length=len(data),
-            content_type="application/json",
-        )
+        evidently_ws = Workspace.create(workspace_path) 
 
-        # 3️⃣ Ghi snapshot vào Evidently Workspace (S3/MinIO)
-        ws = Workspace.create(f"s3://{cfg.evidently_bucket}/workspace")
         project_name = "credit_underwriting"
-
-        # Tìm hoặc tạo project
-        existing = ws.search_project(project_name)
+        project = None
+        existing = evidently_ws.search_project(project_name)
         if existing:
             project = existing[0]
         else:
-            project = ws.create_project(project_name)
+            project = evidently_ws.create_project(project_name)
             project.description = "Monitoring credit underwriting snapshots"
             project.save()
 
-        # ✅ Thêm snapshot vào project
-        ws.add_run(project.id, snapshot)
+        reference_data, current_data = map_evidently_data(cfg)
+        snapshot = custom_evidently_report(reference_data, current_data)
 
-        return {"status": "stored", "object": obj_name}
+        run = evidently_ws.add_run(project.id, snapshot)
+
+        return {
+            "status": "stored",
+            "run_id": run.id,
+            "project_id": project.id,
+            "project_name": project_name
+        }
 
     return app
 

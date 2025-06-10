@@ -32,7 +32,7 @@ class ApiConfig:
         self.s3_endpoint: str = os.getenv("S3_ENDPOINT")
         self.s3_access_key: str = os.getenv("S3_ACCESS_KEY")
         self.s3_secret_key: str = os.getenv("S3_SECRET_KEY")
-        self.evidently_bucket: str = os.getenv("EVIDENTLY_BUCKET")
+        self.evidently_workspace: str = os.getenv("EVIDENTLY_WORKSPACE")
         self.mlflow_endpoint: str = os.getenv("MLFLOW_ENDPOINT")
         self.model_name: str = os.getenv("MODEL_NAME")
         self.model_type: str = os.getenv("MODEL_TYPE").lower()  # xgb | lgbm

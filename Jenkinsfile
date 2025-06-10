@@ -13,7 +13,7 @@ pipeline {
         choice (name: 'MODEL_TYPE', choices: ['xgb','lgbm'])
         /* --- KFP recurring run --- */
         string (name: 'KFP_DEX_AUTH_TYPE', defaultValue: 'local')
-        string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * 6') // every Saturday at 3:00 AM
+        string (name: 'KFP_CRON_EXPR', defaultValue: '0 3 * * 6') // THIS IS GO CRON EXPRESSION https://godoc.org/github.com/robfig/cron
         string (name: 'KUBEFLOW_NAMESPACE', defaultValue: 'kubeflow-user-example-com')
         /* --- KFP params --- */
         string(name: 'MINIO_BUCKET_NAME',defaultValue: 'sample-data', description: 'Minio data bucket name')
