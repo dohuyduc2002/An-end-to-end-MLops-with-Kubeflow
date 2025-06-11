@@ -27,7 +27,8 @@ Root
 │   ├── jenkins                         *  Custom Helm chart for Jenkins
 │   ├── minio                           *  Custom Helm chart values for MinIO
 │   ├── mlflow                          *  Custom Helm chart values for MLflow
-│   └── monitoring                      *  Custom Helm chart values for Prometheus and Grafana
+│   ├── monitoring                      *  Custom Helm chart values for Prometheus and Grafana
+│   └── evidently                       *  Custom Helm chart values for Evidently
 ├── Jenkinsfile                         *  Jenkins pipeline file for CI/CD
 ├── kubeflow                            *  Kubeflow deployment files
 │   ├── dashboard                       *  Custom Kubeflow Central Dashboard
@@ -36,17 +37,15 @@ Root
 │   ├── manifests                       *  Kubeflow manifests v1.10
 │   ├── notebook                        *  Custom Kubeflow Notebook 
 │   ├── patch_vs.sh                     *  Script to patch the Kubeflow virtualservice and gateway
-│   ├── README.md
 │   └── svc_mesh                        *  Istio service mesh to export Kubeflow services
 ├── LICENSE
 ├── media                               *  Media files for the project                      
 ├── README.md
 ├── src                                 *  Source code for the project
 │   ├── client                          *  Client code for the project
-│   ├── kfp_outside                     *  Code for running Kubeflow pipelines outside of the Kubeflow cluster
 │   └── ui                              *  UI code for the project
 ├── terraform                           *  Terraform files for deploying the project
-│   ├── gce                             *  Deploying Jenkins in GCE 
+│   ├── azure_vm                        *  Deploying Jenkins in Azure VM 
 │   └── gke                             *  Deploying the project in GKE
 ├── tests                               *  Testing files for the project
 ├── Jenkinsfile                         *  Jenkins pipeline file for CI/CD
@@ -55,10 +54,7 @@ Root
 ## To-Do
 - [ ] Optimize GKE usage to fit GCP quota for all services instead of using Azure VM
 - [ ] Implement Data Ingestion, Data Quality check, Data Lake, Data Warehouse, and Data Pipeline
-- [ ] Implement Cloud Build for CI/CD
-- [ ] Code refactoring and deduplication
-- [ ] Add integration test 
-- [ ] Add media files 
+ 
 
 ## Setting up GCP
 1. Create a Google Cloud account and set up billing.
@@ -510,7 +506,7 @@ k apply -f dashboard-configmap.yaml
 k rollout restart deployment centraldashboard -n kubeflow
 ```
 
-[Dashboard configmap](media/dashboard.png)
+![Dashboard configmap](media/dashboard.png)
 
 ## CICD pipeline 
 My CICD pipeline flow consists in unittesting my components running on KFP. If the test fail the coverage, the pipeline is stopped. After testing stage complete, we create a new recurring run based on previous one-off `run_id`, `pipeline_name` and `version_name` then build Dockerfile for the app along with model promotion to `stagging`. 
@@ -543,7 +539,7 @@ Due to Azure does not using default network like GCP, you need to configure NIC,
 To get your Azure subscription ID, login to your Azure account and navigave to `Subscriptions` in the Azure portal. You can find your subscription ID in the `Overview` tab of your subscription.
 After that, you can run the following command to create the Azure VM for Jenkins:
 
-[Azure subscription ID](media/azure_subcription.png)
+![Azure subscription ID](media/azure_subcription.png)
 
 ```bash
 terraform destroy -var="subscription_id=<YOUR_SUBSCRIPTION_ID>" 
@@ -595,7 +591,7 @@ To allow my CICD pipeline to build docker, using helm upgrade in gke cluster, yo
 - Kubernetes CLI
 - Google Kubernetes Engine
 
-[Jenkins plugins](media/jenkins_plugins.png)
+![Jenkins plugins](media/jenkins_plugins.png)
 
 c. Adding GKE credentials
 First, you have to prepare your Service account json, in the [Create GCP service account](#create-gcp-service-account) I have already created it, you can also use this credential. After that, go to `Mange Jenkins/Cloud` to add new cloud with `Kubernetes`, to add new Cloud to Jenkins. There is 2 field named `Kubenertes IP` and `Certificate`, you have to go to your console in GKE to get that.
@@ -640,8 +636,6 @@ My cicd pipeline consist of 9 stages:
 After pipeline completed or failed, I have a cleanup stage to clean up docker images to save space
 
 
-[Jenkins complete](media/jenkins_complete.png)
+![Jenkins complete](media/jenkins_complete.png)
 
-### Cloud Build
 
-Under implementation
