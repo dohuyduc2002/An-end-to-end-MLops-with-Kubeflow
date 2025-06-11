@@ -13,7 +13,7 @@
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
 
 
-![Diagram](media/diagram.jpg)
+![Diagram](media/diagram_1.jpg)
 
 ## Introduction
 This project is an unified platform for Datasciene team whom working on Credit modeling sector. This repo will help and guide you to build and serve ML model as in a production environment (Google Cloud Platform and Azure). I also used tool & technologies to quickly deploy the ML system into production and automate processes during the development and deployment of the ML system.
