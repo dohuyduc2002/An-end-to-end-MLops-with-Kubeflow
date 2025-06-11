@@ -21,8 +21,6 @@ spec:
           - "ui"
           - "--host"
           - "0.0.0.0"
-          - "--workspace"
-          - "{{ .Values.workspace }}"
         env:
         - name: FSSPEC_S3_ENDPOINT_URL
           value: "{{ .Values.minio.endpoint }}"

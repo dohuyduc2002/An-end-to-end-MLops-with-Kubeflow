@@ -350,20 +350,10 @@ I'm setting up Prometheus to monitor system metric through OpenTelemetry. I alre
 #### Grafana
 Grafana is a powerful open-source analytics and monitoring solution that integrates with various data sources, including Prometheus. It provides a rich set of features for visualizing and analyzing time-series data. I'm also modified Grafana in `helm-charts/monitoring/custom-values.yaml`.
 
-
-Create json for Grafana dashboard, apply it through configmap in `src/client/grafana` folder
-
-```bash
-kubectl create configmap model-dashboard \
-  --from-file=model-dashboard.json=helm-charts/monitoring/dashboard/model-dashboard.json \
-  -n monitoring --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl label configmap model-dashboard grafana_dashboard=1 -n monitoring --overwrite
-```
+vid custom otel grafana dashboard
 
 [Custom Grafana dashboard](media/graf_predict.png)
 
-In this command, I'm create a new configmap named `model-dashboard` with the content of `model-dashboard.json` file. The `--dry-run=client -o yaml` option is used to generate the YAML manifest without applying it immediately, allowing you to label it before applying. The tmp file then is apply to the cluster with the label `grafana_dashboard=1` as a sidecar to Grafana deployment.
 
 You can also check other Grafana dashboards in [Grafana lab](https://grafana.com/grafana/dashboards/), in this project, I'm using Node Exporter Full dashboard to monitor the all cluster nodes.
 
@@ -375,6 +365,14 @@ helm upgrade kps prometheus-community/kube-prometheus-stack \
   -f helm-charts/monitoring/custom-values.yaml \
   --reuse-values
 ```
+#### Install Evidently model monitoring metrics
+```bash
+helm install evidently ./helm-charts/evidently \
+  --namespace monitoring \
+  --set replicaCount=1 
+```
+In this project, I'm using Evidently to monitor the model performance and data quality. It will be deploy as `LoadBalancer` service in `monitoring` namespace. You can access it by going to `http://<EXTERNAL-IP-EVIDENTLY>:8000/` in your browser. This allow the GET method from the FastAPI endpoint to pull the model performance metrics and data quality metrics from Evidently.
+![Evidently](media/evidently.png)
 
 ### Serve model with FastAPI and collect log 
 In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpieline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 
@@ -405,7 +403,7 @@ docker buildx build \
   -t microwave1005/prediction-api:latest \
   -t microwave1005/prediction-api:v0.1 \
   -f dockerfiles/Dockerfile.app \
-  --build-arg MODEL_NAME=xgb_underwriting \
+  --build-arg MODEL_NAME=xgb_underwrite \
   --build-arg MODEL_TYPE=xgb \
   .
 
@@ -425,7 +423,13 @@ k create secret generic minio-creds \
 ```
 
 Then, you can install the API helm chart with the following command `After model is registered in Mlflow model registry`
-** Note: Remember to check parent run id in Mlfow UI or kubeflow downstream artifact
+** Note: Remember to check parent run id in Mlfow UI or kubeflow downstream artifact and Evidently ExternalIP to use GET method. 
+First you have to check the Evidently External IP by running the following command:
+```bash
+k get svc evidently -n monitoring
+```
+
+Then you can install the API helm chart
 ```bash
 helm install api ./helm-charts/api \
   --namespace api \
@@ -434,12 +438,14 @@ helm install api ./helm-charts/api \
   --set image.tag=v0.1 \
   --set replicaCount=1 \
   --set env.PARENT_RUN_ID=916178d5b2c34f1b86d0752ecf6ee6c8 \
+  --set env.EVIDENTLY_WORKSPACE=http://35.202.139.205:8000/ \
   --set ingress.enabled=true \
   --set ingress.rules[0].host=api.ducdh.com \
   --set ingress.rules[0].paths[0].path="/" \
   --set ingress.rules[0].paths[0].pathType=Prefix \
   --set ingress.rules[0].paths[0].serviceName=prediction-api \
   --set ingress.rules[0].paths[0].servicePort=8000
+
 ```
 
 ### Mapping domain name to external IP

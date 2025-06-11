@@ -1,14 +1,12 @@
-from contextlib import asynccontextmanager
 from functools import wraps
 from io import BytesIO
 from time import time
 from typing import List, Dict, Any
 import numpy as np
 import pandas as pd
-import json, datetime as dt
 
 from fastapi import FastAPI, Body, Depends
-from evidently.ui.workspace import Workspace
+from evidently.ui.workspace import RemoteWorkspace
 
 from opentelemetry import metrics
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
@@ -33,7 +31,7 @@ def confidence(p: np.ndarray):
 
 
 class MetricsHandler:
-    def __init__(self) :
+    def __init__(self):
         self.avg_entropy = 0.0
         self.avg_confidence = 0.0
 
@@ -89,7 +87,6 @@ def otel_metric(fn):
 """ 
 The main class for to creating the prediction service, which initializes the predictor and handles prediction requests.
 This will create a new instance of `Predictor` with provided configuration from `ApiConfig`
-The asynchonous function `create` is used to ensure Predictor is loaded in a separate thread, allowing the FastAPI app to start without blocking.
 """
 
 
@@ -156,70 +153,58 @@ class PredictionService:
 """
 The main FastAPI app which initializes the PredictionService and defines the API endpoints.
 
-The `contextmanager` is used to manage the lifespan the app, ensure PredictionService is available before handling requests.
 """
 
 
 # ----------------------------------------------------------------------
-def create_app():
-    cfg = ApiConfig()
-
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
-        app.state.service = PredictionService.create(cfg)
-        yield
-
-    app = FastAPI(lifespan=lifespan)
-
-    def get_service() -> PredictionService:
-        return app.state.service
-
-    @app.get("/")
-    def health():
-        return {"status": "ok"}
-
-    @app.post("/Prediction")
-    def predict(
-        items: List[RawItem] = Body(...),
-        service: PredictionService = Depends(get_service),
-    ):
-        return service.predict_items(items)
-
-    @app.post("/Prediction-by-id")
-    def predict_by_id(id: int, service: PredictionService = Depends(get_service)):
-        return service.predict_by_id(id)
+cfg = ApiConfig()
+prediction_service = PredictionService.create(cfg)
 
 
-    @app.get("/data-monitor") #to do fix evidently workspace
-    def data_monitor(service: PredictionService = Depends(get_service)):
-        cfg = service.cfg
-
-        workspace_path = cfg.evidently_workspace  
-
-        evidently_ws = Workspace.create(workspace_path) 
-
-        project_name = "credit_underwriting"
-        project = None
-        existing = evidently_ws.search_project(project_name)
-        if existing:
-            project = existing[0]
-        else:
-            project = evidently_ws.create_project(project_name)
-            project.description = "Monitoring credit underwriting snapshots"
-            project.save()
-
-        reference_data, current_data = map_evidently_data(cfg)
-        snapshot = custom_evidently_report(reference_data, current_data)
-
-        evidently_ws.add_run(project.id, snapshot)
-
-        return {
-            "status": "stored",
-            "project_id": project.id,
-            "project_name": project_name
-        }
-
-    return app
+def get_service() -> PredictionService:
+    return prediction_service
 
 
-app = create_app()
+app = FastAPI()
+
+
+@app.get("/")
+def health():
+    return {"status": "ok"}
+
+
+@app.post("/Prediction")
+def predict(
+    items: List[RawItem] = Body(...),
+    service: PredictionService = Depends(get_service),
+):
+    return service.predict_items(items)
+
+
+@app.post("/Prediction-by-id")
+def predict_by_id(id: int, service: PredictionService = Depends(get_service)):
+    return service.predict_by_id(id)
+
+
+@app.get("/data-monitor")
+def data_monitor(service: PredictionService = Depends(get_service)):
+    cfg = service.cfg
+    workspace_path = cfg.evidently_workspace
+    evidently_ws = RemoteWorkspace(workspace_path)
+
+    project_name = "credit_underwriting"
+    project = None
+    existing = evidently_ws.search_project(project_name)
+    if existing:
+        project = existing[0]
+    else:
+        project = evidently_ws.create_project(project_name)
+        project.description = "Monitoring credit underwriting snapshots"
+        project.save()
+
+    reference_data, current_data = map_evidently_data(cfg)
+    snapshot = custom_evidently_report(reference_data, current_data)
+
+    evidently_ws.add_run(project.id, snapshot)
+
+    return {"status": "stored", "project_id": project.id, "project_name": project_name}

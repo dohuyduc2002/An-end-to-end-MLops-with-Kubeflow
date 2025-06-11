@@ -26,8 +26,8 @@ spec:
               value: {{ .Values.env.PARENT_RUN_ID | quote }}
             - name: TRANSFORMER_ARTIFACT_PATH
               value: {{ .Values.env.TRANSFORMER_ARTIFACT_PATH | quote }}
-            - name: EVIDENTLY_BUCKET
-              value: {{ .Values.env.EVIDENTLY_BUCKET | quote }}
+            - name: EVIDENTLY_WORKSPACE
+              value: {{ .Values.env.EVIDENTLY_WORKSPACE | quote }}
             - name: FSSPEC_S3_ENDPOINT_URL
               value: {{ .Values.env.FSSPEC_S3_ENDPOINT_URL | quote }}
 

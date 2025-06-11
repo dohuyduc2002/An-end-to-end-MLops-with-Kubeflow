@@ -4,20 +4,19 @@ image:
   pullPolicy: IfNotPresent
 
 minio:
-  endpoint: http://minio.minio.svc.cluster.local:9000
+  endpoint: http://minio.ducdh.com
   accessKey: minio
   secretKey: minio123
 
 service:
-  type: ClusterIP      
+  type: LoadBalancer      
   port: 8000
   targetPort: 8000
 
 ingress:
   enabled: true
   className: nginx    
-  host: evidently.yourdomain.com
+  host: evidently.ducdh.com
   path: /
 
   
-workspace: s3://evidently/snapshots

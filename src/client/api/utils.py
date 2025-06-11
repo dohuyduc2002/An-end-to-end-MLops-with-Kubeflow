@@ -54,7 +54,7 @@ class ApiConfig:
         )
 
 
-# Create a Predictor class to handle model loading and inference, this class will be used in both POST method 
+# Create a Predictor class to handle model loading and inference, this class will be used in both POST method
 class Predictor:
     def __init__(self, cfg: ApiConfig):
         self.cfg = cfg
