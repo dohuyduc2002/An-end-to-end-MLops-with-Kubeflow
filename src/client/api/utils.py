@@ -1,8 +1,7 @@
 import os
-from typing import Optional, Tuple
+from typing import Optional
 import joblib
 import mlflow
-import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -35,7 +34,7 @@ class ApiConfig:
         self.evidently_workspace: str = os.getenv("EVIDENTLY_WORKSPACE")
         self.mlflow_endpoint: str = os.getenv("MLFLOW_ENDPOINT")
         self.model_name: str = os.getenv("MODEL_NAME")
-        self.model_type: str = os.getenv("MODEL_TYPE").lower()  # xgb | lgbm
+        self.model_type: str = os.getenv("MODEL_TYPE")  # xgb | lgbm
         self.parent_run_id: str = os.getenv("PARENT_RUN_ID")
         self.transformer_artifact_path: str = os.getenv("TRANSFORMER_ARTIFACT_PATH")
 

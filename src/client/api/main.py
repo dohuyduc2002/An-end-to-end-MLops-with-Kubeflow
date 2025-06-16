@@ -1,18 +1,22 @@
-from functools import wraps
 from io import BytesIO
 from time import time
-from typing import List, Dict, Any
+from typing import List
+import os
+
 import numpy as np
 import pandas as pd
 
 from fastapi import FastAPI, Body, Depends
 from evidently.ui.workspace import RemoteWorkspace
 
-from opentelemetry import metrics
-from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.sdk.metrics import MeterProvider
-from prometheus_client import start_http_server
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.trace import get_tracer_provider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
+from client.api.metrics_handler import MetricsHandler, otel_metric
 from client.api.schema import RawItem
 from client.api.utils import (
     map_evidently_data,
@@ -21,67 +25,21 @@ from client.api.utils import (
     Predictor,
 )
 
+os.getenv("JAEGER_AGENT_HOST")
 
-def entropy(p: np.ndarray):
-    return float(np.sum(p * np.log2(p + 1e-10)))
+trace.set_tracer_provider(
+    TracerProvider(resource=Resource.create({SERVICE_NAME: "prediction_api_service"}))
+)
 
+tracer = get_tracer_provider().get_tracer("prediction_api", "0.1")
 
-def confidence(p: np.ndarray):
-    return float(p.max())
+jaeger_exporter = JaegerExporter(
+    agent_host_name=os.getenv("JAEGER_AGENT_HOST"),
+    agent_port=6831,
+)
 
-
-class MetricsHandler:
-    def __init__(self):
-        self.avg_entropy = 0.0
-        self.avg_confidence = 0.0
-
-        reader = PrometheusMetricReader()
-        metrics.set_meter_provider(MeterProvider(metric_readers=[reader]))
-        meter = metrics.get_meter_provider().get_meter("prediction_api")
-        start_http_server(addr="0.0.0.0", port=8001)
-
-        meter.create_observable_gauge(
-            "api_prediction_entropy",
-            callbacks=[lambda _opts: [metrics.Observation(self.avg_entropy)]],
-        )
-        meter.create_observable_gauge(
-            "api_avg_confidence",
-            callbacks=[lambda _opts: [metrics.Observation(self.avg_confidence)]],
-        )
-
-    def update(self, ents: List[float], confs: List[float]) -> None:
-        self._avg_entropy = float(np.mean(ents))
-        self._avg_confidence = float(np.mean(confs))
-
-
-# ----------------------------------------------------------------------
-"""
-Create a decorator to handle OpenTelemetry metrics, for further metrics collection you can modify 
-- MetricHandler class: define gauge and counter
-- otel_metric decorator: define object to be collected by OpenTelemetry in the POST request of the API 
-"""
-
-
-# ----------------------------------------------------------------------
-def otel_metric(fn):
-    @wraps(fn)
-    def wrapper(self, df: pd.DataFrame):
-        result = fn(self, df)
-        print("🧪 Result type:", type(result), "| Result:", result)
-
-        if not isinstance(result, tuple) or len(result) != 2:
-            print("⚠️ Skipping metrics: result not a (preds, proba) tuple")
-            return result
-
-        start_time = time()
-        preds, proba = result
-        ents = [entropy(p) for p in proba]
-        confs = [confidence(p) for p in proba]
-        self.metrics.update(ents, confs)
-        return self._build_response(start_time, preds, proba, ents, confs)
-
-    return wrapper
-
+span_processor = BatchSpanProcessor(jaeger_exporter)
+get_tracer_provider().add_span_processor(span_processor)
 
 # ----------------------------------------------------------------------
 """ 
@@ -113,7 +71,7 @@ class PredictionService:
         proba: np.ndarray,
         entropies: List[float],
         confidences: List[float],
-    ) -> Dict[str, Any]:
+    ):
         return {
             "inference_time_ms": round((time() - start_time) * 1000, 2),
             "predictions": [
@@ -134,19 +92,26 @@ class PredictionService:
 
     @otel_metric
     def predict_items(self, items: List[RawItem]):
-        df = pd.DataFrame([i.dict() for i in items]).replace({None: np.nan})
-        return self.predictor.inference(df)
+        with tracer.start_as_current_span("predict_items"):
+            df = pd.DataFrame([i.dict() for i in items]).replace({None: np.nan})
+            return self.predictor.inference(df)
 
     @otel_metric
     def predict_by_id(self, sk_id: int):
-        minio_client = self.cfg.get_minio_client()
-        response = minio_client.get_object("sample-data", "data/application_test.csv")
-        df_all = pd.read_csv(BytesIO(response.read()))
+        with tracer.start_as_current_span("predict_by_id") as processors:
+            with tracer.start_as_current_span(
+                "data-loader", links=[trace.Link(processors.get_span_context())]
+            ):
+                minio_client = self.cfg.get_minio_client()
+                response = minio_client.get_object(
+                    "sample-data", "data/application_test.csv"
+                )
+                df_all = pd.read_csv(BytesIO(response.read()))
 
-        row = df_all[df_all["SK_ID_CURR"] == sk_id]
-        if row.empty:
-            return {"error": f"ID {sk_id} not found"}
-        return self.predictor.inference(row)
+                row = df_all[df_all["SK_ID_CURR"] == sk_id]
+                if row.empty:
+                    return {"error": f"ID {sk_id} not found"}
+            return self.predictor.inference(row)
 
 
 # ----------------------------------------------------------------------

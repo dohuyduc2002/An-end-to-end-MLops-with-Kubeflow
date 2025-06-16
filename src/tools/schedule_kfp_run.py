@@ -1,5 +1,5 @@
 import argparse
-from utils import KFPClientManager, create_recurring_run_with_params, get_runs_reponse
+from tools.cicd_utils import KFPClientManager, create_recurring_run_with_params, get_runs_reponse
 
 # Due to running Kubeflow Pipeline outside cluster, we need to insantiate client through ClientManager class 
 # This class will handle authentication and client creation by disable TLS, and get session cookies

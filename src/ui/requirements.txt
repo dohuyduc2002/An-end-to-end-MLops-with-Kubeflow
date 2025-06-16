@@ -1,0 +1,5 @@
+json
+streamlit
+requests
+dotenv
+data_class

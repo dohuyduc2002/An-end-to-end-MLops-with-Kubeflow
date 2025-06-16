@@ -1,0 +1,40 @@
+provisionDataStore:
+  cassandra: false
+allInOne:
+  enabled: true
+  extraEnv:
+    - name: QUERY_BASE_PATH
+      value: /jaeger
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 256m
+      memory: 128Mi
+  ingress:
+    enabled: true
+    # For Kubernetes >= 1.18 you should specify the ingress-controller via the field ingressClassName
+    # See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#specifying-the-class-of-an-ingress
+    ingressClassName: nginx
+    # Used to create an Ingress record.
+    hosts:
+      - jaeger.ducdh.com
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      kubernetes.io/tls-acme: "true"
+    labels:
+      app: jaeger
+    # tls:
+    #   # Secrets must be manually created in the namespace.
+    #   - secretName: chart-example-tls
+    #     hosts:
+    #       - chart-example.local
+storage:
+  type: memory
+agent:
+  enabled: false
+collector:
+  enabled: false
+query:
+  enabled: false

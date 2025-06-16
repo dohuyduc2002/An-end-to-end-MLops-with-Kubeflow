@@ -30,13 +30,13 @@ spec:
               value: {{ .Values.env.EVIDENTLY_WORKSPACE | quote }}
             - name: FSSPEC_S3_ENDPOINT_URL
               value: {{ .Values.env.FSSPEC_S3_ENDPOINT_URL | quote }}
-
+            - name: JAEGER_AGENT_HOST
+              value: {{ .Values.env.JAEGER_AGENT_HOST | quote }}
             - name: S3_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: {{ .Values.secrets.accessKeyIdKey }}
-
             - name: S3_SECRET_KEY
               valueFrom:
                 secretKeyRef:

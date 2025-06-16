@@ -1,4 +1,4 @@
-resource "azurerm_resource_group" "jenkins_rg" {
+resource "azurerm_resource_group" "jenkins_elk_rg" {
   name     = var.resource_group_name
   location = var.location
 }
@@ -8,13 +8,13 @@ resource "azurerm_virtual_network" "vnet" {
   name                = "${var.vm_name}-vnet"
   address_space       = ["10.0.0.0/16"]
   location            = var.location
-  resource_group_name = azurerm_resource_group.jenkins_rg.name
+  resource_group_name = azurerm_resource_group.jenkins_elk_rg.name
 }
 
 # setup a subnet, with the range 10.0.2.0/24 
 resource "azurerm_subnet" "subnet" {
   name                 = "${var.vm_name}-subnet"
-  resource_group_name  = azurerm_resource_group.jenkins_rg.name
+  resource_group_name  = azurerm_resource_group.jenkins_elk_rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.2.0/24"]
 }
@@ -23,7 +23,7 @@ resource "azurerm_subnet" "subnet" {
 resource "azurerm_network_security_group" "nsg" {
   name                = "${var.vm_name}-nsg"
   location            = var.location
-  resource_group_name = azurerm_resource_group.jenkins_rg.name
+  resource_group_name = azurerm_resource_group.jenkins_elk_rg.name
 
   security_rule {
     name                       = "AllowJenkins"
@@ -38,14 +38,14 @@ resource "azurerm_network_security_group" "nsg" {
   }
 
   security_rule {
-    name                   = "AllowSSH"
-    priority               = 1002
-    direction              = "Inbound"
-    access                 = "Allow"
-    protocol               = "Tcp"
-    destination_port_range = "22"
-    source_address_prefix  = "*"
-    source_port_range      = "*"
+    name                       = "AllowSSH"
+    priority                   = 1002
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
     destination_address_prefix = "*"
   }
 
@@ -61,13 +61,63 @@ resource "azurerm_network_security_group" "nsg" {
     destination_address_prefix = "*"
   }
 
+    security_rule {
+    name                       = "Allow_Kibana"
+    priority                   = 1004
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    destination_port_range     = "5601"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+  }
+
+  # --- Elasticsearch HTTP ------------------------------------------
+  security_rule {
+    name                       = "Allow_Elasticsearch_HTTP"
+    priority                   = 1005
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    destination_port_range     = "9200"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+  }
+
+  # --- Logstash Beats input ----------------------------------------
+  security_rule {
+    name                       = "Allow_Logstash_Beats"
+    priority                   = 1006
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    destination_port_range     = "5044"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "Allow_Logstash_Monitor"
+    priority                   = 1007
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    destination_port_range     = "9600"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+  }
+
 }
 
 # setup a public IP address, which will be used to access the VM
 resource "azurerm_public_ip" "public_ip" {
   name                = "${var.vm_name}-public-ip"
   location            = var.location
-  resource_group_name = azurerm_resource_group.jenkins_rg.name
+  resource_group_name = azurerm_resource_group.jenkins_elk_rg.name
   allocation_method   = "Dynamic"
   sku                 = "Basic"
 }
@@ -76,7 +126,7 @@ resource "azurerm_public_ip" "public_ip" {
 resource "azurerm_network_interface" "nic" {
   name                = "${var.vm_name}-nic"
   location            = var.location
-  resource_group_name = azurerm_resource_group.jenkins_rg.name
+  resource_group_name = azurerm_resource_group.jenkins_elk_rg.name
 
   ip_configuration {
     name                          = "internal"
@@ -92,9 +142,9 @@ resource "azurerm_network_interface_security_group_association" "nic_nsg" {
   network_security_group_id = azurerm_network_security_group.nsg.id
 }
 
-resource "azurerm_linux_virtual_machine" "jenkins_vm" {
+resource "azurerm_linux_virtual_machine" "jenkins_elk_vm" {
   name                  = var.vm_name
-  resource_group_name   = azurerm_resource_group.jenkins_rg.name
+  resource_group_name   = azurerm_resource_group.jenkins_elk_rg.name
   location              = var.location
   size                  = "Standard_A2_v2"
   admin_username        = var.admin_username

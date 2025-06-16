@@ -7,36 +7,55 @@ packages:
   - curl
   - gnupg
   - lsb-release
+  - git
+
+write_files: # settings for Elasticsearch, refer to https://www.elastic.co/docs/deploy-manage/deploy/self-managed/vm-max-map-count
+  - path: /etc/sysctl.d/99-elasticsearch.conf
+    content: |
+      vm.max_map_count = 262144
 
 runcmd:
-  # Add docker repo
+  # 1. Docker + Compose plugin
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
   - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
   - apt-get update
-  - apt-get install -y docker-ce docker-ce-cli containerd.io
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin git
 
-  # Add docker permissions for user
+  # 2. add user to docker group (require re-login)
   - usermod -aG docker ducdh
 
-  # Add domain mappings to /etc/hosts
-  - echo "35.192.103.219 kubeflow.ducdh.com" >> /etc/hosts
-  - echo "35.239.155.17 minio.ducdh.com" >> /etc/hosts
-  - echo "35.239.155.17 mlflow.ducdh.com" >> /etc/hosts
+  # 3. Apply sysctl settings for Elasticsearch
+  - sysctl --system
 
-  # Create Jenkins home dir
+  # 4. Clone docker-elk
+  - mkdir -p /home/ducdh/docker-elk
+  - su - ducdh -c "git clone https://github.com/dohuyduc2002/docker-elk.git /home/ducdh/docker-elk"
+
+  # 5. add kubeflow, minio, mlflow to /etc/hosts for CICD 
+  - echo "34.29.169.238 kubeflow.ducdh.com" >> /etc/hosts
+  - echo "35.202.204.200 minio.ducdh.com" >> /etc/hosts
+  - echo "35.202.204.200 mlflow.ducdh.com" >> /etc/hosts
+
+  # 6. Create Jenkins home directory
   - mkdir -p /var/jenkins_home
 
-  # Start Docker and run Jenkins with /etc/hosts mounted
-  - systemctl start docker
+  # 7. Enable + start Docker
   - systemctl enable docker
-  - >
-    docker run -d
-    --restart=unless-stopped
-    -p 8080:8080
-    -p 50000:50000
-    --name jenkins
-    --user root
-    -v /etc/hosts:/etc/hosts:ro
-    -v /var/jenkins_home:/var/jenkins_home
-    -v /var/run/docker.sock:/var/run/docker.sock
-    microwave1005/custom-jenkins
+  - systemctl start docker
+
+  # 8. Start Jenkins container
+  - |
+    docker run -d \
+      --restart=unless-stopped \
+      -p 8080:8080 \
+      -p 50000:50000 \
+      --name jenkins \
+      --user root \
+      -v /etc/hosts:/etc/hosts:ro \
+      -v /var/jenkins_home:/var/jenkins_home \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      microwave1005/custom-jenkins
+
+  # 9.Start docker-elk 
+  - docker compose -f /home/ducdh/docker-elk/docker-compose.yml --profile=setup up setup
+  - docker compose -f /home/ducdh/docker-elk/docker-elk/docker-compose.yml up -d

@@ -1,5 +1,5 @@
 variable "resource_group_name" {
-  default = "jenkins-rg"
+  default = "jenkins-elk-rg"
 }
 
 variable "location" {
@@ -7,7 +7,7 @@ variable "location" {
 }
 
 variable "vm_name" {
-  default = "jenkins-vm"
+  default = "jenkins-elk-vm"
 }
 
 variable "admin_username" {

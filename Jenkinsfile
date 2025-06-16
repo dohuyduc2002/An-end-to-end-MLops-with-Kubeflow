@@ -99,7 +99,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        PYTHONPATH=src pytest -m unittest tests/
+                        pytest
                         echo "[INFO] Failing if coverage < 80%"
                         coverage report --fail-under=80
                     '''

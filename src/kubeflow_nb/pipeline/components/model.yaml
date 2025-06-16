@@ -1,0 +1,241 @@
+# PIPELINE DEFINITION
+# Name: modeling
+# Inputs:
+#    experiment_name: str
+#    minio_access_key: str
+#    minio_endpoint: str
+#    minio_secret_key: str
+#    mlflow_endpoint: str
+#    mlflow_run_id: system.Artifact
+#    model_name: str
+#    suffix: str
+#    test_csv: system.Dataset
+#    train_csv: system.Dataset
+# Outputs:
+#    model_joblib: system.Artifact
+#    registered_model: system.Artifact
+components:
+  comp-modeling:
+    executorLabel: exec-modeling
+    inputDefinitions:
+      artifacts:
+        mlflow_run_id:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        experiment_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        mlflow_endpoint:
+          parameterType: STRING
+        model_name:
+          parameterType: STRING
+        suffix:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        model_joblib:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        registered_model:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-modeling:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - modeling
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef modeling(\n    train_csv: Input[Dataset],\n    test_csv: Input[Dataset],\n\
+          \    model_joblib: Output[Artifact],\n    registered_model: Output[Artifact],\n\
+          \    mlflow_run_id: Input[Artifact],\n    minio_endpoint:str,\n    minio_access_key:\
+          \ str,\n    minio_secret_key: str,\n    mlflow_endpoint: str,\n    experiment_name:\
+          \ str,\n    model_name: str,\n    suffix: str,\n):\n    import os\n    import\
+          \ json \n    import optuna \n    import shap \n    import joblib\n    import\
+          \ matplotlib.pyplot as plt\n    import pandas as pd\n    from pathlib import\
+          \ Path\n    import mlflow, xgboost as xgb\n    from lightgbm import LGBMClassifier\n\
+          \    from sklearn.model_selection import train_test_split\n    from sklearn.metrics\
+          \ import accuracy_score, classification_report\n\n    os.environ[\"MLFLOW_S3_ENDPOINT_URL\"\
+          ] = f\"http://{minio_endpoint}\"\n    os.environ[\"AWS_ACCESS_KEY_ID\"]\
+          \ = minio_access_key\n    os.environ[\"AWS_SECRET_ACCESS_KEY\"] = minio_secret_key\n\
+          \    os.environ[\"MLFLOW_ENDPOINT\"] = f\"http://{mlflow_endpoint}\"\n\n\
+          \    def get_mlflow_parent_run(mlflow_endpoint, experiment_name, mlflow_run_id_path):\n\
+          \        mlflow.set_tracking_uri(f\"http://{mlflow_endpoint}\")\n      \
+          \  mlflow.set_experiment(experiment_name)\n        parent_id: str = Path(mlflow_run_id_path).read_text().strip()\n\
+          \        mlflow.end_run()  # ensure any existing run is closed\n       \
+          \ return parent_id\n\n    def build_objective(X, y, model_name, suffix):\n\
+          \        def objective(trial):\n            params = {\n               \
+          \ \"max_depth\": trial.suggest_int(\"max_depth\", 2, 8),\n             \
+          \   \"learning_rate\": trial.suggest_float(\"learning_rate\", 1e-3, 0.3,\
+          \ log=True),\n                \"n_estimators\": trial.suggest_int(\"n_estimators\"\
+          , 100, 300),\n                \"subsample\": trial.suggest_float(\"subsample\"\
+          , 0.5, 1.0),\n                \"colsample_bytree\": trial.suggest_float(\"\
+          colsample_bytree\", 0.5, 1.0),\n            }\n\n            X_train, X_val,\
+          \ y_train, y_val = train_test_split(\n                X, y, test_size=0.2,\
+          \ random_state=42\n            )\n\n            clf = (\n              \
+          \  xgb.XGBClassifier(eval_metric=\"auc\", **params)\n                if\
+          \ model_name == \"xgb\"\n                else LGBMClassifier(**params)\n\
+          \            )\n\n            # ----- Hyperparameter optimization -----\n\
+          \            with mlflow.start_run(\n                nested=True, run_name=f\"\
+          optuna_{trial.number}\"\n            ) as trial_run:\n                clf.fit(X_train,\
+          \ y_train)\n                acc = accuracy_score(y_val, clf.predict(X_val))\n\
+          \n                mlflow.log_params(params)\n                mlflow.log_metric(\"\
+          accuracy\", acc)\n\n                # log model\n                if model_name\
+          \ == \"xgb\":\n                    mlflow.xgboost.log_model(clf, artifact_path=\"\
+          model\")\n                else:\n                    mlflow.lightgbm.log_model(clf,\
+          \ artifact_path=\"model\")\n\n                # root artifact dir\n    \
+          \            art_dir = \"/tmp/trial_artifacts\"\n                os.makedirs(art_dir,\
+          \ exist_ok=True)\n\n                expl = shap.Explainer(clf)\n       \
+          \         shap_vals = expl(X_val)\n                plt.figure()\n      \
+          \          shap.summary_plot(shap_vals, X_val, show=False)\n           \
+          \     shap_path = f\"{art_dir}/shap.png\"\n                plt.savefig(shap_path)\n\
+          \                plt.close()\n\n                report_txt = f\"{art_dir}/report.txt\"\
+          \n                report = classification_report(y_val, clf.predict(X_val))\n\
+          \                Path(report_txt).write_text(report)\n\n               \
+          \ joblib_path = f\"{art_dir}/model_{trial.number}.joblib\"\n           \
+          \     joblib.dump(clf, joblib_path)\n\n                mlflow.log_artifacts(art_dir,\
+          \ artifact_path=\"trial_artifacts\")\n\n                trial.set_user_attr(\"\
+          mlflow_run_id\", trial_run.info.run_id)\n\n            return acc\n\n  \
+          \      return objective\n\n    def run_optuna_study(objective, n_trials=5):\n\
+          \        study = optuna.create_study(direction=\"maximize\")\n        study.optimize(objective,\
+          \ n_trials=n_trials)\n        best_trial = study.best_trial\n        best_run_id\
+          \ = best_trial.user_attrs[\"mlflow_run_id\"]\n        return best_trial,\
+          \ best_run_id\n\n    # ===== Pipeline =====\n    parent_id = get_mlflow_parent_run(\n\
+          \        mlflow_endpoint, experiment_name, mlflow_run_id.path\n    )\n \
+          \   df = pd.read_csv(train_csv.path)\n    X, y = df.drop(\"TARGET\", axis=1),\
+          \ df[\"TARGET\"]\n\n    with mlflow.start_run(run_id=parent_id):\n     \
+          \   objective = build_objective(X, y, model_name, suffix)\n        best_trial,\
+          \ best_run_id = run_optuna_study(objective, n_trials=5)\n        best_model_uri\
+          \ = f\"runs:/{best_run_id}/model\"\n        registry = mlflow.register_model(best_model_uri,\
+          \ name=f\"{model_name}_{suffix}\")\n\n    Path(registered_model.path).parent.mkdir(parents=True,\
+          \ exist_ok=True)\n    Path(registered_model.path).write_text(\n        json.dumps(\n\
+          \            {\n                \"parent_run\": parent_id,\n           \
+          \     \"best_trial\": best_trial.number,\n                \"best_trial_run\"\
+          : best_run_id,\n                \"registered\": {\"name\": registry.name,\
+          \ \"version\": registry.version},\n            },\n            indent=2,\n\
+          \        )\n    )\n\n"
+        image: microwave1005/scipy-img:latest
+pipelineInfo:
+  name: modeling
+root:
+  dag:
+    outputs:
+      artifacts:
+        model_joblib:
+          artifactSelectors:
+          - outputArtifactKey: model_joblib
+            producerSubtask: modeling
+        registered_model:
+          artifactSelectors:
+          - outputArtifactKey: registered_model
+            producerSubtask: modeling
+    tasks:
+      modeling:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-modeling
+        inputs:
+          artifacts:
+            mlflow_run_id:
+              componentInputArtifact: mlflow_run_id
+            test_csv:
+              componentInputArtifact: test_csv
+            train_csv:
+              componentInputArtifact: train_csv
+          parameters:
+            experiment_name:
+              componentInputParameter: experiment_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            mlflow_endpoint:
+              componentInputParameter: mlflow_endpoint
+            model_name:
+              componentInputParameter: model_name
+            suffix:
+              componentInputParameter: suffix
+        taskInfo:
+          name: modeling
+  inputDefinitions:
+    artifacts:
+      mlflow_run_id:
+        artifactType:
+          schemaTitle: system.Artifact
+          schemaVersion: 0.0.1
+      test_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+      train_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+    parameters:
+      experiment_name:
+        parameterType: STRING
+      minio_access_key:
+        parameterType: STRING
+      minio_endpoint:
+        parameterType: STRING
+      minio_secret_key:
+        parameterType: STRING
+      mlflow_endpoint:
+        parameterType: STRING
+      model_name:
+        parameterType: STRING
+      suffix:
+        parameterType: STRING
+  outputDefinitions:
+    artifacts:
+      model_joblib:
+        artifactType:
+          schemaTitle: system.Artifact
+          schemaVersion: 0.0.1
+      registered_model:
+        artifactType:
+          schemaTitle: system.Artifact
+          schemaVersion: 0.0.1
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1

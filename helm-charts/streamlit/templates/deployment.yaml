@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "streamlit-chart.fullname" . }}
+  labels:
+    {{- include "streamlit-chart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "streamlit-chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "streamlit-chart.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: streamlit
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8501
+          env:
+            - name: PREDICTION_API_URL
+              value: {{ .Values.env.PREDICTION_API_URL | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
