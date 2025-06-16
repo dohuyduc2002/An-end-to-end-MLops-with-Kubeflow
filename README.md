@@ -431,7 +431,7 @@ Grafana is a powerful open-source analytics and monitoring solution that integra
 
 vid custom otel grafana dashboard
 
-![Custom Grafana dashboard](media/graf_predict.png)
+![Custom Grafana dashboard](media/custom_graf.png)
 
 
 You can also check other Grafana dashboards in [Grafana lab](https://grafana.com/grafana/dashboards/), in this project, I'm using Node Exporter Full dashboard to monitor the all cluster nodes.
@@ -468,7 +468,7 @@ helm install jaeger jaegertracing/jaeger \
 ```
 
 ![Jaeger](media/jaeger.png)
-### Serve model with FastAPI and collect log 
+### API Endpoint
 In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpieline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 
 
 I'm also collecting prediction log using OpenTelemetry Instrument and send it back to Prometheus via `service-monitor.yaml` deployment. The metrics dashboard is created in Grafana throguh a configmap that created above .
@@ -482,14 +482,14 @@ In this section, we will use the manual way to deploy the endpoint API.
 **You have to build docker image for the endpoint API first which is `dockerfiles/Dockerfile.app`** 
 ```bash
 docker build --no-cache\
-  -t microwave1005/prediction-api:v0.4 \
+  -t microwave1005/prediction-api:v0.5 \
   -t microwave1005/prediction-api:latest \
   -f dockerfiles/Dockerfile.app \
   --build-arg MODEL_NAME=xgb_underwrite \
   --build-arg MODEL_TYPE=xgb \
   .
 docker push microwave1005/prediction-api:latest
-docker push microwave1005/prediction-api:v0.4
+docker push microwave1005/prediction-api:v0.5
 ```
 
 In case your machine is using ARM architecture (eg Mac m1,...), you can build image like this 
@@ -529,7 +529,7 @@ helm install api ./helm-charts/api \
   --namespace api \
   --set version=v0.1 \
   --set monitoring.enabled=true \
-  --set image.tag=v0.4 \
+  --set image.tag=v0.5 \
   --set replicaCount=1 \
   --set env.PARENT_RUN_ID=11d2d8ee8e374fc8b7cc189ebdcf4551 \
   --set env.EVIDENTLY_WORKSPACE=http://35.202.112.5:8000/ \
