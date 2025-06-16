@@ -1,0 +1,5 @@
+apiVersion: v2
+name: evidently-ui
+description: Evidently Monitoring UI on MinIO/S3
+version: 0.1.0
+appVersion: "1.0"

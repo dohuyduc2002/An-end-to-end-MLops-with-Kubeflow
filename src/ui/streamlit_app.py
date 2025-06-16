@@ -3,7 +3,7 @@ import json
 import streamlit as st
 import requests
 from dotenv import load_dotenv
-from data_class import RawItem
+from description import FIELD_DESCRIPTIONS
 
 # Load API URL
 load_dotenv()
@@ -30,10 +30,8 @@ tab1, tab2 = st.tabs(["📝 Predict by JSON Input", "🔎 Predict by SK_ID_CURR"
 with tab1:
     st.header("Predict by JSON Input")
 
-    with st.expander("📖 Reference: Available Fields"):
-        for field_name, field_info in RawItem.__fields__.items():
-            field_type = field_info.outer_type_
-            st.markdown(f"**{field_name}**: `{field_type}`")
+    with st.expander("📖 Reference: Input Field Descriptions"):
+        st.dataframe(FIELD_DESCRIPTIONS)
 
     user_input = st.text_area(
         "✍️ Paste or edit your prediction input here (format: List[Dict])",

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: evidently-ui
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: evidently-ui
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+

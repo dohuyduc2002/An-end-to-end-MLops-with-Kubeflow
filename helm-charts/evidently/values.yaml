@@ -1,0 +1,22 @@
+image:
+  repository: evidently/evidently-service
+  tag: 0.7.7
+  pullPolicy: IfNotPresent
+
+minio:
+  endpoint: http://minio.ducdh.com
+  accessKey: minio
+  secretKey: minio123
+
+service:
+  type: LoadBalancer      
+  port: 8000
+  targetPort: 8000
+
+ingress:
+  enabled: true
+  className: nginx    
+  host: evidently.ducdh.com
+  path: /
+
+  

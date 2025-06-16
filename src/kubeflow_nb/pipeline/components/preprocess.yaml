@@ -1,0 +1,276 @@
+# PIPELINE DEFINITION
+# Name: preprocess
+# Inputs:
+#    experiment_name: str
+#    minio_access_key: str
+#    minio_endpoint: str
+#    minio_secret_key: str
+#    mlflow_endpoint: str
+#    n_features_to_select: str
+#    parent_run_name: str
+#    test_csv: system.Dataset
+#    train_csv: system.Dataset
+# Outputs:
+#    mlflow_run_id: system.Artifact
+#    output_test_csv: system.Dataset
+#    output_train_csv: system.Dataset
+#    transformer_joblib: system.Artifact
+components:
+  comp-preprocess:
+    executorLabel: exec-preprocess
+    inputDefinitions:
+      artifacts:
+        test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        experiment_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        mlflow_endpoint:
+          parameterType: STRING
+        n_features_to_select:
+          parameterType: STRING
+        parent_run_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        mlflow_run_id:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        output_test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        output_train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        transformer_joblib:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-preprocess:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - preprocess
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef preprocess(\n    train_csv: Input[Dataset],\n    test_csv: Input[Dataset],\n\
+          \    transformer_joblib: Output[Artifact],\n    output_train_csv: Output[Dataset],\n\
+          \    output_test_csv: Output[Dataset],\n    mlflow_run_id: Output[Artifact],\n\
+          \    minio_endpoint:str,\n    minio_access_key: str,\n    minio_secret_key:\
+          \ str,\n    mlflow_endpoint: str,\n    parent_run_name: str,\n    n_features_to_select:\
+          \ str,\n    experiment_name: str,\n):\n\n    import os\n    import pandas\
+          \ as pd\n    import numpy as np\n    import joblib\n    from pathlib import\
+          \ Path\n    import mlflow\n    from optbinning import BinningProcess\n \
+          \   from sklearn.feature_selection import SelectKBest, f_classif\n\n   \
+          \ os.environ[\"MLFLOW_S3_ENDPOINT_URL\"] = f\"http://{minio_endpoint}\"\n\
+          \    os.environ[\"AWS_ACCESS_KEY_ID\"] = minio_access_key\n    os.environ[\"\
+          AWS_SECRET_ACCESS_KEY\"] = minio_secret_key\n    os.environ[\"MLFLOW_ENDPOINT\"\
+          ] = f\"http://{mlflow_endpoint}\"\n\n    # Data processing functions\n\n\
+          \    def get_lists(df):\n        numeric = df.select_dtypes(include=[\"\
+          int64\", \"float64\"]).columns.tolist()\n        category = df.select_dtypes(include=[\"\
+          object\"]).columns.tolist()\n        for column in (\"SK_ID_CURR\", \"TARGET\"\
+          ):\n            if column in numeric:\n                numeric.remove(column)\n\
+          \        return category, numeric\n\n    def iv_score(bins, y):\n      \
+          \  df = pd.DataFrame({\"bins\": bins, \"target\": y})\n        total_good,\
+          \ total_bad = (df.target == 0).sum(), (df.target == 1).sum()\n        score\
+          \ = 0\n        for _, goods in df.groupby(\"bins\"):\n            good =\
+          \ (goods.target == 0).sum() or 0.5\n            bad = (goods.target == 1).sum()\
+          \ or 0.5\n            score += (good / total_good - bad / total_bad) * np.log(\n\
+          \                (good / total_good) / (bad / total_bad)\n            )\n\
+          \        return score\n\n    def select_survivors(\n        df_train, cat_cols,\
+          \ num_cols, iv_min=0.02, iv_max=0.5, missing_thres=0.1\n    ):\n       \
+          \ y = df_train[\"TARGET\"]\n        X_train = df_train.drop(\"TARGET\",\
+          \ axis=1)\n        survivors = []\n        for feature in cat_cols + num_cols:\n\
+          \            missing_rate = X_train[feature].isna().mean()\n           \
+          \ if missing_rate > missing_thres:\n                continue  # Exclude\
+          \ features with more than 10% missing values\n\n            # Calulate iv\
+          \ scoore by using quantile cut if large bin or\n            if feature in\
+          \ cat_cols:\n                # pd.factorize for categorical features to\
+          \ label encode them\n                bins = pd.factorize(X_train[feature].fillna(\"\
+          missing\"))[0]\n            else:\n                # if numeric feature\
+          \ has more than is high cardinal (more than 10) use qcut, else use cut with\
+          \ quantile is the nunique value\n                if X_train[feature].nunique()\
+          \ > 10:\n                    bins = pd.qcut(\n                        X_train[feature].fillna(X_train[feature].median()),\n\
+          \                        10,\n                        duplicates=\"drop\"\
+          ,\n                        labels=False,\n                    )\n      \
+          \          else:\n                    bins = pd.cut(\n                 \
+          \       X_train[feature].fillna(X_train[feature].median()),\n          \
+          \              bins=X_train[feature].nunique(),\n                      \
+          \  labels=False,\n                    )\n            iv = iv_score(bins,\
+          \ y)\n            if iv_min <= iv <= iv_max:\n                survivors.append(feature)\n\
+          \        return survivors\n\n    def fit_binning(X_train, X_test, y, survivors,\
+          \ cat_cols):\n        # After filtering with iv and missing rate, we can\
+          \ proceed with binning\n        opt_binning_process = BinningProcess(\n\
+          \            variable_names=survivors,\n            categorical_variables=[col\
+          \ for col in survivors if col in cat_cols],\n        )\n        opt_binning_process.fit(X_train[survivors].values,\
+          \ y)\n        df_train_binned = pd.DataFrame(\n            opt_binning_process.transform(X_train[survivors].values),\
+          \ columns=survivors\n        )\n\n        # Due to test set does not have\
+          \ TARGET col, we cannot use iv\n        df_test_binned = pd.DataFrame(\n\
+          \            opt_binning_process.transform(X_test[survivors].values), columns=survivors\n\
+          \        )\n        return opt_binning_process, df_train_binned, df_test_binned\n\
+          \n    def fit_selector(df_train_binned, df_test_binned, y, n_features_to_select):\n\
+          \        # Feature selection using anova F-test as a score function\n\n\
+          \        k = (len(df_train_binned.columns) if n_features_to_select == \"\
+          auto\" else int(n_features_to_select))\n        selector = SelectKBest(f_classif,\
+          \ k=k)\n        selector.fit(df_train_binned.fillna(0), y)\n\n        keep\
+          \ = df_train_binned.columns[selector.get_support()]\n        out_train =\
+          \ pd.DataFrame(selector.transform(df_train_binned), columns=keep)\n    \
+          \    out_test = pd.DataFrame(selector.transform(df_test_binned), columns=keep)\n\
+          \        out_train[\"TARGET\"] = y\n        return selector, out_train,\
+          \ out_test\n\n\n    # ========== Pipeline ==========\n    df_train = pd.read_csv(train_csv.path)\n\
+          \    df_test = pd.read_csv(test_csv.path)\n\n    cat_cols, num_cols = get_lists(df_train)\n\
+          \    survivors = select_survivors(df_train, cat_cols, num_cols)\n    y =\
+          \ df_train[\"TARGET\"]\n    X_train, X_test = df_train.drop(\"TARGET\",\
+          \ axis=1), df_test.copy()\n\n    opt_binning_process, df_train_binned, df_test_binned\
+          \ = fit_binning(\n        X_train, X_test, y, survivors, cat_cols\n    )\n\
+          \    selector, out_train, out_test = fit_selector(\n        df_train_binned,\
+          \ df_test_binned, y, n_features_to_select\n    )\n\n    # Save and log artifacts\
+          \ to MLflow\n    mlflow.set_tracking_uri(os.environ[\"MLFLOW_ENDPOINT\"\
+          ])\n    mlflow.set_experiment(experiment_name)\n    with mlflow.start_run(run_name=parent_run_name)\
+          \ as parent:\n        parent_id = parent.info.run_id\n        joblib.dump(\n\
+          \            {\"opt_binning_process\": opt_binning_process, \"selector\"\
+          : selector},\n            \"/tmp/transformer.joblib\",\n        )\n    \
+          \    out_train.to_csv(\"/tmp/output_train.csv\", index=False)\n        out_test.to_csv(\"\
+          /tmp/output_test.csv\", index=False)\n        mlflow.log_artifact(\"/tmp/transformer.joblib\"\
+          , artifact_path=\"prep\")\n        mlflow.log_artifact(\"/tmp/output_train.csv\"\
+          , artifact_path=\"prep\")\n        mlflow.log_artifact(\"/tmp/output_test.csv\"\
+          , artifact_path=\"prep\")\n\n    Path(mlflow_run_id.path).parent.mkdir(parents=True,\
+          \ exist_ok=True)\n    Path(mlflow_run_id.path).write_text(parent_id)\n\n\
+          \    # save to KFP artifact\n    Path(transformer_joblib.path).parent.mkdir(parents=True,\
+          \ exist_ok=True)\n    joblib.dump(\n        {\"opt_binning_process\": opt_binning_process,\
+          \ \"selector\": selector},\n        transformer_joblib.path,\n    )\n  \
+          \  out_train.to_csv(output_train_csv.path, index=False)\n    out_test.to_csv(output_test_csv.path,\
+          \ index=False)\n\n"
+        image: microwave1005/scipy-img:latest
+pipelineInfo:
+  name: preprocess
+root:
+  dag:
+    outputs:
+      artifacts:
+        mlflow_run_id:
+          artifactSelectors:
+          - outputArtifactKey: mlflow_run_id
+            producerSubtask: preprocess
+        output_test_csv:
+          artifactSelectors:
+          - outputArtifactKey: output_test_csv
+            producerSubtask: preprocess
+        output_train_csv:
+          artifactSelectors:
+          - outputArtifactKey: output_train_csv
+            producerSubtask: preprocess
+        transformer_joblib:
+          artifactSelectors:
+          - outputArtifactKey: transformer_joblib
+            producerSubtask: preprocess
+    tasks:
+      preprocess:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-preprocess
+        inputs:
+          artifacts:
+            test_csv:
+              componentInputArtifact: test_csv
+            train_csv:
+              componentInputArtifact: train_csv
+          parameters:
+            experiment_name:
+              componentInputParameter: experiment_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            mlflow_endpoint:
+              componentInputParameter: mlflow_endpoint
+            n_features_to_select:
+              componentInputParameter: n_features_to_select
+            parent_run_name:
+              componentInputParameter: parent_run_name
+        taskInfo:
+          name: preprocess
+  inputDefinitions:
+    artifacts:
+      test_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+      train_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+    parameters:
+      experiment_name:
+        parameterType: STRING
+      minio_access_key:
+        parameterType: STRING
+      minio_endpoint:
+        parameterType: STRING
+      minio_secret_key:
+        parameterType: STRING
+      mlflow_endpoint:
+        parameterType: STRING
+      n_features_to_select:
+        parameterType: STRING
+      parent_run_name:
+        parameterType: STRING
+  outputDefinitions:
+    artifacts:
+      mlflow_run_id:
+        artifactType:
+          schemaTitle: system.Artifact
+          schemaVersion: 0.0.1
+      output_test_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+      output_train_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+      transformer_joblib:
+        artifactType:
+          schemaTitle: system.Artifact
+          schemaVersion: 0.0.1
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1
