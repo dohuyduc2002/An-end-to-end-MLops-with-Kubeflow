@@ -1,7 +1,7 @@
 # 🛠 End to End Credit Scoring System on Customized Kubeflow Platform
 An platform for Data Science team to build and serve ML model using multi cloud environment (GCP and Azure) with CI/CD pipeline, monitoring. This project leverages Kubeflow, MLflow, Minio, Prometheus, Grafana, Evidently and FastAPI to build a complete a ML system. 
 
-![Diagram](media/diagram_1.jpg)
+![Diagram](media/diagram2.svg)
 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
 
@@ -482,14 +482,14 @@ In this section, we will use the manual way to deploy the endpoint API.
 **You have to build docker image for the endpoint API first which is `dockerfiles/Dockerfile.app`** 
 ```bash
 docker build --no-cache\
-  -t microwave1005/prediction-api:v0.2 \
+  -t microwave1005/prediction-api:v0.4 \
   -t microwave1005/prediction-api:latest \
   -f dockerfiles/Dockerfile.app \
   --build-arg MODEL_NAME=xgb_underwrite \
   --build-arg MODEL_TYPE=xgb \
   .
 docker push microwave1005/prediction-api:latest
-docker push microwave1005/prediction-api:v0.2
+docker push microwave1005/prediction-api:v0.4
 ```
 
 In case your machine is using ARM architecture (eg Mac m1,...), you can build image like this 
@@ -529,7 +529,7 @@ helm install api ./helm-charts/api \
   --namespace api \
   --set version=v0.1 \
   --set monitoring.enabled=true \
-  --set image.tag=v0.2 \
+  --set image.tag=v0.4 \
   --set replicaCount=1 \
   --set env.PARENT_RUN_ID=11d2d8ee8e374fc8b7cc189ebdcf4551 \
   --set env.EVIDENTLY_WORKSPACE=http://35.202.112.5:8000/ \

@@ -46,8 +46,8 @@ class MetricsHandler:
         )
 
     def update(self, ents: List[float], confs: List[float]):
-        self._avg_entropy = float(np.mean(ents))
-        self._avg_confidence = float(np.mean(confs))
+        self.avg_entropy = float(np.mean(ents))
+        self.avg_confidence = float(np.mean(confs))
 
 
 # ----------------------------------------------------------------------
