@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/your-org/streamlit-ui   
+  repository: microwave1005/streamlit-app   
   tag: "latest"
   pullPolicy: IfNotPresent
 

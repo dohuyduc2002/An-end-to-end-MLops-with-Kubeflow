@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY src/ui /app/
-COPY tests/sample_payload.json /app/ui/sample_payload.json
+
+COPY tests/sample_payload.json /app/sample_payload.json
 
 RUN pip install --no-cache-dir -r requirements.txt
 

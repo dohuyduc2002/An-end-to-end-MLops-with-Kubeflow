@@ -98,9 +98,9 @@ class PredictionService:
 
     @otel_metric
     def predict_by_id(self, sk_id: int):
-        with tracer.start_as_current_span("predict_by_id") as processors:
+        with tracer.start_as_current_span("predict_by_id") as span:
             with tracer.start_as_current_span(
-                "data-loader", links=[trace.Link(processors.get_span_context())]
+                "data-loader", links=[trace.Link(span.get_span_context())]
             ):
                 minio_client = self.cfg.get_minio_client()
                 response = minio_client.get_object(
@@ -138,7 +138,7 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/Prediction")
+@app.post("/prediction")
 def predict(
     items: List[RawItem] = Body(...),
     service: PredictionService = Depends(get_service),
@@ -146,30 +146,42 @@ def predict(
     return service.predict_items(items)
 
 
-@app.post("/Prediction-by-id")
+@app.post("/prediction-by-id")
 def predict_by_id(id: int, service: PredictionService = Depends(get_service)):
     return service.predict_by_id(id)
 
 
 @app.get("/data-monitor")
 def data_monitor(service: PredictionService = Depends(get_service)):
-    cfg = service.cfg
-    workspace_path = cfg.evidently_workspace
-    evidently_ws = RemoteWorkspace(workspace_path)
+    with tracer.start_as_current_span("data_monitor") as span:
+        with tracer.start_as_current_span(
+            "data-drift-loader", links=[trace.Link(span.get_span_context())]
+        ):
+            cfg = service.cfg
+            workspace_path = cfg.evidently_workspace
+            evidently_ws = RemoteWorkspace(workspace_path)
 
-    project_name = "credit_underwriting"
-    project = None
-    existing = evidently_ws.search_project(project_name)
-    if existing:
-        project = existing[0]
-    else:
-        project = evidently_ws.create_project(project_name)
-        project.description = "Monitoring credit underwriting snapshots"
-        project.save()
+            project_name = "credit_underwriting"
+            project = None
+            existing = evidently_ws.search_project(project_name)
+            if existing:
+                project = existing[0]
+            else:
+                project = evidently_ws.create_project(project_name)
+                project.description = "Monitoring credit underwriting snapshots"
+                project.save()
 
-    reference_data, current_data = map_evidently_data(cfg)
-    snapshot = custom_evidently_report(reference_data, current_data)
+            reference_data, current_data = map_evidently_data(cfg)
+            snapshot = custom_evidently_report(reference_data, current_data)
 
-    evidently_ws.add_run(project.id, snapshot)
+        with tracer.start_as_current_span(
+            "evidently-report", links=[trace.Link(span.get_span_context())]
+        ):
+            evidently_ws.add_run(project.id, snapshot)
 
-    return {"status": "stored", "project_id": project.id, "project_name": project_name}
+        return {
+                "status": "stored",
+                "project_id": project.id,
+                "project_name": project_name,
+            }
+

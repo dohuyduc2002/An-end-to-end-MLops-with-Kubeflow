@@ -21,7 +21,7 @@ runcmd:
   - apt-get update
   - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin git
 
-  # 2. add user to docker group (require re-login)
+  # 2. add user to docker group 
   - usermod -aG docker ducdh
 
   # 3. Apply sysctl settings for Elasticsearch
@@ -29,7 +29,8 @@ runcmd:
 
   # 4. Clone docker-elk
   - mkdir -p /home/ducdh/docker-elk
-  - su - ducdh -c "git clone https://github.com/dohuyduc2002/docker-elk.git /home/ducdh/docker-elk"
+  - git clone https://github.com/dohuyduc2002/docker-elk.git /home/ducdh/docker-elk
+  - chown -R ducdh:ducdh /home/ducdh/docker-elk
 
   # 5. add kubeflow, minio, mlflow to /etc/hosts for CICD 
   - echo "34.29.169.238 kubeflow.ducdh.com" >> /etc/hosts
@@ -58,4 +59,4 @@ runcmd:
 
   # 9.Start docker-elk 
   - docker compose -f /home/ducdh/docker-elk/docker-compose.yml --profile=setup up setup
-  - docker compose -f /home/ducdh/docker-elk/docker-elk/docker-compose.yml up -d
+  - docker compose -f /home/ducdh/docker-elk/docker-compose.yml up -d 

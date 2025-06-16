@@ -66,23 +66,17 @@ def otel_metric(fn):
         result = fn(self, *args, **kwargs)
         latency_ms = (time() - start_time) * 1000
 
-        if isinstance(result, tuple) and len(result) == 2:
-            preds, proba = result
-            num_preds = len(preds)
+        preds, proba = result
+        num_preds = len(preds)
 
-            self.metrics.prediction_counter.add(num_preds)
-            self.metrics.prediction_latency.record(latency_ms)
+        self.metrics.prediction_counter.add(num_preds)
+        self.metrics.prediction_latency.record(latency_ms)
 
-            ents = [entropy(p) for p in proba]
-            confs = [confidence(p) for p in proba]
-            self.metrics.update(ents, confs)
-            return self._build_response(start_time, preds, proba, ents, confs)
+        ents = [entropy(p) for p in proba]
+        confs = [confidence(p) for p in proba]
+        self.metrics.update(ents, confs)
+        return self._build_response(start_time, preds, proba, ents, confs)
 
-        else:
-            print(
-                "⚠️ Skipping metrics: result not a (preds, proba) tuple with predictions"
-            )
-            return result
 
     return wrapper
 

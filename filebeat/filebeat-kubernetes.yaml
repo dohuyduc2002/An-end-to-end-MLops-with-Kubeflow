@@ -161,7 +161,7 @@ data:
     #   username: ${ELASTICSEARCH_USERNAME}
     #   password: ${ELASTICSEARCH_PASSWORD}
     output.logstash:
-      hosts: ["52.176.110.252:5044"] 
+      hosts: ["52.165.134.139:5044"] 
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -212,8 +212,6 @@ spec:
           # If using Red Hat OpenShift uncomment this:
           #privileged: true
         resources:
-          limits:
-            memory: 200Mi
           requests:
             cpu: 100m
             memory: 100Mi

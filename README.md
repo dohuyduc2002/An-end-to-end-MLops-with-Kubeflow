@@ -6,7 +6,7 @@ An platform for Data Science team to build and serve ML model using multi cloud 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
 
 ## To-Do
-- [ ] Implement Data Ingestion, Data Quality check, Data Lake, Data Warehouse, and Data Pipeline
+- [ ] Implement Data Ingestion, Data Quality check, Data Lake, Data Warehouse, and Data Pipeline in AKS
 - [ ] Implement Kafka, Flink and Spark for Data Pipeline
 - [ ] Implement online and offline feature store
 
@@ -58,7 +58,8 @@ Root
 │   ├── mlflow                          *  Custom Helm chart for MLflow
 │   ├── monitoring                      *  Custom Helm chart for Prometheus and Grafana
 │   └── evidently                       *  Custom Helm chart for Evidently
-├── Jenkinsfile                         *  Jenkins pipeline file for CI/CD
+├── filebeat                            
+│   └── filebeat-kubernetes.yaml        *  Filebeat manifest
 ├── kubeflow                            *  Kubeflow deployment files
 │   ├── dashboard                       *  Custom Kubeflow Central Dashboard
 │   ├── kfp-access                      *  Custom Kubeflow Pipelines access in Notebook
@@ -72,10 +73,12 @@ Root
 ├── README.md
 ├── src                                 *  Source code for the project
 │   ├── client                          *  Client code for the project
+│   ├── kubeflow_nb                     *  Model code from Kubeflow Notebook
 │   └── ui                              *  UI code for the project
 ├── terraform                           *  Terraform files for deploying the project
-│   ├── azure_vm                        *  Deploying Jenkins in Azure VM 
-│   └── gke                             *  Deploying the project in GKE
+│   ├── aks                             *  Deploying infrastructure in AKS
+│   ├── azure_vm                        *  Deploying Jenkins, ELK in Azure VM 
+│   └── gke                             *  Deploying infrastructure in GKE
 ├── tests                               *  Testing files for the project
 ├── Jenkinsfile                         *  Jenkins pipeline file for CI/CD
 └── pytest.ini                                             
@@ -128,14 +131,14 @@ I'm also setting up an alert manager if the system metrics is not healthy and it
 ### Setting GKE cluster
 #### Prerequisites
 After creating GCP account, create a new project and enable billing for it. You can follow the official [GCP account registration guide](https://cloud.google.com/free/docs/free-cloud-features) to create a GCP account and set up billing.
-
+![Create GCP project](media/gcp_proj1.png)
 Create a new GCP project, this will be used to deploy the GKE cluster and other GCP resources, my project is `mlops-fsds` and then `enable` these API [Compute Engine API UI](https://console.cloud.google.com/marketplace/product/google/compute.googleapis.com) and [Kubernetes Engine API UI](https://console.cloud.google.com/marketplace/product/google/container.googleapis.com) 
 
-img
-
-img
+![GCP API](media/gce.png)
 
 Because this project is running on GKE, you need to install gcloud cli to manage GCP resources. You can follow the official [Gcloud installation guide](https://cloud.google.com/sdk/docs/install).
+
+![GKE api](media/gke.png)
 
 To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account](https://console.cloud.google.com/iam-admin/serviceaccounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform/gke` folder.
 
@@ -252,6 +255,18 @@ k apply -f kubeflow/kfp-access/kfp-access.yaml
 You can also based on this template to add your own configuration button like add GCP credential, Wandb credential, etc. 
 
 ![Dashboard](media/diagram.jpg)
+
+I'm also build a custom image for Kubeflow Notebook, this image is based on the official Kubeflow Notebook image but with some additional packages installed. You can find the Dockerfile in `dockerfiles/Dockerfile.kubeflow_notebook`. 
+
+```bash
+docker build \
+  -t microwave1005/scipy-img:v0.1 \
+  -t microwave1005/scipy-img:latest \
+  -f dockerfiles/Dockerfile.kubeflow_notebook .
+
+docker push microwave1005/scipy-img:v0.1
+docker push microwave1005/scipy-img:latest
+```
 
 #### Ingress controller
 I'm using Nginx ingress controller to expose all services in this project to the internet which you can access services by domain name. In this case, I'm setting `proxy-body-size` to `5120G` to allow large file upload to Minio. I'm also set proxy timeout to `600` seconds to allow long running request in `GET` method in Evidently in the `api` for monitoring data drift.
@@ -441,7 +456,7 @@ helm install evidently ./helm-charts/evidently \
 ```
 
 ### Jaeger
-To trace the request and response in the API endpoint, I'm using Jaeger `all-in-one` deploymen in Jaeger helm chart to deploy Jaeger in this project. You can find the helm chart in `jaeger` folder which is cloned from this repo [Jaeger all-in-one helm chart](https://github.com/jaegertracing/helm-charts/tree/main/charts/jaeger)
+To trace the request and response in the API endpoint, I'm using Jaeger `all-in-one` deploymen in Jaeger helm chart to deploy Jaeger in this project. You can find the helm chart in `jaeger` folder which is cloned from this repo [Jaeger all-in-one helm chart](https://github.com/jaegertracing/helm-charts/tree/main/charts/jaeger). In my app, I'm manually trace all my POST and GET method.
 
 ```bash
 helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
@@ -452,6 +467,7 @@ helm install jaeger jaegertracing/jaeger \
 
 ```
 
+![Jaeger](media/jaeger.png)
 ### Serve model with FastAPI and collect log 
 In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpieline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 
 
@@ -465,15 +481,17 @@ In this section, we will use the manual way to deploy the endpoint API.
 
 **You have to build docker image for the endpoint API first which is `dockerfiles/Dockerfile.app`** 
 ```bash
-docker build \
-  -t microwave1005/prediction-api:v0.1 \
+docker build --no-cache\
+  -t microwave1005/prediction-api:v0.2 \
+  -t microwave1005/prediction-api:latest \
   -f dockerfiles/Dockerfile.app \
   --build-arg MODEL_NAME=xgb_underwrite \
   --build-arg MODEL_TYPE=xgb \
   .
-
-docker push microwave1005/prediction-api:v0.1
+docker push microwave1005/prediction-api:latest
+docker push microwave1005/prediction-api:v0.2
 ```
+
 In case your machine is using ARM architecture (eg Mac m1,...), you can build image like this 
 ```bash
 docker buildx build \
@@ -502,7 +520,7 @@ k create secret generic minio-creds \
 Then, you can install the API helm chart with the following command `After model is registered in Mlflow model registry`
 ** Note: Remember to check parent run id in Mlfow UI or kubeflow downstream artifact for the API to pull the preprocess joblib and Evidently ExternalIP to use GET method. First you have to check the Evidently External IP by running the following command:
 ```bash
-k get svc evidently -n monitoring
+k get svc evidently-ui -n monitoring
 ```
 
 Then you can install the API helm chart
@@ -511,10 +529,10 @@ helm install api ./helm-charts/api \
   --namespace api \
   --set version=v0.1 \
   --set monitoring.enabled=true \
-  --set image.tag=v0.1 \
+  --set image.tag=v0.2 \
   --set replicaCount=1 \
   --set env.PARENT_RUN_ID=11d2d8ee8e374fc8b7cc189ebdcf4551 \
-  --set env.EVIDENTLY_WORKSPACE=http://35.202.139.205:8000/ \
+  --set env.EVIDENTLY_WORKSPACE=http://35.202.112.5:8000/ \
   --set ingress.enabled=true \
   --set ingress.rules[0].host=api.ducdh.com \
   --set ingress.rules[0].paths[0].path="/" \
@@ -523,11 +541,12 @@ helm install api ./helm-charts/api \
   --set ingress.rules[0].paths[0].servicePort=8000
 ```
 
+![API](media/api.png)
 ### Streamlit
 For end user, I'm using streamlit to create UI for the model, I have modified from this repo [Streamlit example](https://github.com/samdobson/helm). Firstly, build the docker image for the Streamlit app using the following command:
 
 ```bash 
-docker build \
+docker build --no-cache\
   -t microwave1005/streamlit-app:latest \
   -t microwave1005/streamlit-app:v0.1 \
   -f dockerfiles/Dockerfile.streamlit .
@@ -543,17 +562,14 @@ helm install streamlit ./helm-charts/streamlit \
   --create-namespace \
   --set image.tag=v0.1 \
   --set replicaCount=1 \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=app.ducdh.com \
-  --set ingress.hosts[0].paths[0].path=/ \
-  --set ingress.hosts[0].paths[0].pathType=Prefix
+  --set env.PREDICTION_API_URL="http://prediction-api.api:8000"
 ```
 
+gif streamlit...
 ## Kubeflow usage 
 ### Kserve
 
-In my project, I'm using `FastAPI` instead of Kserve because Kserve is not fully supported with OpenTelemetry. 
-[issue](https://github.com/kserve/kserve/issues/2668)
+In my project, I'm using `FastAPI` instead of Kserve because Kserve is not fully supported with OpenTelemetry [issue](https://github.com/kserve/kserve/issues/2668)
 
 ### Using Kubeflow Pipeline
 **Kubeflow Pipelines** is a powerful platform for building and deploying scalable and reproducible machine learning (ML) workflows based on Kubernetes. It allows data scientists and ML engineers to define workflows as a series of components, each performing a specific task (e.g., preprocessing, training, evaluation).
@@ -580,7 +596,7 @@ There is 2 ways to add new components to the dashboard:
 1. Internal Link: Run inside Kubeflow central dashboard, require sidecar proxy to Istio
 2. External Link: Create a link to external service, no need sidecar proxy to Istio
 
-For simplicity, I'm using external link method the Central Dashboard configmap is already created in `kubeflow/dashboard` folder. In this configmap, I added external link to Mlflow, Minio, Grafana and Jenkins. You can also use vim or nano to edit the `dashboard-configmap.yaml` file to add your own components. You can use `kubectl edit configmap centraldashboard-config -n kubeflow` to edit the configmap directly in the cluster with vim.
+For simplicity, I'm using external link method the Central Dashboard configmap is already created in `kubeflow/dashboard` folder. In this configmap, I added external link to Mlflow, Minio, Grafana and Jenkins which copy the configmap dashboard to `dashboard-configmap.yaml` file. You can use `kubectl edit configmap centraldashboard-config -n kubeflow` to edit the configmap directly in the cluster with vim.
 
 ```bash
 k delete configmap centraldashboard-config -n kubeflow
@@ -634,39 +650,63 @@ sudo cat /var/log/cloud-init-output.log
 ```
 
 ### ELK Stack
-I'm installing the ELK stack with docker-compose and open port in `main.tf` to allow access to ELK stack and GKE cluster, I have forked and modified the ELK stack docker-compose repo here [ELK Stack docker-compose](https://github.com/dohuyduc2002/docker-elk)
+I'm installing the ELK stack with docker-compose and open port in `main.tf` to allow access to ELK stack and GKE cluster, I have forked and modified the ELK stack docker-compose repo here [ELK Stack docker-compose](https://github.com/dohuyduc2002/docker-elk). After the ELK stack is running, install `Filebeat Daemonset` in `kube-system` namespace to collect logs from all pods in the cluster. You can find the Filebeat Daemonset in `filebeat/filebeat-kubernetes.yaml` file where it from the official filebeat deployment [Filebeat Kubernetes](https://github.com/elastic/beats/blob/v9.0.1/deploy/kubernetes/filebeat-kubernetes.yaml). **I have modify the filebeat-kubernetes.yaml file to ship log to logstash port in AzureVM.** 
 
-
-When the build process is complete, there is a mannuall approval in Jenkins to promote the model into the `production` tag, if approved, we retrieve the Mlflow run_id to get artifact for `transformer.joblib` which contain preprocessing step and parse it to helm argument to upgrade to model pod via `api` namespace. 
-
-
-### CICD pipeline 
-My CICD pipeline flow consists in unittesting my components running on KFP. If the test fail the coverage, the pipeline is stopped. After testing stage complete, we create a new recurring run based on previous one-off `run_id`, `pipeline_name` and `version_name` then build Dockerfile for the app along with model promotion to `stagging`. 
-### Jenkins Azure VM
-Initialize Jenkins 
-Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.custom_jenkins` file. This image is used to run Jenkins pipeline and build Docker images for the project. Also, the stage `test` and `promote` in jenkins is using `dockerfiles/Dockerfile.kfp_jenkins_ci` to run 
-
-```bash
-docker build -t microwave1005/custom-jenkins:latest -f dockerfiles/Dockerfile.custom_jenkins .
-docker build -t microwave1005/kfp-jenkins-ci:latest -f dockerfiles/Dockerfile.kfp_jenkins_ci .
-
-docker push microwave1005/kfp-jenkins-ci:latest
-docker push microwave1005/custom-jenkins:latest
+```yaml
+    output.logstash:
+      hosts: ["40.78.159.74:5044"]  # CHANGE THIS TO YOUR AZURE VM PUBLIC IP FILEBEAT PORT
 ```
 
-Clone previous [kubeflow notebook repo](https://github.com/dohuyduc2002/kubeflow-nb) and rename it as `kubeflow_nb` in the `src` folder. I have already clone it and remove `.git` folder using `rm -rf .git` command. This is to ensure that the Kubeflow notebook can access the git repository and push the code to the repository. This will be used to run test in the CICD pipeline.
+```bash
+k apply -f filebeat/filebeat-kubernetes.yaml
+```
 
-3. Access Jenkins 
-I already open port 8080 for Jenkins in Azure VM, so you can access Jenkins by going to `http://<your_vm_public_ip>:8080` in your browser. In my `cloud-init.yaml` file, I have already add my IP to of Kubeflow, Minio and Mlflow to VM and mount it as read only to Jenkins so we don't have to use `--add-host` option when running Jenkins container.
+The log will be shipped to the ELK stack in Azure VM through Logstash. You can access the ELK stack by going to `http://<your_vm_public_ip>:5601` in your browser. The Kibana dashboard will allow you to visualize and analyze the logs collected from the cluster.
 
-To get the initial admin password, you can run the following command:
+![ELK Stack](media/elk.png)
+### Jenkins
+Firstly, my CICD pipeline is using custom Jenkins image which is built from `dockerfiles/Dockerfile.custom_jenkins` file. This image is used to run Jenkins pipeline and build Docker images for the project. Also, the stage `test` and `promote` in jenkins is using `dockerfiles/Dockerfile.kfp_jenkins_ci` to run other stages and `dockerfiles/Dockerfile.jenkins_agent` to run the agent in GKE cluster from Azure VM. 
 
 ```bash
-sudo docker exec -it jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+docker build \
+  -t microwave1005/kfp-jenkins-ci:latest \
+  -t microwave1005/kfp-jenkins-ci:v0.1 \
+  -f dockerfiles/Dockerfile.kfp_jenkins_ci .
+
+docker push microwave1005/kfp-jenkins-ci:latest
+docker push microwave1005/kfp-jenkins-ci:v0.1
+```
+
+```bash
+docker build \
+  -t microwave1005/custom-jenkins:latest \
+  -t microwave1005/custom-jenkins:v0.1 \
+  -f dockerfiles/Dockerfile.custom_jenkins .
+
+docker push microwave1005/custom-jenkins:latest
+docker push microwave1005/custom-jenkins:v0.1
+```
+
+```bash
+docker build \
+  -t microwave1005/kfp-jenkins-agent:latest \
+  -t microwave1005/kfp-jenkins-agent:v0.1 \
+  -f dockerfiles/Dockerfile.jenkins_agent .
+
+docker push microwave1005/kfp-jenkins-agent:latest
+docker push microwave1005/kfp-jenkins-agent:v0.1
+```
+My CICD pipeline flow consists in unittesting my components running on KFP. If the test fail the coverage, the pipeline is stopped. After testing stage complete, we create a new recurring run based on previous one-off `run_id`, `pipeline_name` and `version_name` then build Dockerfile for the app along with model promotion to `stagging`. I'm also cloned previous [kubeflow notebook repo](https://github.com/dohuyduc2002/kubeflow-nb) and rename it as `kubeflow_nb` in the `src` folder. I have already clone it and remove `.git` folder using `rm -rf .git` command. This is to ensure that the Kubeflow notebook can access the git repository and push the code to the repository. This will be used to run test in the CICD pipeline.
+
+#### Access Jenkins 
+I already open port 8080 for Jenkins in Azure VM, so you can access Jenkins by going to `http://<your_vm_public_ip>:8080` in your browser. To get the initial admin password, you can run the following command:
+
+```bash
+docker exec -it jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 ```
 And then login to Jenkins to install `Reccomended plugins` and login with the admin user.
 
-4. Configure Jenkins
+#### Configuring Jenkins
 a. Adding webhook to Github
 We adding webhook to Github to trigger Jenkins pipeline when there is a new commit to the repository. You can add webhook by going to your GitHub repository settings and then click on `Webhooks` and then click on `Add webhook`. In the `Payload URL` field, you can enter the following URL:
 
@@ -685,16 +725,14 @@ To allow my CICD pipeline to build docker, using helm upgrade in gke cluster, yo
 - Kubernetes CLI
 - Google Kubernetes Engine
 
-![Jenkins plugins](media/jenkins_plugins.png)
+![Jenkins plugins](media/jk_plugins.png)
 
 c. Adding GKE credentials
 First, you have to prepare your Service account json, in the [Create GCP service account](#create-gcp-service-account) I have already created it, you can also use this credential. After that, go to `Mange Jenkins/Cloud` to add new cloud with `Kubernetes`, to add new Cloud to Jenkins. There is 2 field named `Kubenertes IP` and `Certificate`, you have to go to your console in GKE to get that.
 
 vid...
 
-This will only allow Jenkins controller which is on Azure VM to access GKE cluster, the following step will guide you to add GCP service account key to allow Jenkins agent to `helm upgrade` or `kubectl` commands to GKE cluster.
-
-Due to the VM is running outside GCP, you have to add GCP SA key to the namespace that Jenkins agent is running in to authenticate to GKE cluster. [Refer to this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication#applications_in_other_environments)
+This will only allow Jenkins controller which is on Azure VM to access GKE cluster, the following step will guide you to add GCP service account key to allow Jenkins agent to `helm upgrade` or `kubectl` commands to GKE cluster. Due to the VM is running outside GCP, you have to add GCP SA key to the namespace that Jenkins agent is running in to authenticate to GKE cluster. [Refer to this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication#applications_in_other_environments). In the Jenkinsfile, I have created an inline yaml script to configure the Jenkins agent to use the GCP service account key to authenticate to GKE cluster. This is done by creating a Kubernetes secret in the `api` namespace 
 
 ```bash
 k create secret generic gcp-key \
@@ -702,16 +740,8 @@ k create secret generic gcp-key \
   -n api
 ```
 
-In the Jenkinsfile, I have created an inline yaml script to configure the Jenkins agent to use the GCP service account key to authenticate to GKE cluster. This is done by creating a Kubernetes secret in the `api` namespace with the name `gcp-key` and mounting it as a volume in the Jenkins agent pod. This pod will use an Docker image which contain `gcloud`, `gcloud auth` and `kubectl` and `helm` commands to run the pipeline. 
-
-```bash
-docker build -t microwave1005/gke-helm-agent:latest -f dockerfiles/Dockerfile.jenkins_agent .
-docker push microwave1005/gke-helm-agent:latest
-```
-
 d. Adding Dockerhub, Github, Minio and Kubeflow credentials
-We will add these credentials to Jenkins with `username with password`
-For Dockerhub, Github, you need to create your secret key, you can following this video. For Minio, Kubeflow, since we already have these creadentials in the initial setup we add it alongside with Dockerhub and Github.
+We will add these credentials to Jenkins with `username with password`. For Dockerhub, Github, you need to create your secret key, you can following this video. For Minio, Kubeflow, since we already have these creadentials in the initial setup we add it alongside with Dockerhub and Github.
 
 vid ...
 
@@ -728,7 +758,6 @@ My cicd pipeline consist of 9 stages:
 - Deploy model: This stage will deploy the model to the GKE cluster using Helm upgrade.
 
 After pipeline completed or failed, I have a cleanup stage to clean up docker images to save space
-
 
 ![Jenkins complete](media/jenkins_complete.png)
 

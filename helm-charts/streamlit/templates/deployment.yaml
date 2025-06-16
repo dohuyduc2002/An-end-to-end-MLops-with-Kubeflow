@@ -1,18 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "streamlit-chart.fullname" . }}
+  name: {{ .Release.Name }}-streamlit
   labels:
-    {{- include "streamlit-chart.labels" . | nindent 4 }}
+    app: streamlit
+    release: {{ .Release.Name }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "streamlit-chart.selectorLabels" . | nindent 6 }}
+      app: streamlit
+      release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        {{- include "streamlit-chart.selectorLabels" . | nindent 8 }}
+        app: streamlit
+        release: {{ .Release.Name }}
     spec:
       containers:
         - name: streamlit
