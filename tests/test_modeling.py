@@ -18,8 +18,7 @@ def test_modeling_component(tmp_path: Path, fake_csv: Path, patch_env_kfp):
     df.to_csv(test_path, index=False)
 
     parent_run_path = tmp_path / "parent_run.txt"
-    parent_run_path.write_text("run_0")  # khớp với counter trong build_mock_mlflow
-
+    parent_run_path.write_text("run_0")  
     kfp_dataset, kfp_artifact = make_test_artifact(Dataset), make_test_artifact(
         Artifact
     )
