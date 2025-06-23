@@ -2,10 +2,6 @@ from urllib.parse import urlsplit, urlencode
 import kfp
 import requests
 import urllib3
-import logging
-
-SCIPY_IMAGE = "microwave1005/scipy-img:latest"
-
 
 # Refer to Kubeflow example in setting up KFPClientManager: https://www.kubeflow.org/docs/components/pipelines/user-guides/core-functions/connect-api/
 class KFPClientManager:
@@ -105,48 +101,48 @@ class KFPClientManager:
         return self._create_kfp_client()
 
 
-def get_runs_reponse(kfp_client, namespace):
-    # We utilize the list_runs API to get the latest run in the specified namespace
-    # The list_runs will return a list of runs in a JSON format, which we can parse to get the latest run
-    runs = kfp_client.list_runs(
-        page_size=10,
-        sort_by="namespace desc", # You can use SQL query to sort the runs
-        namespace=namespace,
-    ).runs
+def upload_pipeline_and_version(
+    kfp_client, pipeline_yaml, pipeline_name, version_name, kfp_namespace
+):
+    def upload_pipeline(kfp_client, pipeline_yaml, pipeline_name, version_name):
+        # Due to issue ValueError: To run a pipeline from an existing template, both `pipeline_id` and `version_id` are required.
+        # ref to this closed issue: https://github.com/kubeflow/pipelines/issues/11441
+        pipeline = kfp_client.upload_pipeline(
+            pipeline_package_path=pipeline_yaml,
+            pipeline_name=pipeline_name,
+            namespace=kfp_namespace,
+        )
+        pipeline_version = kfp_client.upload_pipeline_version(
+            pipeline_package_path=pipeline_yaml,
+            pipeline_version_name=version_name,
+            pipeline_id=pipeline.pipeline_id,
+        )
+        return pipeline.pipeline_id, pipeline_version.pipeline_version_id, version_name
 
-    latest_run = runs[0]
-    run_id = latest_run.run_id
+    listed_pipelines = kfp_client.list_pipelines(namespace=kfp_namespace)
+    pipeline_id = None
 
-    run = kfp_client.get_run(run_id)
-    # the object V2beta1Run which is the return of run in python SDK
-    # In the JSON response, the run object has a field called "pipeline_version_reference", 
-    # which has the same attributes in object V2beta1Run
-    pipeline_version_reference =  run.pipeline_version_reference
+    if not listed_pipelines.pipelines:  # handle case when no pipelines exist
+        pipeline_id, version_id, version_name = upload_pipeline(
+            kfp_client, pipeline_yaml, pipeline_name, version_name
+        )
+        return pipeline_id, version_id, version_name
 
-    pipeline_id = pipeline_version_reference.pipeline_id
-    pipeline_version_id =  pipeline_version_reference.pipeline_version_id
+    for pipe in listed_pipelines.pipelines:
+        if pipe.display_name == pipeline_name:
+            pipeline_id = pipe.pipeline_id
+            break
 
-    return {
-        "experiment_id": run.experiment_id,
-        "pipeline_id": pipeline_id,
-        "pipeline_version_id": pipeline_version_id,
-        "run_id": run_id,
-    }
+    if pipeline_id:
+        pipeline_version = kfp_client.upload_pipeline_version(
+            pipeline_package_path=pipeline_yaml,
+            pipeline_version_name=version_name,
+            pipeline_id=pipeline_id,
+        )
+        version_id = pipeline_version.pipeline_version_id
+        return pipeline_id, version_id, version_name
 
-
-def create_recurring_run_with_params(kfp_client, cron_expr, run_info, params):
-    job_name = f"Recurring Job from {run_info['run_id']}"
-
-    job = kfp_client.create_recurring_run(
-        experiment_id=run_info["experiment_id"],
-        job_name=job_name,
-        description=f"Recurring run for {job_name}",
-        cron_expression=cron_expr, # THE CRON EXPRESSION HERE IS USING GO EXPRESSION FORMAT
-        # https://pkg.go.dev/github.com/robfig/cron#hdr-CRON_Expression_Format
-        pipeline_id=run_info["pipeline_id"],
-        version_id=run_info["pipeline_version_id"],
-        params=params,
-        enabled=True,
-        no_catchup=True,
+    pipeline_id, version_id, version_name = upload_pipeline(
+        kfp_client, pipeline_yaml, pipeline_name, version_name
     )
-    logging.info(f"Created recurring run: {job_name} (id={job.id})")
+    return pipeline_id, version_id, version_name

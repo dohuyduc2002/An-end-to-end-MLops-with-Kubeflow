@@ -1,0 +1,505 @@
+# PIPELINE DEFINITION
+# Name: underwritingworkflow
+# Description: Download raw → preprocess → download processed → train & register
+# Inputs:
+#    bucket_name: str
+#    experiment_name: str
+#    iv_max: float
+#    iv_min: float
+#    job_name: str
+#    minio_access_key: str
+#    minio_endpoint: str
+#    minio_secret_key: str
+#    missing_thres: float
+#    mlflow_endpoint: str
+#    model_type: str
+#    n_features_to_select: str
+#    parent_run_name: str
+#    raw_test_object: str
+#    raw_train_object: str
+#    slack_bot_token: str
+#    slack_channel: str
+#    suffix: str
+components:
+  comp-binning:
+    executorLabel: exec-binning
+    inputDefinitions:
+      artifacts:
+        test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        experiment_name:
+          parameterType: STRING
+        iv_max:
+          parameterType: NUMBER_DOUBLE
+        iv_min:
+          parameterType: NUMBER_DOUBLE
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        missing_thres:
+          parameterType: NUMBER_DOUBLE
+        mlflow_endpoint:
+          parameterType: STRING
+        parent_run_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        base_mlflow_run_id:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        df_test_binned_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        df_train_binned_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        transformer_joblib:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-dataloader:
+    executorLabel: exec-dataloader
+    inputDefinitions:
+      parameters:
+        bucket_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        object_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-dataloader-2:
+    executorLabel: exec-dataloader-2
+    inputDefinitions:
+      parameters:
+        bucket_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        object_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-feat-selector:
+    executorLabel: exec-feat-selector
+    inputDefinitions:
+      artifacts:
+        base_mlflow_run_id:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        df_test_binned_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        df_train_binned_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        experiment_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        mlflow_endpoint:
+          parameterType: STRING
+        n_features_to_select:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        mlflow_run_id:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        output_test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        output_train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        transformer_joblib:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-modeling:
+    executorLabel: exec-modeling
+    inputDefinitions:
+      artifacts:
+        mlflow_run_id:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        processed_test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        processed_train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        experiment_name:
+          parameterType: STRING
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        mlflow_endpoint:
+          parameterType: STRING
+        model_type:
+          parameterType: STRING
+        suffix:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        model_joblib:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        registered_model:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-slack-notification:
+    executorLabel: exec-slack-notification
+    inputDefinitions:
+      parameters:
+        message:
+          parameterType: STRING
+        slack_bot_token:
+          parameterType: STRING
+        slack_channel:
+          parameterType: STRING
+deploymentSpec:
+  executors:
+    exec-binning:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - binning
+        command:
+        - python3
+        - -m
+        - kfp.dsl.executor_main
+        image: docker.io/microwave1005/kfp_run_image:0.0.1
+    exec-dataloader:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - dataloader
+        command:
+        - python3
+        - -m
+        - kfp.dsl.executor_main
+        image: docker.io/microwave1005/kfp_run_image:0.0.1
+    exec-dataloader-2:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - dataloader
+        command:
+        - python3
+        - -m
+        - kfp.dsl.executor_main
+        image: docker.io/microwave1005/kfp_run_image:0.0.1
+    exec-feat-selector:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - feat_selector
+        command:
+        - python3
+        - -m
+        - kfp.dsl.executor_main
+        image: docker.io/microwave1005/kfp_run_image:0.0.1
+    exec-modeling:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - modeling
+        command:
+        - python3
+        - -m
+        - kfp.dsl.executor_main
+        image: docker.io/microwave1005/kfp_run_image:0.0.1
+    exec-slack-notification:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - slack_notification
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'slack_sdk' &&\
+          \ \"$0\" \"$@\"\n"
+        - python3
+        - -m
+        - kfp.dsl.executor_main
+        image: docker.io/microwave1005/kfp_run_image:0.0.1
+pipelineInfo:
+  description: "Download raw \u2192 preprocess \u2192 download processed \u2192 train\
+    \ & register"
+  name: underwritingworkflow
+root:
+  dag:
+    tasks:
+      binning:
+        cachingOptions: {}
+        componentRef:
+          name: comp-binning
+        dependentTasks:
+        - dataloader
+        - dataloader-2
+        inputs:
+          artifacts:
+            test_csv:
+              taskOutputArtifact:
+                outputArtifactKey: output
+                producerTask: dataloader-2
+            train_csv:
+              taskOutputArtifact:
+                outputArtifactKey: output
+                producerTask: dataloader
+          parameters:
+            experiment_name:
+              componentInputParameter: experiment_name
+            iv_max:
+              componentInputParameter: iv_max
+            iv_min:
+              componentInputParameter: iv_min
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            missing_thres:
+              componentInputParameter: missing_thres
+            mlflow_endpoint:
+              componentInputParameter: mlflow_endpoint
+            parent_run_name:
+              componentInputParameter: parent_run_name
+        taskInfo:
+          name: binning
+      dataloader:
+        cachingOptions: {}
+        componentRef:
+          name: comp-dataloader
+        inputs:
+          parameters:
+            bucket_name:
+              componentInputParameter: bucket_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            object_name:
+              componentInputParameter: raw_train_object
+        taskInfo:
+          name: dataloader
+      dataloader-2:
+        cachingOptions: {}
+        componentRef:
+          name: comp-dataloader-2
+        inputs:
+          parameters:
+            bucket_name:
+              componentInputParameter: bucket_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            object_name:
+              componentInputParameter: raw_test_object
+        taskInfo:
+          name: dataloader-2
+      feat-selector:
+        cachingOptions: {}
+        componentRef:
+          name: comp-feat-selector
+        dependentTasks:
+        - binning
+        inputs:
+          artifacts:
+            base_mlflow_run_id:
+              taskOutputArtifact:
+                outputArtifactKey: base_mlflow_run_id
+                producerTask: binning
+            df_test_binned_csv:
+              taskOutputArtifact:
+                outputArtifactKey: df_test_binned_csv
+                producerTask: binning
+            df_train_binned_csv:
+              taskOutputArtifact:
+                outputArtifactKey: df_train_binned_csv
+                producerTask: binning
+          parameters:
+            experiment_name:
+              componentInputParameter: experiment_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            mlflow_endpoint:
+              componentInputParameter: mlflow_endpoint
+            n_features_to_select:
+              componentInputParameter: n_features_to_select
+        taskInfo:
+          name: feat-selector
+      modeling:
+        cachingOptions: {}
+        componentRef:
+          name: comp-modeling
+        dependentTasks:
+        - feat-selector
+        inputs:
+          artifacts:
+            mlflow_run_id:
+              taskOutputArtifact:
+                outputArtifactKey: mlflow_run_id
+                producerTask: feat-selector
+            processed_test_csv:
+              taskOutputArtifact:
+                outputArtifactKey: output_test_csv
+                producerTask: feat-selector
+            processed_train_csv:
+              taskOutputArtifact:
+                outputArtifactKey: output_train_csv
+                producerTask: feat-selector
+          parameters:
+            experiment_name:
+              componentInputParameter: experiment_name
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            mlflow_endpoint:
+              componentInputParameter: mlflow_endpoint
+            model_type:
+              componentInputParameter: model_type
+            suffix:
+              componentInputParameter: suffix
+        taskInfo:
+          name: modeling
+      slack-notification:
+        cachingOptions: {}
+        componentRef:
+          name: comp-slack-notification
+        dependentTasks:
+        - modeling
+        inputs:
+          parameters:
+            message:
+              runtimeValue:
+                constant: 'Pipeline completed successfully with job: {{$.inputs.parameters[''pipelinechannel--job_name'']}}
+                  for {{$.inputs.parameters[''pipelinechannel--model_type'']}}'
+            pipelinechannel--job_name:
+              componentInputParameter: job_name
+            pipelinechannel--model_type:
+              componentInputParameter: model_type
+            slack_bot_token:
+              componentInputParameter: slack_bot_token
+            slack_channel:
+              componentInputParameter: slack_channel
+        taskInfo:
+          name: slack-notification
+  inputDefinitions:
+    parameters:
+      bucket_name:
+        parameterType: STRING
+      experiment_name:
+        parameterType: STRING
+      iv_max:
+        parameterType: NUMBER_DOUBLE
+      iv_min:
+        parameterType: NUMBER_DOUBLE
+      job_name:
+        parameterType: STRING
+      minio_access_key:
+        parameterType: STRING
+      minio_endpoint:
+        parameterType: STRING
+      minio_secret_key:
+        parameterType: STRING
+      missing_thres:
+        parameterType: NUMBER_DOUBLE
+      mlflow_endpoint:
+        parameterType: STRING
+      model_type:
+        parameterType: STRING
+      n_features_to_select:
+        parameterType: STRING
+      parent_run_name:
+        parameterType: STRING
+      raw_test_object:
+        parameterType: STRING
+      raw_train_object:
+        parameterType: STRING
+      slack_bot_token:
+        parameterType: STRING
+      slack_channel:
+        parameterType: STRING
+      suffix:
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1

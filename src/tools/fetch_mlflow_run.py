@@ -1,6 +1,6 @@
 import argparse
 import mlflow
-
+from datetime import datetime
 
 def fetch_parent_run_id(
     tracking_uri: str,
@@ -14,9 +14,12 @@ def fetch_parent_run_id(
     exp = mlflow.get_experiment_by_name(experiment_name)
     exp_id = exp.experiment_id
 
+    now_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+    unique_run_name = f"{run_name}-{now_str}"
+
     runs = mlflow.search_runs(
         experiment_ids=[exp_id],
-        filter_string=f"tags.mlflow.runName = '{run_name}'",
+        filter_string=f"tags.mlflow.runName = '{unique_run_name}'",
         order_by=["start_time desc"],
         max_results=max_results,
     )

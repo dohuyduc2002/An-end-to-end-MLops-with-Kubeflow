@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client(patch_env_api):
-    from client.api.main import app
+    from deprecated.main import app
     return TestClient(app)
 
 @pytest.mark.api

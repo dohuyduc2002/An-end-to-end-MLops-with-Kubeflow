@@ -2,7 +2,7 @@ import pytest
 from kfp.dsl import Dataset, Artifact
 from tests.test_utils import make_test_artifact
 
-from kubeflow_nb.pipeline.scripts.feat_selector import feat_selector
+from kubeflow_nb.pipeline.scripts.binning import binning
 
 
 @pytest.mark.kfp_components
@@ -15,10 +15,12 @@ def test_preprocess(tmp_path, fake_csv, patch_env_kfp):
     kfp_dataset, kfp_artifact = make_test_artifact(Dataset), make_test_artifact(
         Artifact
     )
-    train_csv = kfp_dataset(uri=str(train_path)) #input artifact
+    train_csv = kfp_dataset(uri=str(train_path))  # input artifact
     test_csv = kfp_dataset(uri=str(test_path))  # input artifact
 
-    output_train_csv = kfp_dataset(uri=str(tmp_path / "out_train.csv")) # output artifact
+    output_train_csv = kfp_dataset(
+        uri=str(tmp_path / "out_train.csv")
+    )  # output artifact
     output_test_csv = kfp_dataset(uri=str(tmp_path / "out_test.csv"))  # output artifact
     transformer_joblib = kfp_artifact(
         uri=str(tmp_path / "transformer.joblib")
@@ -29,22 +31,25 @@ def test_preprocess(tmp_path, fake_csv, patch_env_kfp):
 
     parent_run_name = "unittest_parent_run_name"
 
-    keys = feat_selector.python_func(
+    keys = binning.python_func(
         train_csv=train_csv,
         test_csv=test_csv,
-        output_train_csv=output_train_csv,
-        output_test_csv=output_test_csv,
+        transformer_joblib=transformer_joblib,
+        df_train_binned_csv=output_train_csv,
+        df_test_binned_csv=output_test_csv,
+        base_mlflow_run_id=mlflow_run_id,
+        iv_min=0.02,
+        iv_max=0.5,
+        missing_thres=0.5,
         minio_endpoint="fake:9000",
         minio_access_key="abc",
         minio_secret_key="123",
-        transformer_joblib=transformer_joblib,
-        mlflow_run_id=mlflow_run_id,
         mlflow_endpoint="abc:5000",
         parent_run_name=parent_run_name,
-        n_features_to_select="auto",
         experiment_name="unittest_experiment",
     )
 
-    with open(tmp_path / "mlflow_run_id.txt") as f: # assert mlflow_run_id artifact
+    with open(tmp_path / "mlflow_run_id.txt") as f:  # assert mlflow_run_id artifact
         content = f.read().strip()
-    assert content 
+    assert content
+    

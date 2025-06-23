@@ -23,7 +23,6 @@ def build_mock_mlflow():
 
     mock_mlflow.start_run.side_effect = _start_run
 
-    # Register model trả về object
     reg = MagicMock()
     reg.name, reg.version = "mock_model", 1
     mock_mlflow.register_model.return_value = reg

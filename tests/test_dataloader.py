@@ -4,6 +4,9 @@ from kfp.dsl import Dataset
 from unittest.mock import patch, MagicMock
 from tests.test_utils import make_test_artifact
 from kubeflow_nb.pipeline.scripts.dataloader import dataloader
+from kfp import local
+
+local.init(runner=local.SubprocessRunner(use_venv=False))
 
 
 @pytest.mark.kfp_components
@@ -16,7 +19,7 @@ def test_dataloader(tmp_path: Path, patch_env_kfp):
         MockMinio.return_value = mock_client
         mock_client.fget_object.return_value = None
 
-        dataloader.python_func(
+        dataloader(
             minio_endpoint="fake:9000",
             minio_access_key="id",
             minio_secret_key="key",

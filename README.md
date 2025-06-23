@@ -318,7 +318,7 @@ helm install minio minio/minio \
   --set rootPassword=minio123 \
   --set persistence.size=10Gi \
   --set service.type=ClusterIP \
-  --set resources.requests.memory=2Gi \
+  --set resources.requests.memory=1Gi \
   --set ingress.enabled=true \
   --set ingress.ingressClassName=nginx \
   --set ingress.hosts[0]=minio.ducdh.com \
@@ -399,19 +399,6 @@ helm upgrade --install mlflow community-charts/mlflow \
   --set ingress.hosts[0].host=mlflow.ducdh.com \
   --set ingress.hosts[0].paths[0].path=/ \
   --set ingress.hosts[0].paths[0].pathType=Prefix
-```
-
-I'm also add a new `custom-values.yaml` file in `helm-charts/mlflow` folder to configure Mlflow ingress values.
-```bash
-helm upgrade --install mlflow community-charts/mlflow \
-  --namespace mlflow \
-  --reuse-values \
-  -f helm-charts/mlflow/custom-values.yaml \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=mlflow.ducdh.com \
-  --set ingress.hosts[0].paths[0].path=/ \
-  --set ingress.hosts[0].paths[0].pathType=Prefix
-
 ```
 
 ### Prometheus and Grafana
