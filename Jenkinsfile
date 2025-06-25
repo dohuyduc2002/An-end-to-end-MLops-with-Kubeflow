@@ -24,6 +24,7 @@ pipeline {
         choice(name: 'model-type', choices: ['xgb', 'lgbm']) 
         string(name: 'suffix', defaultValue: 'underwrite')
         string(name: 'MLFLOW_REGISTERED_MODEL_NAME', defaultValue: 'xgb_underwrite')
+        string(name: 'EVIDENTLY_IP')
     }
 
     environment {
@@ -35,7 +36,7 @@ pipeline {
         MINIO_ENDPOINT        = 'minio.dhduc.com'
         MINIO_BUCKET_NAME     = 'sample-data'
         KFP_API_URL           = 'http://kubeflow.ducdh.com/pipeline'
-        EVIDENTLY_WORKSPACE   = 'http://evidently.ducdh.com:8000'
+        EVIDENTLY_WORKSPACE   = 'http://${params.EVIDENTLY_IP}:8000'
 
         MINIO_CREDS           = credentials('minio-creds')
         AWS_ACCESS_KEY_ID     = "${MINIO_CREDS_USR}"
