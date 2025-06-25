@@ -30,7 +30,7 @@ pipeline {
         registry              = 'microwave1005/prediction-api'
         registryCredential    = 'dockerhub-creds'
         TAG                   = "${BUILD_NUMBER}"
-
+ 
         MLFLOW_TRACKING_URI   = 'http://mlflow.ducdh.com'
         MINIO_ENDPOINT        = 'minio.dhduc.com'
         MINIO_BUCKET_NAME     = 'sample-data'
@@ -91,11 +91,11 @@ pipeline {
                                     --experiment-name   "${params['experiment-name']}" \
                                     --version-name      "${params['version-name']}" \
                                     --job-name          "${params['job-name']}" \
-                                    --minio-endpoint    "${MINIO_ENDPOINT}" \
+                                    --minio-endpoint    "minio.minio.svc.cluster.local:9000" \
                                     --minio-access-key  "${AWS_ACCESS_KEY_ID}" \
                                     --minio-secret-key  "${AWS_SECRET_ACCESS_KEY}" \
                                     --bucket-name       "${MINIO_BUCKET_NAME}" \
-                                    --mlflow-endpoint   "${MLFLOW_TRACKING_URI}" \
+                                    --mlflow-endpoint   "mlflow.mlflow.svc.cluster.local:5000" \
                                     --raw-train-object  "${params['raw-train-object']}" \
                                     --raw-test-object   "${params['raw-test-object']}" \
                                     --parent-run-name   "${params['parent-run-name']}" \
