@@ -49,7 +49,7 @@ pipeline {
     stages {
 
         stage('Unit tests + coverage') {
-            agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
+            agent { docker { image 'microwave1005/kfp-jenkins-ci:0.1' } }
             steps {
                 dir('tests') {
                     sh '''
@@ -62,7 +62,7 @@ pipeline {
         }
 
         stage('Schedule KFP recurring run') {
-            agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
+            agent { docker { image 'microwave1005/kfp-jenkins-ci:0.1' } }
             steps {
                 withCredentials([
                     usernamePassword(
@@ -140,7 +140,7 @@ pipeline {
         }
 
         stage('Promote to Production') {
-            agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
+            agent { docker { image 'microwave1005/kfp-jenkins-ci:0.1' } }
             steps {
                 script {
                     dir('src') {
@@ -157,7 +157,7 @@ pipeline {
         }
 
         stage('Fetch Mlflow run_id') {
-            agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
+            agent { docker { image 'microwave1005/kfp-jenkins-ci:0.1' } }
             steps {
                 script {
                     env.RUN_ID = sh(
@@ -186,7 +186,7 @@ pipeline {
                     spec:
                       containers:
                       - name: helm
-                        image: microwave1005/gke-helm-agent:latest
+                        image: microwave1005/kfp-jenkins-agent:0.1
                         imagePullPolicy: Always
                         tty: true
                         volumeMounts:
