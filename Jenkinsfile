@@ -72,8 +72,7 @@ pipeline {
                     ),
                     string(
                         credentialsId: 'slackbot',
-                        usernameVariable: 'SLACK_BOT_NAME',
-                        passwordVariable: 'SLACK_BOT_TOKEN'
+                        variable: 'SLACK_BOT_TOKEN'
                     )
                 ]) {
                     script {
