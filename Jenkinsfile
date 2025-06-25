@@ -9,7 +9,7 @@ pipeline {
     parameters {
         string(name: 'KFP-DEX-AUTH-TYPE', defaultValue: 'local')
         string(name: 'KUBEFLOW-NAMESPACE', defaultValue: 'kubeflow-user-example-com')
-        string(name: 'cron-expr', defaultValue: '0 * * * *') /* robfig cron expression */
+        string(name: 'cron-expr', defaultValue: '0 0 2 * * *') /* robfig cron expression */
         string(name: 'pipeline-name', defaultValue: 'underwrite-pipeline')
         string(name: 'experiment-name', defaultValue: 'underwrite-experiment')  /* This also being used in fetch mlflow run id */ 
         string(name: 'version-name', defaultValue: 'v1')
@@ -23,6 +23,7 @@ pipeline {
         string(name: 'missing-thres', defaultValue: '0.5')
         choice(name: 'model-type', choices: ['xgb', 'lgbm']) 
         string(name: 'suffix', defaultValue: 'underwrite')
+        string(name: 'slack-channel', defaultValue: 'kfp')
         string(name: 'MLFLOW_REGISTERED_MODEL_NAME', defaultValue: 'xgb_underwrite')
     }
 
