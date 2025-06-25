@@ -36,6 +36,7 @@ runcmd:
   - echo "34.28.121.76 kubeflow.ducdh.com" >> /etc/hosts
   - echo "34.45.118.202 minio.ducdh.com" >> /etc/hosts
   - echo "34.45.118.202 mlflow.ducdh.com" >> /etc/hosts
+  - echo "34.72.45.193 evidently.ducdh.com" >> /etc/hosts
 
   # 6. Create Jenkins home directory
   - mkdir -p /var/jenkins_home

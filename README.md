@@ -612,6 +612,8 @@ I'm mapping istio and nginx external IP to the VM so you can access Kubeflow, Ml
   - echo "35.192.103.219 kubeflow.ducdh.com" >> /etc/hosts
   - echo "35.239.155.17 minio.ducdh.com" >> /etc/hosts
   - echo "35.239.155.17 mlflow.ducdh.com" >> /etc/hosts
+  - echo "34.72.45.193 evidently.ducdh.com" >> /etc/hosts
+
 ```
 After that, create the VM by running the following command in the `terraform/azure` folder:
 ```bash

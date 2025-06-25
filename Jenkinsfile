@@ -9,7 +9,7 @@ pipeline {
     parameters {
         string(name: 'KFP-DEX-AUTH-TYPE', defaultValue: 'local')
         string(name: 'KUBEFLOW-NAMESPACE', defaultValue: 'kubeflow-user-example-com')
-        string(name: 'cron-expr') /* robfig cron expression */
+        string(name: 'cron-expr', defaultValue: '0 * * * *') /* robfig cron expression */
         string(name: 'pipeline-name', defaultValue: 'underwrite-pipeline')
         string(name: 'experiment-name', defaultValue: 'underwrite-experiment')  /* This also being used in fetch mlflow run id */ 
         string(name: 'version-name', defaultValue: 'v1')
@@ -24,7 +24,6 @@ pipeline {
         choice(name: 'model-type', choices: ['xgb', 'lgbm']) 
         string(name: 'suffix', defaultValue: 'underwrite')
         string(name: 'MLFLOW_REGISTERED_MODEL_NAME', defaultValue: 'xgb_underwrite')
-        string(name: 'EVIDENTLY_IP')
     }
 
     environment {
@@ -36,7 +35,7 @@ pipeline {
         MINIO_ENDPOINT        = 'minio.dhduc.com'
         MINIO_BUCKET_NAME     = 'sample-data'
         KFP_API_URL           = 'http://kubeflow.ducdh.com/pipeline'
-        EVIDENTLY_WORKSPACE   = 'http://${params.EVIDENTLY_IP}:8000'
+        EVIDENTLY_WORKSPACE   = 'http://evidently.dhduc.com:8000'
 
         MINIO_CREDS           = credentials('minio-creds')
         AWS_ACCESS_KEY_ID     = "${MINIO_CREDS_USR}"
@@ -108,23 +107,6 @@ pipeline {
                                     --suffix            "${params['suffix']}"
                             """
                         }
-                    }
-                }
-            }
-        }
-
-        stage('Promote to Staging') {
-            agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
-            steps {
-                script {
-                    dir('src') {
-                        sh """
-                            python3 tools/promote_model.py \
-                                --model        "${params.MLFLOW_REGISTERED_MODEL_NAME}" \
-                                --from-stage   none \
-                                --to-stage     staging \
-                                --tracking-uri "${MLFLOW_TRACKING_URI}"
-                        """
                     }
                 }
             }
