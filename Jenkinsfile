@@ -51,13 +51,12 @@ pipeline {
         stage('Unit tests + coverage') {
             agent { docker { image 'microwave1005/kfp-jenkins-ci:latest' } }
             steps {
-                script
-                    dir('tests') {
-                        sh '''
-                            pytest
-                            echo "[INFO] Failing if coverage < 80%"
-                            coverage report --fail-under=80
-                        '''
+                dir('tests') {
+                    sh '''
+                        pytest
+                        echo "[INFO] Failing if coverage < 80%"
+                        coverage report --fail-under=80
+                    '''
                 }
             }
         }
