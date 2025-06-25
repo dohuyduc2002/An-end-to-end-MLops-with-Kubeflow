@@ -1,6 +1,5 @@
 from kfp import dsl
 from kfp.dsl import Input, Output, Dataset, Artifact
-from pathlib import Path
 from component_utils import BASE_IMAGE, TARGET_IMAGE
 
 
@@ -29,8 +28,8 @@ def binning(
     from pathlib import Path
     import mlflow
     from datetime import datetime
-    
-    from component_utils import get_lists, iv_score, select_survivors, fit_binning
+
+    from component_utils import get_lists, select_survivors, fit_binning
 
     os.environ["MLFLOW_S3_ENDPOINT_URL"] = f"http://{minio_endpoint}"
     os.environ["AWS_ACCESS_KEY_ID"] = minio_access_key
@@ -64,14 +63,11 @@ def binning(
     unique_run_name = f"{parent_run_name}-{now_str}"
 
     run = mlflow_client.create_run(experiment_id=experiment_id, run_name=unique_run_name)
-    
+
     parent_id = run.info.run_id
 
     # Save artifacts
-    joblib.dump(
-        {"opt_binning_process": opt_binning_process},
-        "/tmp/opt_binning_process.joblib",
-    )
+    joblib.dump(opt_binning_process, "/tmp/opt_binning_process.joblib")
 
     mlflow_client.log_artifact(
         parent_id, "/tmp/opt_binning_process.joblib", artifact_path="prep"

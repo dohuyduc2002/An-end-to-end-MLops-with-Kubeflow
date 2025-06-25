@@ -1,6 +1,5 @@
 from kfp import dsl
 from kfp.dsl import Input, Output, Dataset, Artifact
-from pathlib import Path
 from component_utils import BASE_IMAGE, TARGET_IMAGE
 
 

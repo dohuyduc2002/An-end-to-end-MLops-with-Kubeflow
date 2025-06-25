@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+
 def build_mock_mlflow():
     mock_mlflow = MagicMock(name="mlflow")
 
@@ -11,6 +12,8 @@ def build_mock_mlflow():
     mock_mlflow.log_metric = MagicMock()
     mock_mlflow.log_artifact = MagicMock()
     mock_mlflow.log_artifacts = MagicMock()
+    mock_mlflow.register_model = MagicMock()
+    mock_mlflow.tracking = MagicMock()
 
     # Context manager for start_run
     def _start_run(*args, **kwargs):
@@ -23,21 +26,11 @@ def build_mock_mlflow():
 
     mock_mlflow.start_run.side_effect = _start_run
 
-    reg = MagicMock()
-    reg.name, reg.version = "mock_model", 1
-    mock_mlflow.register_model.return_value = reg
+    mock_mlflow.xgboost = MagicMock()
+    mock_mlflow.xgboost.log_model = MagicMock()
+    mock_mlflow.lightgbm = MagicMock()
+    mock_mlflow.lightgbm.log_model = MagicMock()
 
+    mock_mlflow.tracking = MagicMock()
+    mock_mlflow.tracking.MlflowClient = MagicMock()
     return mock_mlflow
-
-
-def build_mock_optuna():
-    fake_trial = MagicMock()
-    fake_trial.number = 0
-    fake_trial.user_attrs = {"mlflow_run_id": "run_1"}
-    fake_trial.set_user_attr = MagicMock()
-
-    fake_study = MagicMock()
-    fake_study.best_trial = fake_trial
-    fake_study.optimize = MagicMock(side_effect=lambda objective, n_trials: None) # patch objective call to do nothing
-
-    return fake_study

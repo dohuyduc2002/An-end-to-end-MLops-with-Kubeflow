@@ -19,3 +19,11 @@ class DummyBinningProcess:
 class DummySelector:
     def transform(self, X):
         return X
+
+
+class FakeMinioResponse:
+    def __init__(self, data: bytes):
+        self._data = data
+
+    def read(self):
+        return self._data

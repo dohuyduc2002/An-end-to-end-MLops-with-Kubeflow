@@ -14,8 +14,8 @@ import optuna
 import xgboost as xgb
 from lightgbm import LGBMClassifier
 
-BASE_IMAGE = "microwave1005/kfp_run_image:0.0.1"
-TARGET_IMAGE = "docker.io/microwave1005/kfp_run_image:0.0.1"
+BASE_IMAGE = "microwave1005/kfp_run_image:0.1"
+TARGET_IMAGE = "docker.io/microwave1005/kfp_run_image:0.1"
 
 def get_lists(df):
     numeric = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
@@ -48,7 +48,7 @@ def select_survivors(
         if missing_rate > missing_thres:
             continue  # Exclude features with more than 10% missing values
 
-        # Calulate iv scoore by using quantile cut if large bin or
+        # Calulate iv score by using quantile cut if large bin or
         if feature in cat_cols:
             # pd.factorize for categorical features to label encode them
             bins = pd.factorize(X_train[feature].fillna("missing"))[0]

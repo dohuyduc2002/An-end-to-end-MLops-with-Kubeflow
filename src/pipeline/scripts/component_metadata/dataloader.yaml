@@ -42,7 +42,7 @@ deploymentSpec:
         - python3
         - -m
         - kfp.dsl.executor_main
-        image: docker.io/microwave1005/kfp_run_image:0.0.1
+        image: docker.io/microwave1005/kfp_run_image:0.1
 pipelineInfo:
   name: dataloader
 root:

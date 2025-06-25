@@ -2,9 +2,8 @@ import os
 import joblib
 import mlflow
 import pandas as pd
-import numpy as np
 from dotenv import load_dotenv
-
+import os
 from mlflow.tracking import MlflowClient
 from minio import Minio
 from io import BytesIO
@@ -17,14 +16,9 @@ from evidently.metrics import (
     DuplicatedColumnsCount,
     CategoryCount,
 )
-
-
 from evidently.presets import DataDriftPreset, ValueStats
 
-load_dotenv(
-    override=False
-)  # just for local testing, in production, the env is define in Docker image and Kubernetes
-
+load_dotenv(override=False)
 
 # We create a Config class to hold all the API configuration parameters
 class ApiConfig:
@@ -59,11 +53,10 @@ def load_artifacts(cfg: ApiConfig):
     artifact_path = mlflow_client.download_artifacts(
         run_id=cfg.parent_run_id,
         path=cfg.transformer_artifact_path,
-        dst_path="/artifacts",
     )
-    
+
     binning = joblib.load(os.path.join(artifact_path, "opt_binning_process.joblib"))
-    selector = joblib.load(os.path.join(artifact_path, "feat_selector.joblib")) 
+    selector = joblib.load(os.path.join(artifact_path, "feat_selector.joblib"))
 
     versions = mlflow_client.get_latest_versions(
         cfg.model_name, stages=["Production"]
@@ -140,11 +133,3 @@ def custom_evidently_report(reference_data, current_data):
     # MUST return the snapshot object to use it to add to workspace later
     snapshot = report.run(reference_data, current_data)
     return snapshot
-
-
-def entropy(proba):
-    return -sum(p * np.log2(p) for p in proba if p > 0)
-
-
-def confidence(proba):
-    return max(proba) if proba else 0.0

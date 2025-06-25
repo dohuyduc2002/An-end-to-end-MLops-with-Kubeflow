@@ -1,6 +1,5 @@
 from kfp import dsl
 from kfp.dsl import Input, Output, Dataset, Artifact
-from pathlib import Path
 from component_utils import BASE_IMAGE, TARGET_IMAGE
 
 
@@ -53,10 +52,7 @@ def feat_selector(
 
     with mlflow.start_run(run_id=run_id) as parent:
         parent_id = parent.info.run_id  # Save the parent run ID for later use
-        joblib.dump(
-            {"feat_selector": selector},
-            "/tmp/feat_selector.joblib",
-        )
+        joblib.dump(selector, "/tmp/feat_selector.joblib")
         mlflow.log_artifact("/tmp/feat_selector.joblib", artifact_path="prep")
 
     # Save to KFP artifact

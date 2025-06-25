@@ -1,4 +1,3 @@
-from pathlib import Path
 from kfp import dsl
 from component_utils import BASE_IMAGE, TARGET_IMAGE
 

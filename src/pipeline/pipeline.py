@@ -109,12 +109,3 @@ def underwriting_pipeline(
     notify_slack_op(
         slack_channel=slack_channel, message=message, slack_bot_token=slack_bot_token
     ).after(modeling_op).set_caching_options(enable_caching=False)
-
-
-if __name__ == "__main__":
-    import kfp.compiler as compiler
-
-    compiler.Compiler().compile(
-        underwriting_pipeline,
-        "pipeline.yaml",
-    )

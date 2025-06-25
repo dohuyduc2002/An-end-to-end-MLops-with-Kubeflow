@@ -6,7 +6,7 @@ from io import BytesIO
 import numpy as np
 import pandas as pd
 
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, HTTPException
 from evidently.ui.workspace import RemoteWorkspace
 
 from opentelemetry import trace
@@ -19,17 +19,15 @@ from opentelemetry import metrics
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.sdk.metrics import MeterProvider
 from prometheus_client import start_http_server
+from opentelemetry.metrics import set_meter_provider
 
 from client.api.schema import RawItem
-from utils import (
+from client.api.utils import (
     map_evidently_data,
     custom_evidently_report,
     ApiConfig,
-    load_artifacts,
-    entropy,
-    confidence
+    load_artifacts
 )
-
 os.getenv("JAEGER_AGENT_HOST")
 
 trace.set_tracer_provider(
@@ -46,11 +44,14 @@ jaeger_exporter = JaegerExporter(
 span_processor = BatchSpanProcessor(jaeger_exporter)
 get_tracer_provider().add_span_processor(span_processor)
 
+resource = Resource.create(attributes={SERVICE_NAME: "prediction-service"})
+start_http_server(port=8001, addr="0.0.0.0")
 
 reader = PrometheusMetricReader()
-metrics.set_meter_provider(MeterProvider(metric_readers=[reader]))
-meter = metrics.get_meter_provider().get_meter("prediction_api")
-start_http_server(addr="0.0.0.0", port=8001)
+provider = MeterProvider(resource=resource, metric_readers=[reader])
+
+set_meter_provider(provider)
+meter = metrics.get_meter("prediction_spread", "0.1.1")
 
 prediction_counter = meter.create_counter(
     "api_prediction_count",
@@ -73,14 +74,13 @@ batch_size_hist = meter.create_histogram(
     description="Batch size of prediction requests",
 )
 
-
 def otel_metric(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         start_time = time()
         try:
             response = fn(*args, **kwargs)
-        except Exception as e:
+        except Exception:
             error_counter.add(1)
             raise
         latency_ms = (time() - start_time) * 1000
@@ -104,9 +104,9 @@ def health():
     return {"status": "ok"}
 
 
-@otel_metric
 @app.post("/prediction")
-def predict(self, items: List[RawItem] = Body(...)):
+@otel_metric
+def predict(items: List[RawItem] = Body(...)):
     with tracer.start_as_current_span("predict_items"):
         start_ts = time()
 
@@ -119,9 +119,6 @@ def predict(self, items: List[RawItem] = Body(...)):
         proba = model.predict_proba(X)
         preds = proba.argmax(axis=1)
 
-        entropies = [entropy(p) for p in proba]
-        confidences = [confidence(p) for p in proba]
-
         return {
             "prediction_method": "batch",
             "inference_time_ms": round((time() - start_ts) * 1000, 2),
@@ -130,16 +127,14 @@ def predict(self, items: List[RawItem] = Body(...)):
                     "result": "Accept" if y == 0 else "Decline",
                     "prob_accept": float(p[0]),
                     "prob_decline": float(p[1]),
-                    "entropy": round(e, 4),
-                    "confidence": round(c, 4),
                 }
-                for y, p, e, c in zip(preds, proba, entropies, confidences)
-            ]
+                for y, p in zip(preds, proba,)
+            ],
         }
 
 
-@otel_metric
 @app.post("/prediction-by-id")
+@otel_metric
 def predict_by_id(id: int):
     with tracer.start_as_current_span("predict_items"):
         start_ts = time()
@@ -151,26 +146,26 @@ def predict_by_id(id: int):
                     "sample-data", "data/application_test.csv"
                 )
         feature_df = pd.read_csv(BytesIO(response.read()))
+        row = feature_df[feature_df["SK_ID_CURR"] == id]
+        
+        if row.empty:
+            raise HTTPException(status_code=404, detail="ID not found")
 
-        X = selector.transform(binning.transform(feature_df))
+        X = selector.transform(binning.transform(row))
         proba = model.predict_proba(X)
         preds = proba.argmax(axis=1)
-
-        entropy_single = entropy(proba)
-        confidence_single = confidence(proba)
+        
 
         return {
             "prediction_method": "single",
             "inference_time_ms": round((time() - start_ts) * 1000, 2),
             "predictions": [
                 {
-                    "result": "Accept" if preds == 0 else "Decline",
-                    "prob_accept": proba[0][0],
-                    "prob_decline": proba[0][1],
-                    "entropy": entropy_single,
-                    "confidence": confidence_single,
+                    "result": "Accept" if preds[0] == 0 else "Decline",
+                    "prob_accept": float(proba[0][0]),
+                    "prob_decline": float(proba[0][1]),
                 }
-            ]
+            ],
         }
 
 

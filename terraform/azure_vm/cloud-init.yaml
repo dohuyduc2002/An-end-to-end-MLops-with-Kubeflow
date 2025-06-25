@@ -33,9 +33,9 @@ runcmd:
   - chown -R ducdh:ducdh /home/ducdh/docker-elk
 
   # 5. add kubeflow, minio, mlflow to /etc/hosts for CICD 
-  - echo "34.29.169.238 kubeflow.ducdh.com" >> /etc/hosts
-  - echo "35.202.204.200 minio.ducdh.com" >> /etc/hosts
-  - echo "35.202.204.200 mlflow.ducdh.com" >> /etc/hosts
+  - echo "34.28.121.76 kubeflow.ducdh.com" >> /etc/hosts
+  - echo "34.45.118.202 minio.ducdh.com" >> /etc/hosts
+  - echo "34.45.118.202 mlflow.ducdh.com" >> /etc/hosts
 
   # 6. Create Jenkins home directory
   - mkdir -p /var/jenkins_home
