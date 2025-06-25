@@ -59,7 +59,7 @@ def binning(
     else:
         experiment_id = mlflow_client.create_experiment(experiment_name)
 
-    now_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+    now_str = datetime.now().strftime("%Y%m%d")
     unique_run_name = f"{parent_run_name}-{now_str}"
 
     run = mlflow_client.create_run(experiment_id=experiment_id, run_name=unique_run_name)

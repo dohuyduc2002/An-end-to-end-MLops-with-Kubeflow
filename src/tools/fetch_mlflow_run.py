@@ -14,7 +14,7 @@ def fetch_parent_run_id(
     exp = mlflow.get_experiment_by_name(experiment_name)
     exp_id = exp.experiment_id
 
-    now_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+    now_str = datetime.now().strftime("%Y%m%d")
     unique_run_name = f"{run_name}-{now_str}"
 
     runs = mlflow.search_runs(

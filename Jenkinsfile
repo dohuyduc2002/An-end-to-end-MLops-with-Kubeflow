@@ -12,8 +12,8 @@ pipeline {
         string(name: 'cron-expr', defaultValue: '0 0 * * * *') /* robfig cron expression */
         string(name: 'pipeline-name', defaultValue: 'underwrite-pipeline')
         string(name: 'experiment-name', defaultValue: 'underwrite-experiment')  /* This also being used in fetch mlflow run id */ 
-        string(name: 'version-name', defaultValue: '0.1')
-        string(name: 'job-name', defaultValue: 'underwrite-job')
+        string(name: 'version-name', defaultValue: '0.0.1')
+        string(name: 'job-name', defaultValue: 'modeling-job')
         string(name: 'raw-train-object', defaultValue: 'data/application_train.csv')
         string(name: 'raw-test-object', defaultValue: 'data/application_test.csv')
         string(name: 'parent-run-name', defaultValue: 'xgb_optuna_search') /* This also being used in fetch mlflow run id */ 
