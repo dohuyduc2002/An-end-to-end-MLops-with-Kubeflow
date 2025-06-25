@@ -77,9 +77,9 @@ pipeline {
                 ]) {
                     script {
                         def cronExpr = params['cron-expr']
-                        dir('src') {
+                        dir('src/pipeline') {
                             sh """
-                                PYTHONPATH=. python3 pipeline/main.py \
+                                PYTHONPATH=. python3 main.py \
                                     --kfp-api-url       "${KFP_API_URL}" \
                                     --kfp-dex-username  "${KFP_DEX_USERNAME}" \
                                     --kfp-dex-password  "${KFP_DEX_PASSWORD}" \
