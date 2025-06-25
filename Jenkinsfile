@@ -9,10 +9,10 @@ pipeline {
     parameters {
         string(name: 'KFP-DEX-AUTH-TYPE', defaultValue: 'local')
         string(name: 'KUBEFLOW-NAMESPACE', defaultValue: 'kubeflow-user-example-com')
-        string(name: 'cron-expr', defaultValue: '0 0 2 * * *') /* robfig cron expression */
+        string(name: 'cron-expr', defaultValue: '0 0 * * * *') /* robfig cron expression */
         string(name: 'pipeline-name', defaultValue: 'underwrite-pipeline')
         string(name: 'experiment-name', defaultValue: 'underwrite-experiment')  /* This also being used in fetch mlflow run id */ 
-        string(name: 'version-name', defaultValue: 'v1')
+        string(name: 'version-name', defaultValue: '0.1')
         string(name: 'job-name', defaultValue: 'underwrite-job')
         string(name: 'raw-train-object', defaultValue: 'data/application_train.csv')
         string(name: 'raw-test-object', defaultValue: 'data/application_test.csv')
@@ -147,7 +147,7 @@ pipeline {
                         sh """
                             python3 tools/promote_model.py \
                                 --model        "${params.MLFLOW_REGISTERED_MODEL_NAME}" \
-                                --from-stage   staging \
+                                --from-stage   none \
                                 --to-stage     production \
                                 --tracking-uri "${MLFLOW_TRACKING_URI}"
                         """
