@@ -12,7 +12,7 @@ pipeline {
         string(name: 'cron-expr', defaultValue: '0 0 * * * *') /* robfig cron expression */
         string(name: 'pipeline-name', defaultValue: 'underwrite-pipeline')
         string(name: 'experiment-name', defaultValue: 'underwrite-experiment')  /* This also being used in fetch mlflow run id */ 
-        string(name: 'version-name', defaultValue: '0.0.1')
+        string(name: 'version-name', defaultValue: '0.0.2')
         string(name: 'job-name', defaultValue: 'modeling-job')
         string(name: 'raw-train-object', defaultValue: 'data/application_train.csv')
         string(name: 'raw-test-object', defaultValue: 'data/application_test.csv')
@@ -25,6 +25,8 @@ pipeline {
         string(name: 'suffix', defaultValue: 'underwrite')
         string(name: 'slack-channel', defaultValue: 'kfp')
         string(name: 'MLFLOW_REGISTERED_MODEL_NAME', defaultValue: 'xgb_underwrite')
+
+        string(name: "EVIDENTLY_IP", defaultValue: "34.118.239.185")
     }
 
     environment {
@@ -33,15 +35,9 @@ pipeline {
         TAG                   = "${BUILD_NUMBER}"
  
         MLFLOW_TRACKING_URI   = 'http://mlflow.ducdh.com'
-        MINIO_ENDPOINT        = 'minio.dhduc.com'
         MINIO_BUCKET_NAME     = 'sample-data'
         KFP_API_URL           = 'http://kubeflow.ducdh.com/pipeline'
-        EVIDENTLY_WORKSPACE   = 'http://evidently.dhduc.com:8000'
-
-        MINIO_CREDS           = credentials('minio-creds')
-        AWS_ACCESS_KEY_ID     = "${MINIO_CREDS_USR}"
-        AWS_SECRET_ACCESS_KEY = "${MINIO_CREDS_PSW}"
-        MLFLOW_S3_ENDPOINT_URL = "http://${MINIO_ENDPOINT}"
+        EVIDENTLY_WORKSPACE   = 'http://${params['EVIDENTLY_IP']}:8000'
 
         RUN_ID = ''
     }
@@ -73,6 +69,11 @@ pipeline {
                     string(
                         credentialsId: 'slackbot',
                         variable: 'SLACK_BOT_TOKEN'
+                    ),
+                    usernamePassword(
+                        credentialsId: 'minio-creds',
+                        usernameVariable: 'MINIO_CREDS_USR',
+                        passwordVariable: 'MINIO_CREDS_PSW'
                     )
                 ]) {
                     script {
@@ -93,8 +94,8 @@ pipeline {
                                     --version-name      "${params['version-name']}" \
                                     --job-name          "${params['job-name']}" \
                                     --minio-endpoint    "minio.minio.svc.cluster.local:9000" \
-                                    --minio-access-key  "${AWS_ACCESS_KEY_ID}" \
-                                    --minio-secret-key  "${AWS_SECRET_ACCESS_KEY}" \
+                                    --minio-access-key  "${MINIO_CREDS_USR}" \
+                                    --minio-secret-key  "${MINIO_CREDS_PSW}" \
                                     --bucket-name       "${MINIO_BUCKET_NAME}" \
                                     --mlflow-endpoint   "mlflow.mlflow.svc.cluster.local:5000" \
                                     --raw-train-object  "${params['raw-train-object']}" \
@@ -119,7 +120,7 @@ pipeline {
                     echo "[INFO] Building image for deployment..."
                     def dockerImage = docker.build(
                         "${registry}:${BUILD_NUMBER}",
-                        "--build-arg MODEL_NAME=${params.MLFLOW_REGISTERED_MODEL_NAME} " +
+                        "--build-arg MODEL_NAME=${params['MLFLOW_REGISTERED_MODEL_NAME']} " +
                         "--build-arg MODEL_TYPE=${params['model-type']} " +
                         "-f dockerfiles/Dockerfile.app ."
                     )
@@ -135,7 +136,7 @@ pipeline {
 
         stage('Approve to Production') {
             steps {
-                input message: "Approve promotion of ${params.MLFLOW_REGISTERED_MODEL_NAME} to Production?"
+                input message: "Approve promotion of ${params['MLFLOW_REGISTERED_MODEL_NAME']} to Production?"
             }
         }
 
@@ -146,7 +147,7 @@ pipeline {
                     dir('src') {
                         sh """
                             python3 tools/promote_model.py \
-                                --model        "${params.MLFLOW_REGISTERED_MODEL_NAME}" \
+                                --model        "${params['MLFLOW_REGISTERED_MODEL_NAME']}" \
                                 --from-stage   none \
                                 --to-stage     production \
                                 --tracking-uri "${MLFLOW_TRACKING_URI}"

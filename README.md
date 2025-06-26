@@ -24,6 +24,7 @@ An platform for Data Science team to build and serve ML model using multi cloud 
   - [Details](#details)
     - [Setting GKE cluster](#setting-gke-cluster)
     - [Component Preparation](#component-preparation)
+      - [Slack](#slack)
       - [Kubeflow](#kubeflow)
       - [Ingress controller](#ingress-controller)
       - [Minio](#minio)
@@ -32,7 +33,6 @@ An platform for Data Science team to build and serve ML model using multi cloud 
       - [Evidently](#evidently)
       - [Jaeger](#jaeger)
       - [API Endpoint](#api-endpoint)
-      - [Streamlit](#streamlit)
     - [Kubeflow usage](#kubeflow-usage)
       - [Kserve](#kserve)
       - [Using Kubeflow Pipeline](#using-kubeflow-pipeline)
@@ -102,23 +102,18 @@ After that, the data is upload to Minio bucket `sample-data` in Minio deployment
 ### 2. Training pipeline
 To automate the training and logging process, I'm using Kubeflow Pipelines and Kubeflow Notebook under Kubeflow platform for an unified developing and training environment. I'm also configure Kubeflow Notebook namespace to add git and push all my codebase to this repository. You can refer to [this repo](https://github.com/dohuyduc2002/kubeflow-nb) for using Kubeflow Notebook
 
-kubeflow pipeline run...
-
+![kfp](media/kfp.png)
 #### 3. Serving pipeline
 The model is served using FastAPI to create an endpoint API for the model, the UI for model user interface is built using Streamlit. The model is served in a Kubernetes pod and exposed to the internet using Nginx ingress controller. The model is pulled from Mlflow from stage `production` to the endpoint. To use this API, user can either input `raw` data from scratch and let the model process and return the prediction to the end user. 
 
 ![API](media/api.png)
 
-img st
-
 #### 4. Monitoring
-After serving, we need to monitor the 2 metrics, model performance metrics and system metrics. For these metrics, I'm using Prometheus and Grafana to monitor the system. The model performance metrics is collected using Evidently. The computer metrics is collected using Prometheus Node Exporter. The monitoring dashboard is built using Grafana and exposed to the internet using Nginx ingress controller.
+After serving, we need to monitor the 2 metrics, model performance metrics and system metrics. For these metrics, I'm using Prometheus and Grafana to monitor the system. The model performance metrics is collected using Evidently. The computer metrics is collected using Prometheus Node Exporter. The monitoring dashboard is built using Grafana and exposed to the internet using Nginx ingress controller. I'm also setting up an alert manager if the system metrics is not healthy and it will send a notify to my Discord sever. 
 
-img evidently
-
-img grafana
-
-I'm also setting up an alert manager if the system metrics is not healthy and it will send a notify to my Discord sever. 
+![Evidently](media/evidently.png)
+![Grafana custom dashboard](media/custom_graf.png)
+![Grafana](media/graf_node.png)
 
 ## Details
 ### Setting GKE cluster
@@ -133,11 +128,7 @@ Because this project is running on GKE, you need to install gcloud cli to manage
 
 ![GKE api](media/gke.png)
 
-To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account](https://console.cloud.google.com/iam-admin/serviceaccounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform/gke` folder.
-
-img 
-
-In this project, I'm using Kubernetes and Kustomize to deploy Kubeflow and other components. The infrastructure is managed using Terraform as IaC. Beflow is my Kubernetes configuration:
+To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account](https://console.cloud.google.com/iam-admin/serviceaccounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform/gke` folder. In this project, I'm using Kubernetes and Kustomize to deploy Kubeflow and other components. The infrastructure is managed using Terraform as IaC. Beflow is my Kubernetes configuration:
 - Client Version: v1.32.3
 - Kustomize Version: v5.5.0
 - Server Version: v1.32.0
@@ -178,17 +169,25 @@ terraform init
 terraform plan
 terraform apply
 ```
-The output from `outputs.tf` file will show you GKE cluster name, endpoint and project id. For this project, I'm using e2-standard-8 with 1 node which will be a back-end nodes and a routing node. 
-I'm using default VPC network provided by GKE cluster when creating the cluster. If you prefer to use your own VPC to issue own IP address range, you can modify the `main.tf` 
+The output from `outputs.tf` file will show you GKE cluster name, endpoint and project id. For this project, I'm using e2-standard-8 with 1 node which will be a back-end nodes and a routing node. I'm using default VPC network provided by GKE cluster when creating the cluster. If you prefer to use your own VPC to issue own IP address range, you can modify the `main.tf` 
 
-Switch context to GKE cluster 
+After provisioning is complete, switch context to GKE cluster 
 ```bash
 gcloud container clusters get-credentials <cluster-name> --zone <zone> --project <project-id>
 ```
-after this, you can use `kubectx` to switch context to GKE cluster.
-
 ## Component Preparation
 In this section, I will guide you to install and configure all the components in this project.
+
+### Slack
+We will create a slack bot app to send notification when Kubeflow Pipeline is completed. After create slack account, go to [Slack app](https://api.slack.com/apps) to create a new app, navigate to `OAuth & Permissions` and add the following scopes:
+- `chat:write`: to send message to slack channel
+- `incoming-webhook`: to post message to slack channel 
+
+After that, copy the slack bot token `xoxb-abcxyz` and add it to your slack channel. This bot will send notification to slack when Kubeflow Pipeline is completed. 
+
+![Slack app](media/slack_app.png)
+
+
 ### Kubeflow
 Kubeflow is an open-source platform designed to facilitate the deployment, orchestration, and management of machine learning (ML) workflows on Kubernetes. It provides a set of tools and components that enable data scientists and ML engineers to build, train, and deploy ML models at scale.
 
@@ -444,40 +443,10 @@ helm install jaeger jaegertracing/jaeger \
 ```
 
 ![Jaeger](media/jaeger.png)
+
 ### API Endpoint
-In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpipeline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. I'm also collecting prediction log using OpenTelemetry Instrument and send it back to Prometheus via `service-monitor.yaml` deployment from Prometheus CRD. The metrics dashboard is created in Grafana throguh a configmap that created above. I'm deploy
+In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpipeline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. I'm also collecting prediction log using OpenTelemetry Instrument and send it back to Prometheus via `service-monitor.yaml` deployment from Prometheus CRD. The metrics dashboard is created in Grafana throguh a configmap that created above. In my api helm chart, I used `microwave1005/prediction-api:latest` as the default image. The other version is also build to revert when necessary. First, due to my api need to use Minio to pull artifact, you need to create a namespace for the API and then create a secret for Minio credentials. 
 
-In this section, we will use the manual way to deploy the endpoint API. 
-
-**You have to build docker image for the endpoint API first which is `dockerfiles/Dockerfile.app`** 
-```bash
-docker build --no-cache\
-  -t microwave1005/prediction-api:0.1 \
-  -t microwave1005/prediction-api:latest \
-  -f dockerfiles/Dockerfile.app \
-  --build-arg MODEL_NAME=xgb_underwrite \
-  --build-arg MODEL_TYPE=xgb \
-  .
-docker push microwave1005/prediction-api:latest
-docker push microwave1005/prediction-api:0.1
-```
-
-In case your machine is using ARM architecture (eg Mac m1,...), you can build image like this 
-```bash
-docker buildx build --no-cache \
-  --platform linux/amd64 \
-  -t microwave1005/prediction-api:latest \
-  -t microwave1005/prediction-api:0.1 \
-  -f dockerfiles/Dockerfile.app \
-  --build-arg MODEL_NAME=xgb_test \
-  --build-arg MODEL_TYPE=xgb \
-  .
-
-docker push microwave1005/prediction-api:latest
-docker push microwave1005/prediction-api:0.1
-```
-
-In my api helm chart, I used `microwave1005/prediction-api:latest` as the default image. The other version is also build to revert when necessary. First, due to my api need to use Minio to pull artifact, you need to create a namespace for the API and then create a secret for Minio credentials. 
 
 ```bash
 k create namespace api
@@ -493,49 +462,8 @@ Then, you can install the API helm chart with the following command `After model
 k get svc evidently-ui -n monitoring
 ```
 
-Then you can install the API helm chart
-```bash
-helm upgrade --install api ./helm-charts/api \
-  --namespace api \
-  --create-namespace \
-  --set version=0.1 \
-  --set monitoring.enabled=true \
-  --set image.tag=0.1 \
-  --set replicaCount=1 \
-  --set env.PARENT_RUN_ID=0566e31026b845dea914c6e14da7fdca \
-  --set env.EVIDENTLY_WORKSPACE=http://146.148.97.226:8000/ \
-  --set ingress.enabled=true \
-  --set ingress.rules[0].host=api.ducdh.com \
-  --set ingress.rules[0].paths[0].path="/" \
-  --set ingress.rules[0].paths[0].pathType=Prefix \
-  --set ingress.rules[0].paths[0].serviceName=prediction-api \
-  --set ingress.rules[0].paths[0].servicePort=8000
-```
+This section only create namespace and secret for Minio credentials for API deployment through CICD pipeline, navigate to [Jenkins](#jenkins) to run the pipeline. 
 
-### Streamlit
-For end user, I'm using streamlit to create UI for the model, I have modified from this repo [Streamlit example](https://github.com/samdobson/helm). Firstly, build the docker image for the Streamlit app using the following command:
-
-```bash 
-docker build \
-  -t microwave1005/streamlit-app:latest \
-  -t microwave1005/streamlit-app:0.1 \
-  -f dockerfiles/Dockerfile.streamlit .
-
-docker push microwave1005/streamlit-app:latest
-docker push microwave1005/streamlit-app:0.1
-
-```
-After that, install the Streamlit helm chart:
-```bash
-helm upgrade --install streamlit ./helm-charts/streamlit \
-  --namespace api \
-  --create-namespace \
-  --set image.tag=v0.1 \
-  --set replicaCount=1 \
-  --set env.PREDICTION_API_URL="http://prediction-api.api:8000"
-```
-
-gif streamlit...
 ## Kubeflow usage 
 ### Kserve
 
@@ -573,7 +501,7 @@ kfp dsl compile \
   --py src/pipeline/pipeline.py \
   --output src/pipeline/pipeline.yaml
 ```
-The, navigate to [Jenkins](#jenkins) to run the Kubeflow pipeline in CICD. 
+Then, navigate to [Jenkins](#jenkins) to run the Kubeflow pipeline in CICD. 
 ### Katib
 Under implementation
 
@@ -612,7 +540,6 @@ I'm mapping istio and nginx external IP to the VM so you can access Kubeflow, Ml
   - echo "35.192.103.219 kubeflow.ducdh.com" >> /etc/hosts
   - echo "35.239.155.17 minio.ducdh.com" >> /etc/hosts
   - echo "35.239.155.17 mlflow.ducdh.com" >> /etc/hosts
-  - echo "34.72.45.193 evidently.ducdh.com" >> /etc/hosts
 
 ```
 After that, create the VM by running the following command in the `terraform/azure` folder:
