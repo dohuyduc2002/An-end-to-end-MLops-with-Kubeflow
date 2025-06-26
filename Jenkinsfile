@@ -37,7 +37,6 @@ pipeline {
         MLFLOW_TRACKING_URI   = 'http://mlflow.ducdh.com'
         MINIO_BUCKET_NAME     = 'sample-data'
         KFP_API_URL           = 'http://kubeflow.ducdh.com/pipeline'
-        EVIDENTLY_WORKSPACE   = 'http://${params['EVIDENTLY_IP']}:8000'
 
         RUN_ID = ''
     }
@@ -215,7 +214,7 @@ pipeline {
                                 --namespace api \
                                 --set monitoring.enabled=true \
                                 --set replicaCount=1 \
-                                --set env.EVIDENTLY_WORKSPACE=${EVIDENTLY_WORKSPACE} \
+                                --set env.EVIDENTLY_WORKSPACE="http://${params['EVIDENTLY_IP']}:8000" \
                                 --set env.PARENT_RUN_ID=${RUN_ID} \
                                 --set version=${TAG} \
                                 --set image.tag=${TAG} \
