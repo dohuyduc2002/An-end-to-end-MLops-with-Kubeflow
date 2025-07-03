@@ -1,0 +1,13 @@
+log:
+  enabled: true
+  level: debug
+
+backendStore:
+  databaseMigration: true
+
+postgresql:
+  enabled: true
+
+  primary:
+    persistence:
+      enabled: false

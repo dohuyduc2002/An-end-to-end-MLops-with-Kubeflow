@@ -56,7 +56,7 @@ pipeline {
             }
         }
 
-        stage('Schedule KFP recurring run') {
+        stage('Deploy recurring training/data pipeline on Kubeflow') {
             agent { docker { image 'microwave1005/kfp-jenkins-ci:0.1' } }
             steps {
                 withCredentials([
@@ -224,7 +224,7 @@ pipeline {
                                 --set ingress.rules[0].paths[0].path="/" \
                                 --set ingress.rules[0].paths[0].pathType=Prefix \
                                 --set ingress.rules[0].paths[0].serviceName=prediction-api \
-                                --set ingress.rules[0].paths[0].servicePort=8000 \
+                                --set ingress.rules[0].paths[0].servicePort=8000 
                         '''
                     }
                 }

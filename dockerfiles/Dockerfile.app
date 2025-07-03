@@ -1,7 +1,7 @@
 FROM python:3.11.11-slim AS builder
 WORKDIR /app
 
-COPY src/client/requirements.txt ./requirements.txt
+COPY ./requirements_api.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 FROM python:3.11.11-slim

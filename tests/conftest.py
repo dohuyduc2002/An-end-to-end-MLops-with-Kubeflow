@@ -9,23 +9,23 @@ import json
 import tempfile
 import joblib
 from typing import Union, get_origin, get_args
-import types
 import os
 
 from tests.mock_utils import build_mock_mlflow
-from tests.test_utils import DummyBinningProcess, DummySelector, FakeMinioResponse
+from tests.utils import DummyBinningProcess, DummySelector, FakeMinioResponse
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from client.api.schema import RawItem
+
 fake = Faker()
 
 
 @pytest.fixture
 def sample_payload():
-    payload_file = Path(__file__).parent / "sample_payload.json"
+    payload_file = Path(__file__).parent / "data" / "sample_payload.json"
     return json.loads(payload_file.read_text())
 
 
@@ -65,6 +65,7 @@ def fake_csv(tmp_path: Path):
     df.to_csv(dst, index=False)
     return dst
 
+
 @pytest.fixture
 def patch_env(mocker, dummy_joblib_path, monkeypatch):
     mlflow = build_mock_mlflow()
@@ -74,9 +75,11 @@ def patch_env(mocker, dummy_joblib_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "mlflow.tracking", mlflow)
 
     mocker.patch("src.pipeline.scripts.component_utils.mlflow", mlflow)
-    mocker.patch("src.client.api.utils.MlflowClient",mlflow.tracking.MlflowClient)
+    mocker.patch("src.client.api.utils.MlflowClient", mlflow.tracking.MlflowClient)
 
-    mlflow.tracking.MlflowClient.return_value.download_artifacts.return_value = str(dummy_joblib_path)
+    mlflow.tracking.MlflowClient.return_value.download_artifacts.return_value = str(
+        dummy_joblib_path
+    )
     mocker.patch("prometheus_client.start_http_server", return_value=None)
 
     monkeypatch.setenv("MODEL_TYPE", "xgb")

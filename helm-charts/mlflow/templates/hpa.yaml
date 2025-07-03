@@ -1,0 +1,28 @@
+{{- if and .Values.autoscaling.enabled (or .Values.backendStore.postgres.enabled .Values.backendStore.mysql.enabled) (or .Values.artifactRoot.azureBlob.enabled .Values.artifactRoot.s3.enabled .Values.artifactRoot.gcs.enabled) (or (and .Values.auth.enabled .Values.auth.postgres.enabled) (not .Values.auth.enabled)) }}
+---
+{{- if semverCompare ">=1.23-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: autoscaling/v2
+{{- else }}
+apiVersion: autoscaling/v2beta2
+{{- end }}
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "mlflow.fullname" . }}
+  labels:
+    {{- include "mlflow.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "mlflow.fullname" . }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  {{- with .Values.autoscaling.metrics }}
+  metrics:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if and (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) .Values.autoscaling.behavior (gt (len .Values.autoscaling.behavior) 0) }}
+  behavior:
+    {{- toYaml .Values.autoscaling.behavior | nindent 4 }}
+  {{- end }}
+{{- end }}

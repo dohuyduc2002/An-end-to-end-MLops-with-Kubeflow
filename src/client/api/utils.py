@@ -23,15 +23,16 @@ load_dotenv(override=False)
 # We create a Config class to hold all the API configuration parameters
 class ApiConfig:
     def __init__(self):
-        self.s3_endpoint: str = os.getenv("S3_ENDPOINT")
-        self.s3_access_key: str = os.getenv("S3_ACCESS_KEY")
-        self.s3_secret_key: str = os.getenv("S3_SECRET_KEY")
-        self.evidently_workspace: str = os.getenv("EVIDENTLY_WORKSPACE")
-        self.mlflow_endpoint: str = os.getenv("MLFLOW_ENDPOINT")
-        self.model_name: str = os.getenv("MODEL_NAME")
-        self.model_type: str = os.getenv("MODEL_TYPE")  # xgb | lgbm
-        self.parent_run_id: str = os.getenv("PARENT_RUN_ID")
-        self.transformer_artifact_path: str = os.getenv("TRANSFORMER_ARTIFACT_PATH")
+        self.s3_endpoint = os.getenv("S3_ENDPOINT")
+        self.s3_access_key = os.getenv("S3_ACCESS_KEY")
+        self.s3_secret_key = os.getenv("S3_SECRET_KEY")
+        self.evidently_workspace = os.getenv("EVIDENTLY_WORKSPACE")
+        self.mlflow_endpoint = os.getenv("MLFLOW_ENDPOINT")
+        self.model_name = os.getenv("MODEL_NAME")
+        self.model_type = os.getenv("MODEL_TYPE")  # xgb | lgbm
+        self.parent_run_id = os.getenv("PARENT_RUN_ID")
+        self.transformer_artifact_path = os.getenv("TRANSFORMER_ARTIFACT_PATH")
+        self.evidently_project_name = os.getenv("EVIDENTLY_PROJECT_NAME")
 
     def configure_mlflow(self):
         os.environ["AWS_ACCESS_KEY_ID"] = self.s3_access_key

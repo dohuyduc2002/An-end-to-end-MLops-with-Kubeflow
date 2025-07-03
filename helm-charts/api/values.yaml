@@ -20,6 +20,7 @@ env:
   EVIDENTLY_WORKSPACE: "http://35.202.139.205:8000/"
   FSSPEC_S3_ENDPOINT_URL: "http://minio.minio.svc.cluster.local:9000"
   JAEGER_AGENT_HOST: "jaeger-agent.monitoring.svc.cluster.local"
+  EVIDENTLY_PROJECT_NAME: "underwriting_project"
 
 secrets:
   name: minio-creds

@@ -1,0 +1,199 @@
+suite: test hpa
+
+templates:
+  - hpa.yaml
+
+release:
+  name: mlflow
+  namespace: mlflow
+
+chart:
+  version: 1.0.0
+  appVersion: 1.0.0
+
+tests:
+  - it: should not have hpa when autoscaling is disabled
+    set:
+      autoscaling.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should have hpa when autoscaling is enabled and Postgres backend and azure blob artifact root
+    set:
+      autoscaling.enabled: true
+      backendStore.postgres.enabled: true
+      artifactRoot.azureBlob.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should have hpa when autoscaling is enabled and MySQL backend and azure blob artifact root
+    set:
+      autoscaling.enabled: true
+      backendStore.mysql.enabled: true
+      artifactRoot.azureBlob.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should have hpa when autoscaling is enabled and Postgres backend and s3 artifact root
+    set:
+      autoscaling.enabled: true
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should have hpa when autoscaling is enabled and MySQL backend and s3 artifact root
+    set:
+      autoscaling.enabled: true
+      backendStore.mysql.enabled: true
+      artifactRoot.s3.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should have hpa when autoscaling is enabled and Postgres backend and gcs artifact root
+    set:
+      autoscaling.enabled: true
+      backendStore.postgres.enabled: true
+      artifactRoot.gcs.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should have hpa when autoscaling is enabled and MySQL backend and gcs artifact root
+    set:
+      autoscaling.enabled: true
+      backendStore.mysql.enabled: true
+      artifactRoot.gcs.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should not have hpa when auth is enabled but postgres is not enabled
+    set:
+      autoscaling.enabled: true
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+      auth.enabled: true
+      auth.postgres.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should have hpa when autoscaling is enabled and Postgres backend and s3 artifact root and auth is enabled and postgres auth is enabled
+    set:
+      autoscaling.enabled: true
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+      auth.enabled: true
+      auth.postgres.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should use apiVersion v2beta2 when kubernetes version is less than 1.23
+    set:
+      autoscaling.enabled: true
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+    capabilities:
+      majorVersion: 1
+      minorVersion: 22
+    asserts:
+      - equal:
+          path: apiVersion
+          value: autoscaling/v2beta2
+
+  - it: should use apiVersion v2 when kubernetes version is 1.23 or higher
+    set:
+      autoscaling.enabled: true
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+    capabilities:
+      majorVersion: 1
+      minorVersion: 23
+    asserts:
+      - equal:
+          path: apiVersion
+          value: autoscaling/v2
+
+  - it: should have behavior when kubernetes version is 1.18 or higher
+    set:
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+      autoscaling.enabled: true
+      autoscaling.behavior.scaleDown.stabilizationWindowSeconds: 300
+    capabilities:
+      majorVersion: 1
+      minorVersion: 18
+    asserts:
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 300
+
+  - it: should not have behavior when kubernetes version is less than 1.18
+    set:
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+      autoscaling.enabled: true
+      autoscaling.behavior.scaleDown.stabilizationWindowSeconds: 300
+    capabilities:
+      majorVersion: 1
+      minorVersion: 17
+    asserts:
+      - notEqual:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 300 
+
+  - it: should set min replicas when minReplicas is set
+    set:
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+      autoscaling.enabled: true
+      autoscaling.minReplicas: 2
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+
+  - it: should set max replicas when maxReplicas is set
+    set:
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+      autoscaling.enabled: true
+      autoscaling.maxReplicas: 3
+    asserts:
+      - equal:
+          path: spec.maxReplicas
+          value: 3
+
+  - it: should set metrics when metrics is set
+    set:
+      backendStore.postgres.enabled: true
+      artifactRoot.s3.enabled: true
+      autoscaling:
+        enabled: true
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 80
+    asserts:
+      - equal:
+          path: spec.metrics[0].type
+          value: Resource
+      - equal:
+          path: spec.metrics[0].resource.name
+          value: cpu
+      - equal:
+          path: spec.metrics[0].resource.target.type
+          value: Utilization
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 80

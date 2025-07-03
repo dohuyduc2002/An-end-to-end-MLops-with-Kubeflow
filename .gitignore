@@ -10,11 +10,12 @@ a.py
 gcp/src/client/joblib/processed_train
 gcp/src/client/joblib/processed_test
 
+de
 newmd.md
 *.gitattributes
 src/pipeline_deprecated
 gcp-key.json
-data
+datas
 mlruns
 deprecated
 # ==== Python standard ignore ====

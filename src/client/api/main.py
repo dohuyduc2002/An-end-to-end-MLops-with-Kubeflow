@@ -26,8 +26,9 @@ from client.api.utils import (
     map_evidently_data,
     custom_evidently_report,
     ApiConfig,
-    load_artifacts
+    load_artifacts,
 )
+
 os.getenv("JAEGER_AGENT_HOST")
 
 trace.set_tracer_provider(
@@ -73,6 +74,7 @@ batch_size_hist = meter.create_histogram(
     "api_prediction_batch_size",
     description="Batch size of prediction requests",
 )
+
 
 def otel_metric(fn):
     @wraps(fn)
@@ -128,7 +130,10 @@ def predict(items: List[RawItem] = Body(...)):
                     "prob_accept": float(p[0]),
                     "prob_decline": float(p[1]),
                 }
-                for y, p in zip(preds, proba,)
+                for y, p in zip(
+                    preds,
+                    proba,
+                )
             ],
         }
 
@@ -136,25 +141,28 @@ def predict(items: List[RawItem] = Body(...)):
 @app.post("/prediction-by-id")
 @otel_metric
 def predict_by_id(id: int):
-    with tracer.start_as_current_span("predict_items"):
+    with tracer.start_as_current_span("predict_items") as span:
         start_ts = time()
 
         binning, selector, model = load_artifacts(cfg)
 
-        minio_client = cfg.get_minio_client()
-        response = minio_client.get_object(
-                    "sample-data", "data/application_test.csv"
-                )
-        feature_df = pd.read_csv(BytesIO(response.read()))
+        with tracer.start_as_current_span(
+            "fetch_data_from_minio", links=[trace.Link(span.get_span_context())]
+        ):
+            minio_client = cfg.get_minio_client()
+            response = minio_client.get_object(
+                "sample-data", "data/application_test.csv"
+            )
+            feature_df = pd.read_csv(BytesIO(response.read()))
+
         row = feature_df[feature_df["SK_ID_CURR"] == id]
-        
+
         if row.empty:
             raise HTTPException(status_code=404, detail="ID not found")
 
         X = selector.transform(binning.transform(row))
         proba = model.predict_proba(X)
         preds = proba.argmax(axis=1)
-        
 
         return {
             "prediction_method": "single",
@@ -178,7 +186,7 @@ def data_monitor():
             workspace_path = cfg.evidently_workspace
             evidently_ws = RemoteWorkspace(workspace_path)
 
-            project_name = "credit_underwriting"
+            project_name = cfg.evidently_project_name
             project = None
             existing = evidently_ws.search_project(project_name)
             if existing:
