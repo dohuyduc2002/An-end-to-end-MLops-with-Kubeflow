@@ -1,7 +1,7 @@
 # 🛠 End to End Credit Scoring System on Customized Kubeflow Platform
 An platform for Data Science team to build and serve ML model using multi cloud environment (GCP and Azure) with CI/CD pipeline, monitoring. This project leverages Kubeflow, MLflow, Minio, Prometheus, Grafana, Evidently and FastAPI to build a complete a ML system. 
 
-![Diagram](media/diagram.svg)
+![Diagram](media/diagram.png)
 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
 
