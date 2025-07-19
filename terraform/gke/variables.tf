@@ -1,6 +1,6 @@
 variable "project_id" {
   description = "GCP Project ID"
-  default = "mlops-fsds"
+  default = "mlops-465414"
 }
 
 variable "region" {

@@ -23,9 +23,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def need_promote(client: MlflowClient, model_name: str, stage: str):
+def check_promote_condition(client: MlflowClient, model_name: str, stage: str):
     """Return True if latest version is *not* yet in `stage` ⇒ need promote."""
-    #https://mlflow.org/docs/latest/api_reference/python_api/mlflow.client.html: refer to the mlflow docs to search for model versions in the Postgres database
+    # https://mlflow.org/docs/latest/api_reference/python_api/mlflow.client.html: refer to the mlflow docs to search for model versions in the Postgres database
     versions = client.search_model_versions(f"name = '{model_name}'")
     if not versions:
         return True
@@ -33,7 +33,7 @@ def need_promote(client: MlflowClient, model_name: str, stage: str):
     stage_lower = stage.lower()
 
     # Get the latest version of the model
-    # The version is stored in Postgres DB 
+    # The version is stored in Postgres DB
     latest_version = max(versions, key=lambda version: int(version.version))
 
     # Find the metadata of the latest version if it already in stage
@@ -59,7 +59,7 @@ def main() -> None:
 
     client = MlflowClient()
 
-    if need_promote(client, args.model_name, args.stage):
+    if check_promote_condition(client, args.model_name, args.stage):
         # 0 = need promotion
         print(f"✅ Need promote: newest version not in stage '{args.stage}'.")
         sys.exit(0)
