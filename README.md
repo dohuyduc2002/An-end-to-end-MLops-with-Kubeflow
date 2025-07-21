@@ -1,7 +1,7 @@
 # 🛠 End to End Credit Scoring System on Customized Kubeflow Platform
 An platform for Data Science team to build and serve ML model using multi cloud environment (GCP and Azure) with CI/CD pipeline, monitoring. This project leverages Kubeflow, MLflow, Minio, Prometheus, Grafana, Evidently and FastAPI to build a complete a ML system. 
 
-![Diagram](media/arch.svg)
+![Diagram](media/arch1.svg)
 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
 
@@ -433,7 +433,9 @@ helm install evidently ./helm-charts/evidently \
 To trace the request and response in the API endpoint, I'm using Jaeger `all-in-one` deploymen in Jaeger helm chart to deploy Jaeger in this project. You can find the helm chart in `jaeger` folder which is cloned from this repo [Jaeger all-in-one helm chart](https://github.com/jaegertracing/helm-charts/tree/main/charts/jaeger). In my app, I'm manually trace all my POST and GET method.
 
 ```bash
-helm install jaeger ./helm-charts/jaeger \
+helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+
+helm install jaeger jaegertracing/jaeger \
   --namespace monitoring \
   --values helm-charts/jaeger/custom-values.yaml
 ```
@@ -489,13 +491,13 @@ kfp component build \
   --build-image \
   --platform linux/amd64 \
   --push-image \
-  src/pipeline/scripts/ 
+  src/model_pipeline/scripts/ 
 ```
 Next, compile the pipeline into yaml file
 ```bash
 kfp dsl compile \
-  --py src/pipeline/pipeline.py \
-  --output src/pipeline/pipeline.yaml
+  --py src/model_pipeline/pipeline.py \
+  --output src/model_pipeline/pipeline.yaml
 ```
 Then, navigate to [Jenkins](#jenkins) to run the Kubeflow pipeline in CICD. 
 ### Katib

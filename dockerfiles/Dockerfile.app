@@ -4,8 +4,10 @@ WORKDIR /app
 COPY ./requirements_api.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-FROM python:3.11.11-slim
+FROM python:3.11.11-slim as app
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y libgomp1
 
 ARG MODEL_NAME
 ARG MODEL_TYPE
