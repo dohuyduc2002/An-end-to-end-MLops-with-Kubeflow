@@ -1,6 +1,8 @@
 import pandas as pd
 import pytest
-from src.pipeline.scripts.component_utils import (
+import mlflow
+import optuna
+from src.model_pipeline.scripts.component_utils import (
     get_lists,
     iv_score,
     select_survivors,
@@ -83,10 +85,7 @@ def test_fit_selector(fake_csv):
 
 
 @pytest.mark.kfp_components_logic
-def test_build_objective_and_run_optuna(fake_csv, patch_env):    
-    import mlflow
-    import optuna
-
+def test_build_objective_and_run_optuna(fake_csv):    
     df = pd.read_csv(fake_csv)
     cat, num = get_lists(df)
     survivors = (cat + num)[:4] if len(cat + num) >= 4 else (cat + num)

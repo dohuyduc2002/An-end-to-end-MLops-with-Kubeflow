@@ -22,4 +22,4 @@ COPY src/client ./client
 EXPOSE 8000
 EXPOSE 8001
 
-CMD ["uvicorn", "client.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+CMD ["uvicorn", "client.api.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]

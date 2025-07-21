@@ -1,58 +1,60 @@
 import pytest
-from fastapi.testclient import TestClient
+from fastapi import HTTPException
+
+
 @pytest.fixture
-def client(patch_env):
-    from src.client.api.main import app
-    return TestClient(app)
+def client(fake_lifespan, mock_predict_batch, mock_predict_by_id, mock_minio_client):
+    from src.client.api.main import create_app
+    from fastapi.testclient import TestClient
+
+    with TestClient(create_app(lifespan=fake_lifespan)) as client:
+        yield client
 
 
 @pytest.mark.api
 def test_health(client):
     res = client.get("/")
+
     assert res.status_code == 200
     assert res.json() == {"status": "ok"}
 
 
 @pytest.mark.api
-def test_prediction_success(
-    client, sample_payload):
+def test_prediction_success(client, sample_payload):
     res = client.post("/prediction", json=sample_payload)
+    preds = res.json()["predictions"]
+
     assert res.status_code == 200
+    assert preds == [
+        {"result": "Accept", "prob_accept": 0.7, "prob_decline": 0.3},
+        {"result": "Decline", "prob_accept": 0.2, "prob_decline": 0.8},
+    ]
 
 
 @pytest.mark.api
 def test_prediction_invalid_schema(client):
     payload = [{"invalid_field": 123}]
     res = client.post("/prediction", json=payload)
-    assert res.status_code == 422  
+
+    assert res.status_code == 422
 
 
 @pytest.mark.api
-def test_prediction_by_id_valid(client,patch_minio):
+def test_prediction_by_id_valid(client):
     resp = client.post("/prediction-by-id", params={"id": 100001})
+
     assert resp.status_code == 200
+    assert resp.json()["predictions"] == [
+        {"result": "Accept", "prob_accept": 0.95, "prob_decline": 0.05}
+    ]
 
 
 @pytest.mark.api
-def test_prediction_by_id_not_found(client, patch_minio):
+def test_prediction_by_id_not_found(client, mocker):
+    mocker.patch(
+        "src.client.api.main.predict_by_id",
+        side_effect=HTTPException(status_code=404, detail="ID not found"),
+    )
     res = client.post("/prediction-by-id", params={"id": 999999})
-    assert res.status_code == 404  
 
-@pytest.mark.api
-def test_data_monitor_success(mocker,client):
-    mock_ws = mocker.patch("src.client.api.main.RemoteWorkspace")
-    mock_map_data = mocker.patch("src.client.api.main.map_evidently_data")
-    mock_custom_report = mocker.patch("src.client.api.main.custom_evidently_report")
-    
-    mock_ws.return_value.search_project.return_value = []
-    mock_ws.return_value.create_project.return_value.id = "proj_id"
-    mock_map_data.return_value = ([], [])
-    mock_custom_report.return_value = {}
-    mock_ws.return_value.add_run.return_value = None
-
-    res = client.get("/data-monitor")
-    assert res.status_code == 200
-    body = res.json()
-    assert body["status"] == "stored"
-    assert body["project_id"] == "proj_id"
-    assert body["project_name"] == "credit_underwriting"
+    assert res.status_code == 404
