@@ -1,0 +1,187 @@
+# PIPELINE DEFINITION
+# Name: binning
+# Inputs:
+#    experiment_name: str
+#    iv_max: float
+#    iv_min: float
+#    minio_access_key: str
+#    minio_endpoint: str
+#    minio_secret_key: str
+#    missing_thres: float
+#    mlflow_endpoint: str
+#    parent_run_name: str
+#    test_csv: system.Dataset
+#    train_csv: system.Dataset
+# Outputs:
+#    base_mlflow_run_id: system.Artifact
+#    df_test_binned_csv: system.Dataset
+#    df_train_binned_csv: system.Dataset
+#    transformer_joblib: system.Artifact
+components:
+  comp-binning:
+    executorLabel: exec-binning
+    inputDefinitions:
+      artifacts:
+        test_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        experiment_name:
+          parameterType: STRING
+        iv_max:
+          parameterType: NUMBER_DOUBLE
+        iv_min:
+          parameterType: NUMBER_DOUBLE
+        minio_access_key:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        missing_thres:
+          parameterType: NUMBER_DOUBLE
+        mlflow_endpoint:
+          parameterType: STRING
+        parent_run_name:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        base_mlflow_run_id:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        df_test_binned_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        df_train_binned_csv:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        transformer_joblib:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-binning:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - binning
+        command:
+        - python3
+        - -m
+        - kfp.dsl.executor_main
+        image: docker.io/microwave1005/kfp_run_image:0.1
+pipelineInfo:
+  name: binning
+root:
+  dag:
+    outputs:
+      artifacts:
+        base_mlflow_run_id:
+          artifactSelectors:
+          - outputArtifactKey: base_mlflow_run_id
+            producerSubtask: binning
+        df_test_binned_csv:
+          artifactSelectors:
+          - outputArtifactKey: df_test_binned_csv
+            producerSubtask: binning
+        df_train_binned_csv:
+          artifactSelectors:
+          - outputArtifactKey: df_train_binned_csv
+            producerSubtask: binning
+        transformer_joblib:
+          artifactSelectors:
+          - outputArtifactKey: transformer_joblib
+            producerSubtask: binning
+    tasks:
+      binning:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-binning
+        inputs:
+          artifacts:
+            test_csv:
+              componentInputArtifact: test_csv
+            train_csv:
+              componentInputArtifact: train_csv
+          parameters:
+            experiment_name:
+              componentInputParameter: experiment_name
+            iv_max:
+              componentInputParameter: iv_max
+            iv_min:
+              componentInputParameter: iv_min
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            missing_thres:
+              componentInputParameter: missing_thres
+            mlflow_endpoint:
+              componentInputParameter: mlflow_endpoint
+            parent_run_name:
+              componentInputParameter: parent_run_name
+        taskInfo:
+          name: binning
+  inputDefinitions:
+    artifacts:
+      test_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+      train_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+    parameters:
+      experiment_name:
+        parameterType: STRING
+      iv_max:
+        parameterType: NUMBER_DOUBLE
+      iv_min:
+        parameterType: NUMBER_DOUBLE
+      minio_access_key:
+        parameterType: STRING
+      minio_endpoint:
+        parameterType: STRING
+      minio_secret_key:
+        parameterType: STRING
+      missing_thres:
+        parameterType: NUMBER_DOUBLE
+      mlflow_endpoint:
+        parameterType: STRING
+      parent_run_name:
+        parameterType: STRING
+  outputDefinitions:
+    artifacts:
+      base_mlflow_run_id:
+        artifactType:
+          schemaTitle: system.Artifact
+          schemaVersion: 0.0.1
+      df_test_binned_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+      df_train_binned_csv:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+      transformer_joblib:
+        artifactType:
+          schemaTitle: system.Artifact
+          schemaVersion: 0.0.1
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1

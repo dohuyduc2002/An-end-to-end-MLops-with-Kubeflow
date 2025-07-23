@@ -1,6 +1,6 @@
 import argparse
 from tools.cicd_utils import KFPClientManager, create_recurring_run_with_params, get_runs_reponse
-
+import logging
 # Due to running Kubeflow Pipeline outside cluster, we need to insantiate client through ClientManager class 
 # This class will handle authentication and client creation by disable TLS, and get session cookies
 def authenticate_kfp_client(args):
@@ -82,7 +82,6 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    # Gom các params cho pipeline
     exclude = {
         "kfp_api_url",
         "kfp_dex_username",
@@ -94,13 +93,13 @@ def main():
     params = {k: v for k, v in vars(args).items() if k not in exclude}
 
     kfp_client = authenticate_kfp_client(args)
-    print("✅ Authenticated KFP client created.")
     schedule_recurring_run(
         kfp_client=kfp_client,
         cron_expr=args.cron_expr,
         namespace=args.kfp_namespace,
         params=params,
     )
+    logging.info("Recurring run scheduled successfully.")
 
 
 if __name__ == "__main__":

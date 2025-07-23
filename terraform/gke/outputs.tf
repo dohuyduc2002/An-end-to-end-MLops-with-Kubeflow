@@ -8,12 +8,12 @@ output "kubernetes_endpoint" {
   value       = google_container_cluster.primary.endpoint
 }
 
-output "project_id" {
-  description = "GCP Project ID used"
-  value       = var.project_id
+output "bucket_url" {
+  value       = "gs://${google_storage_bucket.gcs_bucket.name}/"
+  description = "The GCS bucket URL"
 }
 
-output "zone" {
-  description = "GCP Region used"
-  value       = var.zone
+output "bucket_http_url" {
+  value       = "https://storage.googleapis.com/${google_storage_bucket.gcs_bucket.name}/"
+  description = "The GCS bucket HTTP URL"
 }

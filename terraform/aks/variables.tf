@@ -26,9 +26,3 @@ variable "node_count" {
   type        = number
   default     = 1
 }
-
-variable "node_vm_size" {
-  description = "AKS node VM size"
-  type        = string
-  default     = "Standard_D8s_v3" # 8 vCPU, 32GB RAM
-}

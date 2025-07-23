@@ -11,73 +11,30 @@ additionalPrometheusRules:
             annotations:
               summary: Node out of memory
               description: Node memory has reached {{ humanize $value }}%
-      - name: underwriting_alerts
-        rules:
-          - alert: DataDriftWarning
-            expr: app_data_drift_score > 0.1
-            for: 1m
-            labels:
-              severity: warning
-            annotations:
-              summary: "⚠️ Data drift warning: {{ $value }}"
-          - alert: DataDriftCritical
-            expr: app_data_drift_score > 0.3
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              summary: "🚨 Data drift critical: {{ $value }}"
-          - alert: PredictionEntropyTooHigh
-            expr: api_prediction_entropy > 0.7
-            for: 1m
-            labels:
-              severity: warning
-            annotations:
-              summary: "⚠️ Prediction entropy too high: {{$value}}"
-          - alert: PredictionEntropyCritical
-            expr: api_prediction_entropy > 0.9
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              summary: "🚨 Prediction entropy CRITICAL: {{$value}}"
-          - alert: ConfidenceTooLow
-            expr: api_avg_confidence < 0.9
-            for: 1m
-            labels:
-              severity: warning
-            annotations:
-              summary: "⚠️ Model confidence low: {{$value}}"
-          - alert: ConfidenceCritical
-            expr: api_avg_confidence < 0.7
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              summary: "🚨 Model confidence CRITICAL: {{$value}}"
-
 
 alertmanager:
   config:
     global:
       resolve_timeout: 5m
     route:
+      receiver: 'slack'
       group_by: ['alertname', 'job']
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 3h
-      receiver: 'null'
       routes:
-        - receiver: discord
+        - receiver: 'slack'
           matchers:
             - severity = "critical"
-        - receiver: discord
+        - receiver: 'slack'
           matchers:
             - alertname =~ "NodeOutOfMemory"
     receivers:
-      - name: discord
-        discord_configs:
-          - webhook_url: https://discord.com/api/webhooks/1370074172977315851/S_-sXHEiNcIIaNCiROHmENd30wnMLHPMtAz3u8kYvUA2umNap2Vg6kotWNDmKT1euLv-
+      - name: slack
+        slack_configs:
+          - channel: '{{ .Values.slack.channel }}'
+            api_url: '{{ .Values.slack.webhookURL }}'
+
   ingress:
     enabled: true
 

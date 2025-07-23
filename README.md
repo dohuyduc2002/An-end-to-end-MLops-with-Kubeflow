@@ -1,7 +1,7 @@
 # 🛠 End to End Credit Scoring System on Customized Kubeflow Platform
 An platform for Data Science team to build and serve ML model using multi cloud environment (GCP and Azure) with CI/CD pipeline, monitoring. This project leverages Kubeflow, MLflow, Minio, Prometheus, Grafana, Evidently and FastAPI to build a complete a ML system. 
 
-![Diagram](media/diagram.svg)
+![Diagram](media/arch1.svg)
 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
 
@@ -24,6 +24,7 @@ An platform for Data Science team to build and serve ML model using multi cloud 
   - [Details](#details)
     - [Setting GKE cluster](#setting-gke-cluster)
     - [Component Preparation](#component-preparation)
+      - [Slack](#slack)
       - [Kubeflow](#kubeflow)
       - [Ingress controller](#ingress-controller)
       - [Minio](#minio)
@@ -32,13 +33,10 @@ An platform for Data Science team to build and serve ML model using multi cloud 
       - [Evidently](#evidently)
       - [Jaeger](#jaeger)
       - [API Endpoint](#api-endpoint)
-      - [Streamlit](#streamlit)
     - [Kubeflow usage](#kubeflow-usage)
       - [Kserve](#kserve)
       - [Using Kubeflow Pipeline](#using-kubeflow-pipeline)
       - [Katib](#katib)
-      - [Using Kubeflow Pipeline outside the cluster](#using-kubeflow-pipeline-outside-the-cluster)
-      - [Using Kubeflow Pipeline inside the cluster](#using-kubeflow-pipeline-inside-the-cluster)
       - [Config Kubeflow Central Dashboard](#config-kubeflow-central-dashboard)
     - [Setting Azure VM](#setting-azure-vm)
       - [ELK Stack](#elk-stack)
@@ -80,8 +78,7 @@ Root
 │   ├── azure_vm                        *  Deploying Jenkins, ELK in Azure VM 
 │   └── gke                             *  Deploying infrastructure in GKE
 ├── tests                               *  Testing files for the project
-├── Jenkinsfile                         *  Jenkins pipeline file for CI/CD
-└── pytest.ini                                             
+└── Jenkinsfile                         *  Jenkins pipeline file for CI/CD                                         
 ```
 
 ## Architecture Overview
@@ -94,7 +91,7 @@ gdown --folder "https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVK
 
 After that, the data is upload to Minio bucket `sample-data` in Minio deployment, to deploy and upload data to Minio, navigate to this section [Minio](#minio)
 
-minio bucket....
+![Minio bucket](media/minio_bucket.png)
 
 #### 1. Data Ingestion (Under implementation)
 ##### 1.1 Data Ingestion
@@ -105,27 +102,18 @@ minio bucket....
 ### 2. Training pipeline
 To automate the training and logging process, I'm using Kubeflow Pipelines and Kubeflow Notebook under Kubeflow platform for an unified developing and training environment. I'm also configure Kubeflow Notebook namespace to add git and push all my codebase to this repository. You can refer to [this repo](https://github.com/dohuyduc2002/kubeflow-nb) for using Kubeflow Notebook
 
-kubeflow nb dev...
-
-kubeflow nb submit...
-
-kubeflow pipeline run...
-
+![kfp](media/kfp.png)
 #### 3. Serving pipeline
 The model is served using FastAPI to create an endpoint API for the model, the UI for model user interface is built using Streamlit. The model is served in a Kubernetes pod and exposed to the internet using Nginx ingress controller. The model is pulled from Mlflow from stage `production` to the endpoint. To use this API, user can either input `raw` data from scratch and let the model process and return the prediction to the end user. 
 
-img api
-
-img st
+![API](media/api.png)
 
 #### 4. Monitoring
-After serving, we need to monitor the 2 metrics, model performance metrics and system metrics. For these metrics, I'm using Prometheus and Grafana to monitor the system. The model performance metrics is collected using Evidently. The computer metrics is collected using Prometheus Node Exporter. The monitoring dashboard is built using Grafana and exposed to the internet using Nginx ingress controller.
+After serving, we need to monitor the 2 metrics, model performance metrics and system metrics. For these metrics, I'm using Prometheus and Grafana to monitor the system. The model performance metrics is collected using Evidently. The computer metrics is collected using Prometheus Node Exporter. The monitoring dashboard is built using Grafana and exposed to the internet using Nginx ingress controller. I'm also setting up an alert manager if the system metrics is not healthy and it will send a notify to my Discord sever. 
 
-img evidently
-
-img grafana
-
-I'm also setting up an alert manager if the system metrics is not healthy and it will send a notify to my Discord sever. 
+![Evidently](media/evidently.png)
+![Grafana custom dashboard](media/custom_graf.png)
+![Grafana](media/graf_node.png)
 
 ## Details
 ### Setting GKE cluster
@@ -140,11 +128,7 @@ Because this project is running on GKE, you need to install gcloud cli to manage
 
 ![GKE api](media/gke.png)
 
-To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account](https://console.cloud.google.com/iam-admin/serviceaccounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform/gke` folder.
-
-img 
-
-In this project, I'm using Kubernetes and Kustomize to deploy Kubeflow and other components. The infrastructure is managed using Terraform as IaC. Beflow is my Kubernetes configuration:
+To enable usage of GCP resources, you need to create a service account and assign it the necessary roles. You can follow the official [GCP service account](https://console.cloud.google.com/iam-admin/serviceaccounts) to create a service account and assign it the necessary roles. After that, save it as a json file into `terraform/gke` folder. In this project, I'm using Kubernetes and Kustomize to deploy Kubeflow and other components. The infrastructure is managed using Terraform as IaC. Beflow is my Kubernetes configuration:
 - Client Version: v1.32.3
 - Kustomize Version: v5.5.0
 - Server Version: v1.32.0
@@ -176,12 +160,6 @@ echo "alias kubens='kubectl ns'" >> ~/.bashrc
 ```
 
 You can follow the official [Terraform installation guide](https://learn.hashicorp.com/tutorials/terraform/install-cli) to install Terraform.
-```bash
-wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-sudo apt update && sudo apt install terraform
-```
-
 #### Deployment
 Firstly, we need to deploy our GKE cluster
 ```bash
@@ -191,17 +169,25 @@ terraform init
 terraform plan
 terraform apply
 ```
-The output from `outputs.tf` file will show you GKE cluster name, endpoint and project id. For this project, I'm using e2-standard-8 with 1 node which will be a back-end nodes and a routing node. 
-I'm using default VPC network provided by GKE cluster when creating the cluster. If you prefer to use your own VPC to issue own IP address range, you can modify the `main.tf` 
+The output from `outputs.tf` file will show you GKE cluster name, endpoint and project id. For this project, I'm using e2-standard-8 with 1 node which will be a back-end nodes and a routing node. I'm using default VPC network provided by GKE cluster when creating the cluster. If you prefer to use your own VPC to issue own IP address range, you can modify the `main.tf` 
 
-Switch context to GKE cluster 
+After provisioning is complete, switch context to GKE cluster 
 ```bash
 gcloud container clusters get-credentials <cluster-name> --zone <zone> --project <project-id>
 ```
-after this, you can use `kubectx` to switch context to GKE cluster.
-
 ## Component Preparation
 In this section, I will guide you to install and configure all the components in this project.
+
+### Slack
+We will create a slack bot app to send notification when Kubeflow Pipeline is completed. After create slack account, go to [Slack app](https://api.slack.com/apps) to create a new app, navigate to `OAuth & Permissions` and add the following scopes:
+- `chat:write`: to send message to slack channel
+- `incoming-webhook`: to post message to slack channel 
+
+After that, copy the slack bot token `xoxb-abcxyz` and add it to your slack channel. This bot will send notification to slack when Kubeflow Pipeline is completed. 
+
+![Slack app](media/slack_app.png)
+
+
 ### Kubeflow
 Kubeflow is an open-source platform designed to facilitate the deployment, orchestration, and management of machine learning (ML) workflows on Kubernetes. It provides a set of tools and components that enable data scientists and ML engineers to build, train, and deploy ML models at scale.
 
@@ -260,11 +246,11 @@ I'm also build a custom image for Kubeflow Notebook, this image is based on the 
 
 ```bash
 docker build \
-  -t microwave1005/scipy-img:v0.1 \
+  -t microwave1005/scipy-img:0.1 \
   -t microwave1005/scipy-img:latest \
   -f dockerfiles/Dockerfile.kubeflow_notebook .
 
-docker push microwave1005/scipy-img:v0.1
+docker push microwave1005/scipy-img:0.1
 docker push microwave1005/scipy-img:latest
 ```
 
@@ -308,9 +294,8 @@ sudo nano /etc/hosts
 Im using Minio helm chart to deploy Minio in this project. You can find the helm chart in `minio` folder which is cloned from this repo [Minio community helm chart](https://github.com/minio/minio/blob/master/helm/minio/README.md)
 
 ```bash
-helm repo add minio https://charts.min.io/ 
 
-helm install minio minio/minio \
+helm install minio ./helm-charts/minio \
   --namespace minio \
   --create-namespace \
   --set mode=standalone \
@@ -318,7 +303,7 @@ helm install minio minio/minio \
   --set rootPassword=minio123 \
   --set persistence.size=10Gi \
   --set service.type=ClusterIP \
-  --set resources.requests.memory=2Gi \
+  --set resources.requests.memory=1Gi \
   --set ingress.enabled=true \
   --set ingress.ingressClassName=nginx \
   --set ingress.hosts[0]=minio.ducdh.com \
@@ -352,7 +337,7 @@ In this repo, I'm using Mlflow as model registry and tracking experiment. The Ml
 First, we initialize Postgres database for MLflow backend store.
 ```bash
 k create ns mlflow
-k apply -f helm-charts/mlflow/postgres.yaml
+k apply -f helm-charts/mlflow//postgres/postgres.yaml
 ```
 
 Then install Mlflow using helm chart
@@ -363,15 +348,19 @@ helm install mlflow community-charts/mlflow \
   --namespace mlflow \
   --set ingress.enabled=false \
   -f helm-charts/mlflow/custom-values.yaml
-
 ```
 I'm using Postgres as backend store and Minio as artifact store. This can be configure using this cmd
+
+```bash
+kubectl create secret generic gcs-credentials \
+  --namespace mlflow \
+  --from-file=key.json=gcp-key.json
+```
 
 ```bash
 helm upgrade --install mlflow community-charts/mlflow \
   --namespace mlflow \
   --reuse-values \
-  \
   --set backendStore.databaseMigration=true \
   --set backendStore.postgres.enabled=true \
   --set backendStore.postgres.host=postgres-service \
@@ -379,39 +368,8 @@ helm upgrade --install mlflow community-charts/mlflow \
   --set backendStore.postgres.database=postgres \
   --set backendStore.postgres.user=postgres \
   --set backendStore.postgres.password=postgres \
-  \
-  --set artifactRoot.s3.enabled=true \
-  --set artifactRoot.s3.bucket=mlflow \
-  --set artifactRoot.s3.awsAccessKeyId=minio \
-  --set artifactRoot.s3.awsSecretAccessKey=minio123 \
-  \
-  --set extraEnvVars.AWS_ACCESS_KEY_ID=minio \
-  --set extraEnvVars.AWS_SECRET_ACCESS_KEY=minio123 \
-  --set extraEnvVars.AWS_REGION=us-east-1 \
-  --set extraEnvVars.MLFLOW_S3_ENDPOINT_URL=http://minio.minio.svc.cluster.local:9000 \
-  --set extraEnvVars.MLFLOW_S3_IGNORE_TLS="true" \
-  --set extraEnvVars.AWS_S3_ADDRESSING_STYLE="path" \
-  \
-  --set serviceMonitor.enabled=true \
-  \
-  -f helm-charts/mlflow/custom-values.yaml \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=mlflow.ducdh.com \
-  --set ingress.hosts[0].paths[0].path=/ \
-  --set ingress.hosts[0].paths[0].pathType=Prefix
-```
-
-I'm also add a new `custom-values.yaml` file in `helm-charts/mlflow` folder to configure Mlflow ingress values.
-```bash
-helm upgrade --install mlflow community-charts/mlflow \
-  --namespace mlflow \
-  --reuse-values \
-  -f helm-charts/mlflow/custom-values.yaml \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=mlflow.ducdh.com \
-  --set ingress.hosts[0].paths[0].path=/ \
-  --set ingress.hosts[0].paths[0].pathType=Prefix
-
+  --set artifactRoot.proxiedArtifactStorage=true \
+  -f helm-charts/mlflow/custom-values.yaml
 ```
 
 ### Prometheus and Grafana
@@ -442,6 +400,8 @@ You can also check other Grafana dashboards in [Grafana lab](https://grafana.com
 helm upgrade kps prometheus-community/kube-prometheus-stack \
   -n monitoring \
   -f helm-charts/monitoring/custom-values.yaml \
+  --set slack.channel="#kfp" \
+  --set slack.webhookURL="https://hooks.slack.com/services/xxxxx" \
   --reuse-values
 ```
 
@@ -464,49 +424,13 @@ helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
 helm install jaeger jaegertracing/jaeger \
   --namespace monitoring \
   --values helm-charts/jaeger/custom-values.yaml
-
 ```
 
 ![Jaeger](media/jaeger.png)
+
 ### API Endpoint
-In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpieline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. 
+In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpipeline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. I'm also collecting prediction log using OpenTelemetry Instrument and send it back to Prometheus via `service-monitor.yaml` deployment from Prometheus CRD. The metrics dashboard is created in Grafana throguh a configmap that created above. In my api helm chart, I used `microwave1005/prediction-api:latest` as the default image. The other version is also build to revert when necessary. First, due to my api need to use Minio to pull artifact, you need to create a namespace for the API and then create a secret for Minio credentials. 
 
-I'm also collecting prediction log using OpenTelemetry Instrument and send it back to Prometheus via `service-monitor.yaml` deployment. The metrics dashboard is created in Grafana throguh a configmap that created above .
-
-There are 2 ways to deploy endpoint api
-- Manual: You can deploy the endpoint manually by using the following command:
-- CICD : The endpoint is automatically deployed when the Jenkins pipeline run success 
-
-In this section, we will use the manual way to deploy the endpoint API. 
-
-**You have to build docker image for the endpoint API first which is `dockerfiles/Dockerfile.app`** 
-```bash
-docker build --no-cache\
-  -t microwave1005/prediction-api:v0.5 \
-  -t microwave1005/prediction-api:latest \
-  -f dockerfiles/Dockerfile.app \
-  --build-arg MODEL_NAME=xgb_underwrite \
-  --build-arg MODEL_TYPE=xgb \
-  .
-docker push microwave1005/prediction-api:latest
-docker push microwave1005/prediction-api:v0.5
-```
-
-In case your machine is using ARM architecture (eg Mac m1,...), you can build image like this 
-```bash
-docker buildx build \
-  --platform linux/amd64 \
-  -t microwave1005/prediction-api:latest \
-  -t microwave1005/prediction-api:v0.1 \
-  -f dockerfiles/Dockerfile.app \
-  --build-arg MODEL_NAME=xgb_underwrite \
-  --build-arg MODEL_TYPE=xgb \
-  .
-```
-
-In my api helm chart, I used `microwave1005/prediction-api:latest` as the default image. The other version is also build to revert when necessary.
-
-First, due to my api need to use Minio to pull artifact, you need to create a namespace for the API and then create a secret for Minio credentials. 
 
 ```bash
 k create namespace api
@@ -517,77 +441,53 @@ k create secret generic minio-creds \
   -n api
 ```
 
-Then, you can install the API helm chart with the following command `After model is registered in Mlflow model registry`
-** Note: Remember to check parent run id in Mlfow UI or kubeflow downstream artifact for the API to pull the preprocess joblib and Evidently ExternalIP to use GET method. First you have to check the Evidently External IP by running the following command:
+Then, you can install the API helm chart with the following command `After model is registered in Mlflow model registry`. Remember to check parent run id in `Mlfow UI` or `Kubeflow downstream artifact` for the API to pull the preprocess joblib and `Evidently External IP` to use GET method. You can check the Evidently External IP by running the following command:
 ```bash
 k get svc evidently-ui -n monitoring
 ```
 
-Then you can install the API helm chart
-```bash
-helm install api ./helm-charts/api \
-  --namespace api \
-  --set version=v0.1 \
-  --set monitoring.enabled=true \
-  --set image.tag=v0.5 \
-  --set replicaCount=1 \
-  --set env.PARENT_RUN_ID=11d2d8ee8e374fc8b7cc189ebdcf4551 \
-  --set env.EVIDENTLY_WORKSPACE=http://35.202.112.5:8000/ \
-  --set ingress.enabled=true \
-  --set ingress.rules[0].host=api.ducdh.com \
-  --set ingress.rules[0].paths[0].path="/" \
-  --set ingress.rules[0].paths[0].pathType=Prefix \
-  --set ingress.rules[0].paths[0].serviceName=prediction-api \
-  --set ingress.rules[0].paths[0].servicePort=8000
-```
+This section only create namespace and secret for Minio credentials for API deployment through CICD pipeline, navigate to [Jenkins](#jenkins) to run the pipeline. 
 
-![API](media/api.png)
-### Streamlit
-For end user, I'm using streamlit to create UI for the model, I have modified from this repo [Streamlit example](https://github.com/samdobson/helm). Firstly, build the docker image for the Streamlit app using the following command:
-
-```bash 
-docker build --no-cache\
-  -t microwave1005/streamlit-app:latest \
-  -t microwave1005/streamlit-app:v0.1 \
-  -f dockerfiles/Dockerfile.streamlit .
-
-docker push microwave1005/streamlit-app:latest
-docker push microwave1005/streamlit-app:v0.1
-
-```
-After that, install the Streamlit helm chart:
-```bash
-helm install streamlit ./helm-charts/streamlit \
-  --namespace app \
-  --create-namespace \
-  --set image.tag=v0.1 \
-  --set replicaCount=1 \
-  --set env.PREDICTION_API_URL="http://prediction-api.api:8000"
-```
-
-gif streamlit...
 ## Kubeflow usage 
 ### Kserve
 
 In my project, I'm using `FastAPI` instead of Kserve because Kserve is not fully supported with OpenTelemetry [issue](https://github.com/kserve/kserve/issues/2668)
 
 ### Using Kubeflow Pipeline
-**Kubeflow Pipelines** is a powerful platform for building and deploying scalable and reproducible machine learning (ML) workflows based on Kubernetes. It allows data scientists and ML engineers to define workflows as a series of components, each performing a specific task (e.g., preprocessing, training, evaluation).
+For simplicity, I'm assume that the `Kubeflow pipeline` is both `Production` and `Development` environment. The CICD will run the pipeline recurring in the `Production` environment to retrain the model and update the model in the `Production` environment while the `Development` environment is used for testing and development purpose which pushed from Kubeflow notebook like my other repo [kubeflow-nb](https://github.com/dohuyduc2002/kubeflow-nb).
 
-With Kubeflow Pipelines, you can:
-- Track experiments and compare results visually.
-- Automate the ML lifecycle from data ingestion to model deployment.
-- Reuse pipeline components across projects.
-- Scale easily using Kubernetes-native resources.
+To run the pipeline, firstly you need to build the `base image` for the pipeline.
+```bash
+docker build \
+  --push \
+  -t microwave1005/kfp_run_image:latest \
+  -t microwave1005/kfp_run_image:0.1 \
+  -f dockerfiles/Dockerfile.kfp_run_image \
+  .
+docker push microwave1005/kfp_run_image:latest
+docker push microwave1005/kfp_run_image:0.1
+```
 
+After that, compile the component `with the base image` using `kfp cli` which `overwrite your base image`. This will generate a Dockerfile, and compiled yaml folder `component_metadata` in `src/pipeline/scripts/` folder for you to refer. In this project, I'm using `kfp==2.12.1` install it using `pip`. You can change the base and target image in `src/pipeline/scripts/components_utils.py` file. 
+
+```bash
+kfp component build \
+  --component-filepattern '*.py' \
+  --overwrite-dockerfile \
+  --build-image \
+  --platform linux/amd64 \
+  --push-image \
+  src/model_pipeline/scripts/ 
+```
+Next, compile the pipeline into yaml file
+```bash
+kfp dsl compile \
+  --py src/model_pipeline/pipeline.py \
+  --output src/model_pipeline/pipeline.yaml
+```
+Then, navigate to [Jenkins](#jenkins) to run the Kubeflow pipeline in CICD. 
 ### Katib
 Under implementation
-
-#### Using Kubeflow Pipeline outside the cluster
-To ensure the compliance from real world practice, we do not run KFP outside the cluster. This to ensure RBAC and Service account for each associated user. However, we need to access this outside the cluster for the CICD run.
-
-#### Using Kubeflow Pipeline inside the cluster
-You can refer to this github repo that I pushed in Kubeflow notebook in this link : [kubeflow-nb](https://github.com/dohuyduc2002/kubeflow-nb), there also documentation in here to setup git and basic usage of Kubeflow notebook workspace. 
 
 ### Config Kubeflow Central Dashboard
 Kubeflow Central Dashboard allow users to manage their Kubeflow resources and access various components of the Kubeflow ecosystem. It provides a unified interface for users to interact with different Kubeflow components, such as Pipelines, Katib, Kserve, and more. It can also be used to add others outside components with Configmap through virtual service. 
@@ -613,10 +513,7 @@ To allow your local machine to access the Azure VM, you need to generate a key p
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
 ```
 
-Due to Azure does not using default network like GKE, you need to configure NIC, Subnet and VPC manually in the `terraform/azure/main.tf` file. You can refer to the Terrafom Azurerm documentation [Azurerm 4.1.0 docs]('https://registry.terraform.io/providers/hashicorp/azurerm/4.1.0/docs')
-
-To get your Azure subscription ID, login to your Azure account and navigave to `Subscriptions` in the Azure portal. You can find your subscription ID in the `Overview` tab of your subscription.
-After that, you can run the following command to create the Azure VM for Jenkins:
+Due to Azure does not using default network like GKE, you need to configure NIC, Subnet and VPC manually in the `terraform/azure/main.tf` file. You can refer to the Terrafom Azurerm documentation [Azurerm 4.1.0 docs]('https://registry.terraform.io/providers/hashicorp/azurerm/4.1.0/docs'). To get your Azure subscription ID, login to your Azure account and navigave to `Subscriptions` in the Azure portal. You can find your subscription ID in the `Overview` tab of your subscription. After that, you can run the following command to create the Azure VM for Jenkins:
 
 ![Azure subscription ID](media/azure_subcription.png)
 
@@ -627,6 +524,7 @@ I'm mapping istio and nginx external IP to the VM so you can access Kubeflow, Ml
   - echo "35.192.103.219 kubeflow.ducdh.com" >> /etc/hosts
   - echo "35.239.155.17 minio.ducdh.com" >> /etc/hosts
   - echo "35.239.155.17 mlflow.ducdh.com" >> /etc/hosts
+
 ```
 After that, create the VM by running the following command in the `terraform/azure` folder:
 ```bash
@@ -670,31 +568,31 @@ Firstly, my CICD pipeline is using custom Jenkins image which is built from `doc
 ```bash
 docker build \
   -t microwave1005/kfp-jenkins-ci:latest \
-  -t microwave1005/kfp-jenkins-ci:v0.1 \
+  -t microwave1005/kfp-jenkins-ci:0.1 \
   -f dockerfiles/Dockerfile.kfp_jenkins_ci .
 
 docker push microwave1005/kfp-jenkins-ci:latest
-docker push microwave1005/kfp-jenkins-ci:v0.1
+docker push microwave1005/kfp-jenkins-ci:0.1
 ```
 
 ```bash
 docker build \
   -t microwave1005/custom-jenkins:latest \
-  -t microwave1005/custom-jenkins:v0.1 \
+  -t microwave1005/custom-jenkins:0.1 \
   -f dockerfiles/Dockerfile.custom_jenkins .
 
 docker push microwave1005/custom-jenkins:latest
-docker push microwave1005/custom-jenkins:v0.1
+docker push microwave1005/custom-jenkins:0.1
 ```
 
 ```bash
 docker build \
   -t microwave1005/kfp-jenkins-agent:latest \
-  -t microwave1005/kfp-jenkins-agent:v0.1 \
+  -t microwave1005/kfp-jenkins-agent:0.1 \
   -f dockerfiles/Dockerfile.jenkins_agent .
 
 docker push microwave1005/kfp-jenkins-agent:latest
-docker push microwave1005/kfp-jenkins-agent:v0.1
+docker push microwave1005/kfp-jenkins-agent:0.1
 ```
 My CICD pipeline flow consists in unittesting my components running on KFP. If the test fail the coverage, the pipeline is stopped. After testing stage complete, we create a new recurring run based on previous one-off `run_id`, `pipeline_name` and `version_name` then build Dockerfile for the app along with model promotion to `stagging`. I'm also cloned previous [kubeflow notebook repo](https://github.com/dohuyduc2002/kubeflow-nb) and rename it as `kubeflow_nb` in the `src` folder. I have already clone it and remove `.git` folder using `rm -rf .git` command. This is to ensure that the Kubeflow notebook can access the git repository and push the code to the repository. This will be used to run test in the CICD pipeline.
 
@@ -747,9 +645,7 @@ vid ...
 
 e. Testing cicd
 My cicd pipeline consist of 9 stages:
-- Detect changes & set flags: This stage will detect if there is any changes in the repository and set the flags for the next stages.
 - Unit test: This stage will run the unit tests for the project, if the tests fail, the pipeline will stop.
-- Approve recurrung run: This stage will wait for the manual approval to schedule a recurring run for the pipeline.
 - Schedule recurring run: This stage will schedule a recurring run for the pipeline with the latest commit hash and the latest version of the pipeline.
 - Build Docker image: This stage will build the Docker image for the project and push it to Dockerhub.
 - Promote model to stagging: This stage will promote the model to the `stagging` tag in Mlflow model registry.

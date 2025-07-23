@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 
 class RawItem(BaseModel):
-    SK_ID_CURR: Optional[int] = None
+    SK_ID_CURR: int
     NAME_CONTRACT_TYPE: Optional[str] = None
     CODE_GENDER: Optional[str] = None
     FLAG_OWN_CAR: Optional[str] = None

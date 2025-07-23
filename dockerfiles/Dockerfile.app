@@ -1,11 +1,13 @@
 FROM python:3.11.11-slim AS builder
 WORKDIR /app
 
-COPY src/client/requirements.txt ./requirements.txt
+COPY ./requirements_api.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-FROM python:3.11.11-slim
+FROM python:3.11.11-slim as app
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y libgomp1
 
 ARG MODEL_NAME
 ARG MODEL_TYPE
@@ -22,4 +24,4 @@ COPY src/client ./client
 EXPOSE 8000
 EXPOSE 8001
 
-CMD ["uvicorn", "client.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+CMD ["uvicorn", "client.api.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]

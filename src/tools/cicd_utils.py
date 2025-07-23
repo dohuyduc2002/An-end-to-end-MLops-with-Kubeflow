@@ -1,8 +1,8 @@
-from typing import Dict, Optional
 from urllib.parse import urlsplit, urlencode
 import kfp
 import requests
 import urllib3
+import logging
 
 SCIPY_IMAGE = "microwave1005/scipy-img:latest"
 
@@ -105,41 +105,12 @@ class KFPClientManager:
         return self._create_kfp_client()
 
 
-# We wrap the pipeline upload and versioning in a function to make it reusable
-# All the method below, please refer to the KFP API documentation:
-# https://kubeflow-pipelines.readthedocs.io/en/latest/source/client.html
-def upload_pipeline_with_version(
-    kfp_client, pipeline_yaml, pipeline_name, version_name
-):
-
-    # Upload pipeline in the specified namespace, if not specified, the pipeline will be a PUBLIC pipeline across all namespaces
-    pipeline = kfp_client.upload_pipeline(
-        pipeline_package_path=pipeline_yaml,
-        pipeline_name=pipeline_name,
-        namespace="kubeflow-user-example-com",  # Adjust namespace as needed
-    )
-    pipeline_id = getattr(pipeline, "pipeline_id")
-    print(f"⬆️  Uploaded pipeline: {pipeline_name} (id={pipeline_id})")
-
-    # Upload a new version of the pipeline
-    # If the pipeline already exists, this will create a new version
-    pipeline_version = kfp_client.upload_pipeline_version(
-        pipeline_package_path=pipeline_yaml,
-        pipeline_version_name=version_name,
-        pipeline_id=pipeline_id,
-    )
-    version_id = getattr(pipeline_version, "pipeline_version_id")
-    print(f"⬆️  Uploaded pipeline version: {version_name} (id={version_id})")
-
-    return pipeline_id, version_id, version_name
-
-
 def get_runs_reponse(kfp_client, namespace):
     # We utilize the list_runs API to get the latest run in the specified namespace
     # The list_runs will return a list of runs in a JSON format, which we can parse to get the latest run
     runs = kfp_client.list_runs(
         page_size=10,
-        sort_by="created_at desc", # You can use SQL query to sort the runs
+        sort_by="namespace desc", # You can use SQL query to sort the runs
         namespace=namespace,
     ).runs
 
@@ -150,17 +121,15 @@ def get_runs_reponse(kfp_client, namespace):
     # the object V2beta1Run which is the return of run in python SDK
     # In the JSON response, the run object has a field called "pipeline_version_reference", 
     # which has the same attributes in object V2beta1Run
-    pipeline_version_reference = getattr(run, "pipeline_version_reference")
+    pipeline_version_reference =  run.pipeline_version_reference
 
-    pipeline_id = getattr(pipeline_version_reference, "pipeline_id")
-    pipeline_version_id = getattr(pipeline_version_reference, "pipeline_version_id")
-    params = getattr(run.runtime_config, "parameters")
+    pipeline_id = pipeline_version_reference.pipeline_id
+    pipeline_version_id =  pipeline_version_reference.pipeline_version_id
 
     return {
         "experiment_id": run.experiment_id,
         "pipeline_id": pipeline_id,
         "pipeline_version_id": pipeline_version_id,
-        "params": params,
         "run_id": run_id,
     }
 
@@ -180,4 +149,4 @@ def create_recurring_run_with_params(kfp_client, cron_expr, run_info, params):
         enabled=True,
         no_catchup=True,
     )
-    print("Recurring run created:", job)
+    logging.info(f"Created recurring run: {job_name} (id={job.id})")
