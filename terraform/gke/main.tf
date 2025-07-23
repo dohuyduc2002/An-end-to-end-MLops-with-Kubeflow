@@ -1,6 +1,6 @@
 resource "google_container_cluster" "primary" {
-  name     = "prediction-platform"
-  location = var.zone
+  name     = "kubeflow-platform"
+  location = "us-central1-c"
   deletion_protection = false
 
   remove_default_node_pool = true
@@ -13,7 +13,7 @@ resource "google_container_cluster" "primary" {
 resource "google_container_node_pool" "primary_nodes" {
   name       = "primary-node-pool"
   cluster    = google_container_cluster.primary.name
-  location   = var.zone
+  location   = "us-central1-c"
   node_count = 1 
 
   node_config {
@@ -25,7 +25,26 @@ resource "google_container_node_pool" "primary_nodes" {
       "https://www.googleapis.com/auth/cloud-platform",
     ]
     labels = {
-      env = "production"
+      env = "fsds"
     }
   }
+}
+
+resource "google_storage_bucket" "gcs_bucket" {
+  name          = "ducdh-bucket"
+  location      = "US-EAST1"
+  force_destroy = true
+  project = "mlops-465414"
+  storage_class = "STANDARD"
+  requester_pays = true
+  public_access_prevention = "inherited"
+  uniform_bucket_level_access = true
+}
+
+resource "google_storage_bucket_iam_binding" "binding" {
+  bucket = google_storage_bucket.gcs_bucket.name
+  role = "roles/storage.admin"
+  members = [
+    "user:dhduc.storage1@gmail.com",
+  ]
 }

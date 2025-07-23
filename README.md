@@ -348,15 +348,19 @@ helm install mlflow community-charts/mlflow \
   --namespace mlflow \
   --set ingress.enabled=false \
   -f helm-charts/mlflow/custom-values.yaml
-
 ```
 I'm using Postgres as backend store and Minio as artifact store. This can be configure using this cmd
+
+```bash
+kubectl create secret generic gcs-credentials \
+  --namespace mlflow \
+  --from-file=key.json=gcp-key.json
+```
 
 ```bash
 helm upgrade --install mlflow community-charts/mlflow \
   --namespace mlflow \
   --reuse-values \
-  \
   --set backendStore.databaseMigration=true \
   --set backendStore.postgres.enabled=true \
   --set backendStore.postgres.host=postgres-service \
@@ -364,26 +368,8 @@ helm upgrade --install mlflow community-charts/mlflow \
   --set backendStore.postgres.database=postgres \
   --set backendStore.postgres.user=postgres \
   --set backendStore.postgres.password=postgres \
-  \
-  --set artifactRoot.s3.enabled=true \
-  --set artifactRoot.s3.bucket=mlflow \
-  --set artifactRoot.s3.awsAccessKeyId=minio \
-  --set artifactRoot.s3.awsSecretAccessKey=minio123 \
-  \
-  --set extraEnvVars.AWS_ACCESS_KEY_ID=minio \
-  --set extraEnvVars.AWS_SECRET_ACCESS_KEY=minio123 \
-  --set extraEnvVars.AWS_REGION=us-east-1 \
-  --set extraEnvVars.MLFLOW_S3_ENDPOINT_URL=http://minio.minio.svc.cluster.local:9000 \
-  --set extraEnvVars.MLFLOW_S3_IGNORE_TLS="true" \
-  --set extraEnvVars.AWS_S3_ADDRESSING_STYLE="path" \
-  \
-  --set serviceMonitor.enabled=true \
-  \
-  -f helm-charts/mlflow/custom-values.yaml \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=mlflow.ducdh.com \
-  --set ingress.hosts[0].paths[0].path=/ \
-  --set ingress.hosts[0].paths[0].pathType=Prefix
+  --set artifactRoot.proxiedArtifactStorage=true \
+  -f helm-charts/mlflow/custom-values.yaml
 ```
 
 ### Prometheus and Grafana
