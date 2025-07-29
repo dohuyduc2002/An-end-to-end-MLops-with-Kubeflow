@@ -3,22 +3,21 @@
 *.env
 __pycache__/
 **/__pycache__/
-src/client/data/application_test.csv
-src/client/data/application_train.csv
+
 .DS_Store
 a.py
-gcp/src/client/joblib/processed_train
-gcp/src/client/joblib/processed_test
+
 tests/mlruns_test.db
 de
 data/
 newmd.md
+v2.md
 *.gitattributes
-src/pipeline_deprecated
 gcp-key.json
 datas
 mlruns
 deprecated
+b.py
 # ==== Python standard ignore ====
 # Byte-compiled / optimized / DLL files
 *.py[cod]

@@ -1,0 +1,117 @@
+general:
+  namespace: kafka
+
+kafkaClusterName: kafka-cluster-0
+
+kafkaTopics:
+  - name: bureau_balance
+    partitions: 4
+    replicas: 1
+    config:
+      cleanupPolicy: delete
+      retention: 604800000
+      segmentBytes: 1048576
+  - name: bureau
+    partitions: 4
+    replicas: 1
+    config:
+      cleanupPolicy: delete
+      retention: 604800000
+      segmentBytes: 1048576
+  - name: application
+    partitions: 4
+    replicas: 1
+    config:
+      cleanupPolicy: delete
+      retention: 604800000
+      segmentBytes: 1048576
+  - name: previous_application
+    partitions: 4
+    replicas: 1
+    config:
+      cleanupPolicy: delete
+      retention: 604800000
+      segmentBytes: 1048576
+  - name: credit_card_balance
+    partitions: 4
+    replicas: 1
+    config:
+      cleanupPolicy: delete
+      retention: 604800000
+      segmentBytes: 1048576
+  - name: pos_cash_balance
+    partitions: 4
+    replicas: 1
+    config:
+      cleanupPolicy: delete
+      retention: 604800000
+      segmentBytes: 1048576
+  - name: installments_payment
+    partitions: 4
+    replicas: 1
+    config:
+      cleanupPolicy: delete
+      retention: 604800000
+      segmentBytes: 1048576
+
+controller:
+  name: controller
+  replicas: 1
+  storage:
+    type: jbod
+    size: 5Gi
+    deleteClaim: false
+
+broker:
+  name: broker
+  replicas: 1
+  storage:
+    type: jbod
+    size: 5Gi
+    deleteClaim: false
+
+kafka:
+  version: 3.9.0
+  metadataVersion: 3.9-IV0
+  listeners:
+    plain:
+      port: 9092
+    clusterip:
+      port: 9094
+  config:
+    offsetsReplicationFactor: 1
+    txnReplicationFactor: 1
+    txnMinIsr: 1
+    defaultReplicationFactor: 1
+    minInsyncReplicas: 1
+
+kafkaUi:
+  enabled: true
+  image:
+    repository: provectuslabs/kafka-ui
+    tag: latest
+    pullPolicy: IfNotPresent
+  envs:
+    config:
+      KAFKA_CLUSTERS_0_NAME: kafka-cluster-0
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-cluster-0-kafka-bootstrap:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry-svc:8081
+
+  ingress:
+    enabled: true
+    host: kafka.ducdh.com
+    ingressClassName: nginx
+    annotations: {}
+    tls: []
+
+schemaRegistry:
+  name: schema-registry
+  replicas: 1
+  image: confluentinc/cp-schema-registry:7.5.0
+  imagePullPolicy: IfNotPresent
+  port: 8081
+  listeners: http://0.0.0.0:8081
+  svcType: LoadBalancer
+  svcName: schema-registry-svc
+  ingressName: schema-registry-ingress
+  ingressClass: nginx

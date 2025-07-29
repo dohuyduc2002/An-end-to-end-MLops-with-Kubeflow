@@ -1,0 +1,39 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: connect-cluster
+  namespace: kafka
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  version: 3.9.0
+  image: microwave1005/kafka-connect-s3:0.0.2
+  replicas: {{ .Values.kafkaConnect.replicas }}
+  bootstrapServers: {{ .Values.kafkaConnect.bootstrapServers }}
+  config:
+    group.id: connect-cluster
+    offset.storage.topic: connect-offsets
+    config.storage.topic: connect-configs
+    status.storage.topic: connect-status
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+    config.providers: file
+    config.providers.file.class: org.apache.kafka.common.config.provider.FileConfigProvider
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    key.converter.schemas.enable: false
+    value.converter: io.confluent.connect.avro.AvroConverter
+    value.converter.schemas.enable: true
+    value.converter.schema.registry.url: http://schema-registry-svc:8081
+    plugin.path: /opt/kafka/plugins
+  template:
+    pod:
+      volumes:
+        - name: gcs-sa-key
+          secret:
+            secretName: gcs-sa-key
+    connectContainer:
+      volumeMounts:
+        - name: gcs-sa-key
+          mountPath: /mnt/creds
+          readOnly: true

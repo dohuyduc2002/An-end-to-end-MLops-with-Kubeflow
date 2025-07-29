@@ -1,0 +1,103 @@
+{
+  "type": "record",
+  "namespace": "com.example",
+  "name": "Bureau",
+  "fields": [
+    {
+      "name": "SK_ID_CURR",
+      "type": "long"
+    },
+    {
+      "name": "SK_ID_BUREAU",
+      "type": "long"
+    },
+    {
+      "name": "CREDIT_ACTIVE",
+      "type": "string"
+    },
+    {
+      "name": "CREDIT_CURRENCY",
+      "type": "string"
+    },
+    {
+      "name": "DAYS_CREDIT",
+      "type": "int"
+    },
+    {
+      "name": "CREDIT_DAY_OVERDUE",
+      "type": "int"
+    },
+    {
+      "name": "DAYS_CREDIT_ENDDATE",
+      "type": [
+        "null",
+        "double"
+      ],
+      "default": null
+    },
+    {
+      "name": "DAYS_ENDDATE_FACT",
+      "type": [
+        "null",
+        "double"
+      ],
+      "default": null
+    },
+    {
+      "name": "AMT_CREDIT_MAX_OVERDUE",
+      "type": [
+        "null",
+        "double"
+      ],
+      "default": null
+    },
+    {
+      "name": "CNT_CREDIT_PROLONG",
+      "type": "int"
+    },
+    {
+      "name": "AMT_CREDIT_SUM",
+      "type": [
+        "null",
+        "double"
+      ],
+      "default": null
+    },
+    {
+      "name": "AMT_CREDIT_SUM_DEBT",
+      "type": [
+        "null",
+        "double"
+      ],
+      "default": null
+    },
+    {
+      "name": "AMT_CREDIT_SUM_LIMIT",
+      "type": [
+        "null",
+        "double"
+      ],
+      "default": null
+    },
+    {
+      "name": "AMT_CREDIT_SUM_OVERDUE",
+      "type": "double"
+    },
+    {
+      "name": "CREDIT_TYPE",
+      "type": "string"
+    },
+    {
+      "name": "DAYS_CREDIT_UPDATE",
+      "type": "int"
+    },
+    {
+      "name": "AMT_ANNUITY",
+      "type": [
+        "null",
+        "double"
+      ],
+      "default": null
+    }
+  ]
+}

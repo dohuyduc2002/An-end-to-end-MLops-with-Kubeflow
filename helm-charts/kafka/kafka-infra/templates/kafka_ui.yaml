@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-ui
+  namespace: {{ .Values.general.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-ui
+  template:
+    metadata:
+      labels:
+        app: kafka-ui
+    spec:
+      containers:
+        - name: kafka-ui
+          image: "{{ .Values.kafkaUi.image.repository }}:{{ .Values.kafkaUi.image.tag }}"
+          imagePullPolicy: {{ .Values.kafkaUi.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: KAFKA_CLUSTERS_0_NAME
+              value: {{ .Values.kafkaUi.envs.config.KAFKA_CLUSTERS_0_NAME }}
+            - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
+              value: {{ .Values.kafkaUi.envs.config.KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS }}
+            - name: KAFKA_CLUSTERS_0_SCHEMAREGISTRY
+              value: {{ .Values.kafkaUi.envs.config.KAFKA_CLUSTERS_0_SCHEMAREGISTRY }}
+            - name: AUTH_TYPE
+              value: "DISABLED"
+            - name: MANAGEMENT_HEALTH_LDAP_ENABLED
+              value: "FALSE"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-ui
+  namespace: {{ .Values.general.namespace }}
+spec:
+  selector:
+    app: kafka-ui
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
+{{- if .Values.kafkaUi.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kafka-ui
+  namespace: {{ .Values.general.namespace }}
+  {{- with .Values.kafkaUi.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.kafkaUi.ingress.ingressClassName }}
+  rules:
+    - host: {{ .Values.kafkaUi.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kafka-ui
+                port:
+                  number: 8080
+  {{- if .Values.kafkaUi.ingress.tls }}
+  tls:
+    {{- toYaml .Values.kafkaUi.ingress.tls | nindent 4 }}
+  {{- end }}
+{{- end }}

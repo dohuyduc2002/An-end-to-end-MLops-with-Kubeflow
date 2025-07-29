@@ -1,0 +1,40 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: gcs
+spec:
+  feastProject: homecredit
+  # feastProjectDir: 
+  #   git:
+  #       url: {{ .Values.feastProjectDir.git.url }}
+  #       ref: {{ .Values.feastProjectDir.git.ref }}
+  services:
+    offlineStore:
+      persistence:
+        store:
+          secretRef:
+            name: feast-data-stores
+          type: bigquery
+    onlineStore:
+      persistence:
+        store:
+          type: postgres
+          secretRef:
+            name: feast-data-stores
+      server:
+        volumeMounts:
+          - mountPath: /opt/app-root/src/.config/gcloud
+            name: gcloud-creds
+            readOnly: true
+        envFrom:
+          - secretRef:
+              name: postgres-secret
+      local:
+        persistence:
+          file:
+            path: 'gs://ducdh-bucket/registry.pb'
+    ui: {}
+    volumes:
+      - name: gcloud-creds
+        secret:
+          secretName: gcloud-creds

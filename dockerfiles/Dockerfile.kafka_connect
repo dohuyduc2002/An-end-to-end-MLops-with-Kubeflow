@@ -1,0 +1,31 @@
+FROM confluentinc/cp-kafka-connect:7.0.9 AS cp
+
+RUN confluent-hub install --no-prompt confluentinc/kafka-connect-gcs:5.0.1
+
+# Bigquery is now legacy from confluent hub
+RUN confluent-hub install --no-prompt wepay/kafka-connect-bigquery:2.6.0
+RUN confluent-hub install --no-prompt confluentinc/kafka-connect-avro-converter:7.0.9
+RUN wget https://github.com/ClickHouse/clickhouse-kafka-connect/releases/download/v1.3.2/clickhouse-kafka-connect-v1.3.2.zip \
+    && unzip clickhouse-kafka-connect-v1.3.2.zip -d /tmp/clickhouse-connector
+
+FROM quay.io/strimzi/kafka:0.46.0-kafka-4.0.0
+USER root:root
+
+RUN mkdir -p /opt/kafka/plugins/kafka-connect-gcs/
+RUN mkdir -p /opt/kafka/plugins/kafka-connect-avro-converter/
+RUN mkdir -p /opt/kafka/plugins/clickhouse-kafka-connect/
+RUN mkdir -p /opt/kafka/plugins/kafka-connect-bigquery/
+
+COPY --from=cp /usr/share/confluent-hub-components/confluentinc-kafka-connect-gcs/ /opt/kafka/plugins/kafka-connect-gcs/
+COPY --from=cp /usr/share/confluent-hub-components/confluentinc-kafka-connect-avro-converter/ /opt/kafka/plugins/kafka-connect-avro-converter/
+COPY --from=cp /usr/share/confluent-hub-components/wepay-kafka-connect-bigquery/ /opt/kafka/plugins/kafka-connect-bigquery/
+COPY --from=cp /tmp/clickhouse-connector /opt/kafka/plugins/clickhouse-kafka-connect/
+
+RUN curl "https://awscli.amazonaws.com/awscliv2.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip aws
+
+RUN mkdir -p /home/user/.aws && chown -R 1001:1001 /home/user/.aws
+
+USER 1001

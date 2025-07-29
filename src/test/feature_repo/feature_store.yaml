@@ -1,0 +1,11 @@
+project: assured_swift
+# By default, the registry is a file (but can be turned into a more scalable SQL-backed registry)
+# On GCP, minimally you should create a GCS bucket for a remote file registry
+# See https://docs.feast.dev/getting-started/concepts/registry for details
+registry: data/registry.db
+provider: gcp
+# See https://docs.feast.dev/reference/online-stores/redis
+online_store:
+  type: redis
+  connection_string: "localhost:6379"
+entity_key_serialization_version: 2

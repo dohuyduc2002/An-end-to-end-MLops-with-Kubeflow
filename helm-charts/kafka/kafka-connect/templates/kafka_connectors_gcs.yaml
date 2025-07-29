@@ -1,0 +1,26 @@
+{{- range .Values.kafkaTopics }}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: gcs-sink-connector-{{ .name }}
+  namespace: {{ $.Values.general.namespace }}
+  labels:
+    strimzi.io/cluster: connect-cluster
+spec:
+  class: io.confluent.connect.gcs.GcsSinkConnector
+  tasksMax: 1
+  config:
+    topics: "{{ .name }}"
+    gcs.bucket.name: "ducdh-bucket"
+    gcs.part.size: 5242880
+    flush.size: 100000
+    storage.class: "io.confluent.connect.gcs.storage.GcsStorage"
+    format.class: "io.confluent.connect.gcs.format.avro.AvroFormat"
+    schema.compatibility: "NONE"
+    key.converter: "org.apache.kafka.connect.storage.StringConverter"
+    key.converter.schemas.enable: false
+    value.converter: "io.confluent.connect.avro.AvroConverter"
+    value.converter.schemas.enable: true
+    value.converter.schema.registry.url: "http://schema-registry-svc:8081"
+    gcs.credentials.path: "/mnt/creds/gcp-key.json"
+{{- end }}

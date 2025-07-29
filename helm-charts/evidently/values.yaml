@@ -18,5 +18,3 @@ ingress:
   className: nginx    
   host: evidently.ducdh.com
   path: /
-
-  

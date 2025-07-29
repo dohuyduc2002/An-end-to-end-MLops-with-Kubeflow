@@ -1,0 +1,8 @@
+project: feast_demo_gcp
+provider: gcp
+registry: gs://ducdh-bucket/registry.pb # TODO: Replace with your bucket
+online_store: null
+offline_store:
+  type: bigquery
+  dataset: feast_bq_dataset
+entity_key_serialization_version: 2

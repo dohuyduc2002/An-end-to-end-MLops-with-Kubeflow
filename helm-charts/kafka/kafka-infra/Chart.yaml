@@ -1,9 +1,9 @@
 apiVersion: v2
-name: evidently-ui
-description: Evidently Monitoring UI on MinIO/S3
+name: kafka_infra
+description: Kafka infrastructure
 type: application
 version: 0.1.0
-appVersion: "1.0"
+appVersion: "1.0.0"
 maintainers:
   - email: dohuyduc.work@gmail.com
     name: ducdh

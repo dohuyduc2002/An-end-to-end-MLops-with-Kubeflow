@@ -1,0 +1,10 @@
+# feastProjectDir:
+#   git:
+#     url: "https://github.com/your-org/your-feature-repo.git"
+#     ref: "main"
+
+postgres:
+  db: homecredit
+  user: postgres
+  password: postgres
+  host: postgres-service.mlflow.svc.cluster.local

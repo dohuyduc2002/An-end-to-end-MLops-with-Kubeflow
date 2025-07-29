@@ -1,0 +1,29 @@
+{{- range .Values.kafkaTopics }}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.general.namespace }}
+  labels:
+    strimzi.io/cluster: {{ $.Values.kafkaClusterName | default $.Values.kafka.name }}
+spec:
+  topicName: {{ .topicName | default .name }}
+  partitions: {{ .partitions | default 1 }}
+  replicas: {{ .replicas | default 1 }}
+  {{- if .config }}
+  config:
+    {{- if .config.cleanupPolicy }}
+    cleanup.policy: {{ .config.cleanupPolicy }}
+    {{- end }}
+    {{- if .config.retention }}
+    retention.ms: {{ .config.retention }}
+    {{- end }}
+    {{- if .config.segmentBytes }}
+    segment.bytes: {{ .config.segmentBytes }}
+    {{- end }}
+    {{- with .config.extraConfigs }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+---
+{{- end }}

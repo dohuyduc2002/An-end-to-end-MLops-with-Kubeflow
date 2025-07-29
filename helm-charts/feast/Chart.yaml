@@ -1,0 +1,9 @@
+apiVersion: v2
+description: Feature store using Feast Operator
+name: feast
+type: application
+version: 0.0.1
+appVersion: "1.0.0"
+maintainers:
+  - email: dohuyduc.work@gmail.com
+    name: ducdh

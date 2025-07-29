@@ -27,7 +27,6 @@ An platform for Data Science team to build and serve ML model using multi cloud 
       - [Slack](#slack)
       - [Kubeflow](#kubeflow)
       - [Ingress controller](#ingress-controller)
-      - [Minio](#minio)
       - [MLflow](#mlflow)
       - [Prometheus and Grafana](#prometheus-and-grafana)
       - [Evidently](#evidently)
@@ -52,7 +51,6 @@ Root
 ├── helm-charts                         *  Helm charts for deploying components in this project      
 │   ├── api                             *  Custom Helm chart for the API component                
 │   ├── jaeger                          *  Custom Helm chart for Jaeger               
-│   ├── minio                           *  Custom Helm chart for MinIO
 │   ├── mlflow                          *  Custom Helm chart for MLflow
 │   ├── monitoring                      *  Custom Helm chart for Prometheus and Grafana
 │   └── evidently                       *  Custom Helm chart for Evidently
@@ -89,9 +87,6 @@ mkdir -p data
 gdown --folder "https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVKY35Z-p44?usp=drive_link" -O ./data
 ```
 
-After that, the data is upload to Minio bucket `sample-data` in Minio deployment, to deploy and upload data to Minio, navigate to this section [Minio](#minio)
-
-![Minio bucket](media/minio_bucket.png)
 
 #### 1. Data Ingestion (Under implementation)
 ##### 1.1 Data Ingestion
@@ -255,7 +250,7 @@ docker push microwave1005/scipy-img:latest
 ```
 
 #### Ingress controller
-I'm using Nginx ingress controller to expose all services in this project to the internet which you can access services by domain name. In this case, I'm setting `proxy-body-size` to `5120G` to allow large file upload to Minio. I'm also set proxy timeout to `600` seconds to allow long running request in `GET` method in Evidently in the `api` for monitoring data drift.
+I'm using Nginx ingress controller to expose all services in this project to the internet which you can access services by domain name. In this case, I'm setting `proxy-body-size` to `5120G` to allow large file upload. I'm also set proxy timeout to `600` seconds to allow long running request in `GET` method in Evidently in the `api` for monitoring data drift.
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 
@@ -283,52 +278,17 @@ sudo nano /etc/hosts
 
 <EXTERNAL-IP-NGINX> mlflow.ducdh.com
 <EXTERNAL-IP-NGINX> api.ducdh.com
-<EXTERNAL-IP-NGINX> minio.ducdh.com
-<EXTERNAL-IP-NGINX> console.minio.ducdh.com
 <EXTERNAL-IP-NGINX> prometheus.ducdh.com
 <EXTERNAL-IP-NGINX> grafana.ducdh.com
 <EXTERNAL-IP-NGINX> app.ducdh.com
 ```
 
-### Minio
-Im using Minio helm chart to deploy Minio in this project. You can find the helm chart in `minio` folder which is cloned from this repo [Minio community helm chart](https://github.com/minio/minio/blob/master/helm/minio/README.md)
-
-```bash
-
-helm install minio ./helm-charts/minio \
-  --namespace minio \
-  --create-namespace \
-  --set mode=standalone \
-  --set rootUser=minio \
-  --set rootPassword=minio123 \
-  --set persistence.size=10Gi \
-  --set service.type=ClusterIP \
-  --set resources.requests.memory=1Gi \
-  --set ingress.enabled=true \
-  --set ingress.ingressClassName=nginx \
-  --set ingress.hosts[0]=minio.ducdh.com \
-  --set consoleIngress.enabled=true \
-  --set consoleIngress.ingressClassName=nginx \
-  --set consoleIngress.hosts[0]=console.minio.ducdh.com 
-```
-
-#### Uploading data to Minio
+#### Uploading data
 In this project, I'm tracking all data under `sample-data` bucket in Minio for simplicity. For simplicity, in this project, I'm using minio root user and password which is `minio` and `minio123`.
 
 Download data from gdrive using the following command:
 ```bash
 gdown --folder https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVKY35Z-p44?usp=drive_link
-```
-
-After that, you can push data to Minio using the following command:
-```bash
-
-mc alias set localMinio http://minio.ducdh.com minio minio123
-mc mb localMinio/sample-data
-mc mb localMinio/mlflow
-
-mc cp --recursive ./data localMinio/sample-data
-mc ls --recursive localMinio/sample-data
 ```
 
 ### Mlflow 
@@ -337,7 +297,7 @@ In this repo, I'm using Mlflow as model registry and tracking experiment. The Ml
 First, we initialize Postgres database for MLflow backend store.
 ```bash
 k create ns mlflow
-k apply -f helm-charts/mlflow//postgres/postgres.yaml
+k apply -f k8s/postgres/
 ```
 
 Then install Mlflow using helm chart
@@ -349,11 +309,11 @@ helm install mlflow community-charts/mlflow \
   --set ingress.enabled=false \
   -f helm-charts/mlflow/custom-values.yaml
 ```
-I'm using Postgres as backend store and Minio as artifact store. This can be configure using this cmd
+I'm using Postgres as backend store and GCS as artifact store. This can be configure using this cmd
 
 ```bash
 kubectl create secret generic gcs-credentials \
-  --namespace mlflow \
+  -n mlflow \
   --from-file=key.json=gcp-key.json
 ```
 
@@ -429,16 +389,15 @@ helm install jaeger jaegertracing/jaeger \
 ![Jaeger](media/jaeger.png)
 
 ### API Endpoint
-In the endpoint API, the application is pulling model from Mlflow artifact storage which is under Minio bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpipeline` bucket from Minio under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. I'm also collecting prediction log using OpenTelemetry Instrument and send it back to Prometheus via `service-monitor.yaml` deployment from Prometheus CRD. The metrics dashboard is created in Grafana throguh a configmap that created above. In my api helm chart, I used `microwave1005/prediction-api:latest` as the default image. The other version is also build to revert when necessary. First, due to my api need to use Minio to pull artifact, you need to create a namespace for the API and then create a secret for Minio credentials. 
+In the endpoint API, the application is pulling model from Mlflow artifact storage which is under GCS bucket `mlflow` from Minio deployment in `minio` namespace. The model joblib is stored in `mlpipeline` bucket from GCS under `kubeflow` namespace. This app consist 2 POST method, one is raw prediction which used to predict new customer which is not in the existed database. The 2nd one is predict by id which customer is already existed in the database. I'm also collecting prediction log using OpenTelemetry Instrument and send it back to Prometheus via `service-monitor.yaml` deployment from Prometheus CRD. The metrics dashboard is created in Grafana throguh a configmap that created above. In my api helm chart, I used `microwave1005/prediction-api:latest` as the default image. The other version is also build to revert when necessary. First, due to my api need to use GCS to pull artifact, you need to create a namespace for the API and then create a secret for Minio credentials. 
 
 
 ```bash
 k create namespace api
 
-k create secret generic minio-creds \
-  --from-literal=access_key=minio \
-  --from-literal=secret_key=minio123 \
-  -n api
+kubectl create secret generic gcs-credentials \
+  -n mlflow \
+  --from-file=key.json=gcp-key.json
 ```
 
 Then, you can install the API helm chart with the following command `After model is registered in Mlflow model registry`. Remember to check parent run id in `Mlfow UI` or `Kubeflow downstream artifact` for the API to pull the preprocess joblib and `Evidently External IP` to use GET method. You can check the Evidently External IP by running the following command:
@@ -522,7 +481,6 @@ I'm mapping istio and nginx external IP to the VM so you can access Kubeflow, Ml
 ```yaml
   # CHANGE THIS TO YOUR ISTIO AND NGINX EXTERNAL IP
   - echo "35.192.103.219 kubeflow.ducdh.com" >> /etc/hosts
-  - echo "35.239.155.17 minio.ducdh.com" >> /etc/hosts
   - echo "35.239.155.17 mlflow.ducdh.com" >> /etc/hosts
 
 ```
@@ -630,13 +588,7 @@ First, you have to prepare your Service account json, in the [Create GCP service
 
 vid...
 
-This will only allow Jenkins controller which is on Azure VM to access GKE cluster, the following step will guide you to add GCP service account key to allow Jenkins agent to `helm upgrade` or `kubectl` commands to GKE cluster. Due to the VM is running outside GCP, you have to add GCP SA key to the namespace that Jenkins agent is running in to authenticate to GKE cluster. [Refer to this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication#applications_in_other_environments). In the Jenkinsfile, I have created an inline yaml script to configure the Jenkins agent to use the GCP service account key to authenticate to GKE cluster. This is done by creating a Kubernetes secret in the `api` namespace 
-
-```bash
-k create secret generic gcp-key \
-  --from-file=gcp-key.json=gcp-key.json \
-  -n api
-```
+This will only allow Jenkins controller which is on Azure VM to access GKE cluster, the following step will guide you to add GCP service account key to allow Jenkins agent to `helm upgrade` or `kubectl` commands to GKE cluster. Due to the VM is running outside GCP, you have to add GCP SA key to the namespace that Jenkins agent is running in to authenticate to GKE cluster. [Refer to this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication#applications_in_other_environments). In the Jenkinsfile, I have created an inline yaml script to configure the Jenkins agent to use the GCP service account key to authenticate to GKE cluster. This is done by creating a Kubernetes secret in the `api` namespace
 
 d. Adding Dockerhub, Github, Minio and Kubeflow credentials
 We will add these credentials to Jenkins with `username with password`. For Dockerhub, Github, you need to create your secret key, you can following this video. For Minio, Kubeflow, since we already have these creadentials in the initial setup we add it alongside with Dockerhub and Github.
