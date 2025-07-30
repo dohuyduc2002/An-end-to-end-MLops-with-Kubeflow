@@ -2,7 +2,7 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaConnector
 metadata:
-  name: gcs-sink-connector-{{ .name }}
+  name: bigquery-sink-connector-{{ .name }}
   namespace: {{ $.Values.general.namespace }}
   labels:
     strimzi.io/cluster: connect-cluster
@@ -15,8 +15,12 @@ spec:
     autoCreateTables: true
     allowNewBigQueryFields: true
     allowBigQueryRequiredFieldRelaxation: true
-    schemaRetriever: com.wepay.kafka.connect.bigquery.retrieve.KafkaSchemaRetriever
     project: homecredit_ds
     defaultDataset: "{{ .name }}"
+    transforms: "RegexTransformation"
+    transforms.RegexTransformation.type: org.apache.kafka.connect.transforms.RegexRouter
+    transforms.RegexTransformation.regex: "(.*)-(.*)"
+    transforms.RegexTransformation.replacement: "$1_$2"
     keyfile: "/mnt/creds/gcp-key.json"
+---
 {{- end }}

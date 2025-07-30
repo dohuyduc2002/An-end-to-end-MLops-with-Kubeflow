@@ -6,8 +6,8 @@ metadata:
   annotations:
     strimzi.io/use-connector-resources: "true"
 spec:
-  version: 3.9.0
-  image: microwave1005/kafka-connect-s3:0.0.2
+  version: {{ .Values.kafkaConnect.version }}
+  image: {{ .Values.kafkaConnect.image }}
   replicas: {{ .Values.kafkaConnect.replicas }}
   bootstrapServers: {{ .Values.kafkaConnect.bootstrapServers }}
   config:

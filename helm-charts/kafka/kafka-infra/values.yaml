@@ -4,7 +4,7 @@ general:
 kafkaClusterName: kafka-cluster-0
 
 kafkaTopics:
-  - name: bureau_balance
+  - name: bureau-balance
     partitions: 4
     replicas: 1
     config:
@@ -25,28 +25,28 @@ kafkaTopics:
       cleanupPolicy: delete
       retention: 604800000
       segmentBytes: 1048576
-  - name: previous_application
+  - name: previous-application
     partitions: 4
     replicas: 1
     config:
       cleanupPolicy: delete
       retention: 604800000
       segmentBytes: 1048576
-  - name: credit_card_balance
+  - name: credit-card-balance
     partitions: 4
     replicas: 1
     config:
       cleanupPolicy: delete
       retention: 604800000
       segmentBytes: 1048576
-  - name: pos_cash_balance
+  - name: pos-cash-balance
     partitions: 4
     replicas: 1
     config:
       cleanupPolicy: delete
       retention: 604800000
       segmentBytes: 1048576
-  - name: installments_payment
+  - name: installments-payment
     partitions: 4
     replicas: 1
     config:

@@ -1,11 +1,11 @@
 kafkaTopics:
-  - name: bureau_balance
+  - name: bureau-balance
   - name: bureau
   - name: application
-  - name: previous_application
-  - name: credit_card_balance
-  - name: pos_cash_balance
-  - name: installments_payment
+  - name: previous-application
+  - name: credit-card-balance
+  - name: pos-cash-balance
+  - name: installments-payment
 
 general:
   namespace: kafka
@@ -13,3 +13,5 @@ general:
 kafkaConnect:
   replicas: 1
   bootstrapServers: kafka-cluster-0-kafka-bootstrap.kafka.svc.cluster.local:9092
+  image: microwave1005/kafka-connect-gcp:0.0.5
+  version: "3.9.0"
