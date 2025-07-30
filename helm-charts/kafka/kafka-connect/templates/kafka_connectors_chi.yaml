@@ -2,26 +2,25 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaConnector
 metadata:
-  name: gcs-sink-connector-{{ .name }}
+  name: bigquery-sink-connector-{{ .name }}
   namespace: {{ $.Values.general.namespace }}
   labels:
     strimzi.io/cluster: connect-cluster
 spec:
-  class: io.confluent.connect.gcs.GcsSinkConnector
+  class: com.clickhouse.kafka.connect.ClickHouseSinkConnector
   tasksMax: 1
   config:
     topics: "{{ .name }}"
-    gcs.bucket.name: "ducdh-bucket"
-    gcs.part.size: 5242880
-    flush.size: 100000
-    storage.class: "io.confluent.connect.gcs.storage.GcsStorage"
-    format.class: "io.confluent.connect.gcs.format.avro.AvroFormat"
-    schema.compatibility: "NONE"
+    topic2TableMap: "{{ .name }}={{ .mapping }}"
+    hostname: chi-stream-chi-cluster-0-0.clickhouse.svc.cluster.local
+    port: 8123
+    database: default
+    username: ducdh
+    password: test_password
     key.converter: "org.apache.kafka.connect.storage.StringConverter"
-    key.converter.schemas.enable: false
     value.converter: "io.confluent.connect.avro.AvroConverter"
-    value.converter.schemas.enable: true
     value.converter.schema.registry.url: "http://schema-registry-svc:8081"
-    gcs.credentials.path: "/mnt/creds/gcp-key.json"
+    value.converter.schemas.enable: "true"
+    flush.size: 1000
 ---
 {{- end }}
