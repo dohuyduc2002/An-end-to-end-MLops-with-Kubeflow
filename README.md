@@ -6,7 +6,7 @@ An platform for Data Science team to build and serve ML model using multi cloud 
 **Disclaimer**: This is a version 1.2 of this project, I will keep updating this project to make it more complete and useful.
 
 ## To-Do
-- [ ] Implement Data Ingestion, Data Quality check, Data Lake, Data Warehouse, and Data Pipeline in AKS
+- [ ] Implement Data Ingestion, Data Quality check, Data Lake, Data Warehouse, and Data Pipeline
 - [ ] Implement Kafka, Flink and Spark for Data Pipeline
 - [ ] Implement online and offline feature store
 
@@ -283,7 +283,29 @@ sudo nano /etc/hosts
 <EXTERNAL-IP-NGINX> app.ducdh.com
 ```
 
-#### Uploading data
+### Minio
+Im using Minio helm chart to deploy Minio in this project. You can find the helm chart in `minio` folder which is cloned from this repo [Minio community helm chart](https://github.com/minio/minio/blob/master/helm/minio/README.md)
+
+```bash
+
+helm install minio minio/minio \
+  --namespace minio \
+  --create-namespace \
+  --set mode=standalone \
+  --set rootUser=minio \
+  --set rootPassword=minio123 \
+  --set persistence.size=10Gi \
+  --set service.type=ClusterIP \
+  --set resources.requests.memory=1Gi \
+  --set ingress.enabled=true \
+  --set ingress.ingressClassName=nginx \
+  --set ingress.hosts[0]=minio.ducdh.com \
+  --set consoleIngress.enabled=true \
+  --set consoleIngress.ingressClassName=nginx \
+  --set consoleIngress.hosts[0]=console.minio.ducdh.com 
+```
+
+#### Uploading data to Minio
 In this project, I'm tracking all data under `sample-data` bucket in Minio for simplicity. For simplicity, in this project, I'm using minio root user and password which is `minio` and `minio123`.
 
 Download data from gdrive using the following command:
@@ -291,12 +313,26 @@ Download data from gdrive using the following command:
 gdown --folder https://drive.google.com/drive/folders/1HCoHY7N0GGCIqFouF3mx9cVKY35Z-p44?usp=drive_link
 ```
 
+After that, you can push data to Minio using the following command:
+```bash
+
+mc alias set localMinio http://minio.ducdh.com minio minio123
+mc mb localMinio/feast
+mc mb localMinio/mlflow
+mc mb localMinio/sample-data
+mc mb localMinio/stream-bucket
+
+mc cp --recursive ./data/ localMinio/sample-data
+mc ls --recursive localMinio/sample-data
+```
+
 ### Mlflow 
 In this repo, I'm using Mlflow as model registry and tracking experiment. The Mlflow deployment from MLflow community helm chart to deploy MLflow in this project. You can find the helm chart in `mlflow` folder which is cloned from this repo [MLflow community helm chart](https://github.com/community-charts/helm-charts/tree/main/charts/mlflow)
 
 First, we initialize Postgres database for MLflow backend store.
 ```bash
-k create ns mlflow
+k create ns database
+
 k apply -f k8s/postgres/
 ```
 
@@ -306,29 +342,7 @@ helm repo add community-charts https://community-charts.github.io/helm-charts
 
 helm install mlflow community-charts/mlflow \
   --namespace mlflow \
-  --set ingress.enabled=false \
-  -f helm-charts/mlflow/custom-values.yaml
-```
-I'm using Postgres as backend store and GCS as artifact store. This can be configure using this cmd
-
-```bash
-kubectl create secret generic gcs-credentials \
-  -n mlflow \
-  --from-file=key.json=gcp-key.json
-```
-
-```bash
-helm upgrade --install mlflow community-charts/mlflow \
-  --namespace mlflow \
-  --reuse-values \
-  --set backendStore.databaseMigration=true \
-  --set backendStore.postgres.enabled=true \
-  --set backendStore.postgres.host=postgres-service \
-  --set backendStore.postgres.port=5432 \
-  --set backendStore.postgres.database=postgres \
-  --set backendStore.postgres.user=postgres \
-  --set backendStore.postgres.password=postgres \
-  --set artifactRoot.proxiedArtifactStorage=true \
+  --create-namespace \
   -f helm-charts/mlflow/custom-values.yaml
 ```
 
@@ -576,7 +590,7 @@ To allow my CICD pipeline to build docker, using helm upgrade in gke cluster, yo
 - Docker Commons
 - Docker Pipeline
 - Docker API
-- Kubenetes
+- Kubernetes
 - Kubernetes Client API
 - Kubernetes CLI
 - Google Kubernetes Engine
@@ -592,8 +606,6 @@ This will only allow Jenkins controller which is on Azure VM to access GKE clust
 
 d. Adding Dockerhub, Github, Minio and Kubeflow credentials
 We will add these credentials to Jenkins with `username with password`. For Dockerhub, Github, you need to create your secret key, you can following this video. For Minio, Kubeflow, since we already have these creadentials in the initial setup we add it alongside with Dockerhub and Github.
-
-vid ...
 
 e. Testing cicd
 My cicd pipeline consist of 9 stages:

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dbeaver
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: dbeaver
+  template:
+    metadata:
+      labels:
+        app: dbeaver
+    spec:
+      containers:
+        - name: dbeaver
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8978
+          volumeMounts:
+            - mountPath: /opt/cloudbeaver/workspace
+              name: data
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: dbeaver-pvc

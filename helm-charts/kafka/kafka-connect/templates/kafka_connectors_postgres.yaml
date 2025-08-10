@@ -1,0 +1,25 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: postgres-sink-connector
+  namespace: {{ .Values.general.namespace }}
+  labels:
+    strimzi.io/cluster: connect-cluster
+spec:
+  class: io.debezium.connector.postgresql.PostgresConnector
+  tasksMax: 1
+  config:
+    topic.prefix: homecredit
+    database.hostname: postgres.database.svc.cluster.local
+    database.port: 5432
+    database.user: "${file:/opt/kafka/external-configuration/connector-config/postgres-credentials:postgres_username}"
+    database.password: "${file:/opt/kafka/external-configuration/connector-config/postgres-credentials:postgres_password}"
+    database.dbname: homecredit
+
+    schema.include.list: "record"
+    table.include.list: "record.bureau_balance,record.bureau,record.application,record.previous_application,record.credit_card_balance,record.pos_cash_balance,record.installments_payment"
+
+    heartbeat.interval.ms: 10000
+    heartbeat.action.query: "SELECT * FROM record.application WHERE SK_ID_CURR = 100001"
+
+    plugin.name: pgoutput

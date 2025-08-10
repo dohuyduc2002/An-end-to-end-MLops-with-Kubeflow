@@ -1,10 +1,21 @@
-# feastProjectDir:
-#   git:
-#     url: "https://github.com/your-org/your-feature-repo.git"
-#     ref: "main"
+feastProjectDir:
+  git:
+    url: https://github.com/dohuyduc2002/homecredit-feature-store.git
+    ref: 52d05d8
 
 postgres:
   db: homecredit
+  schema: feast
   user: postgres
   password: postgres
-  host: postgres-service.mlflow.svc.cluster.local
+  host: postgres.database.svc.cluster.local
+
+image: microwave1005/feast-spark:0.0.2
+
+ui:
+  serviceName: "feast-homecredit-ui"
+  servicePort: 80 
+  ingress:
+    enabled: true
+    className: nginx       
+    host: feast.ducdh.com

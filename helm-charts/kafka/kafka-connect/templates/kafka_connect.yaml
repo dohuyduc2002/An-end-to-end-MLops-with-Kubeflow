@@ -1,3 +1,24 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-credentials
+  namespace: kafka
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: {{ .Values.minio.accessKeyId }}
+  AWS_SECRET_ACCESS_KEY: {{ .Values.minio.secretAccessKey }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+  namespace: kafka
+type: Opaque
+stringData:
+  postgres-credentials: |
+    postgres_username={{ .Values.postgres.user }}
+    postgres_password={{ .Values.postgres.password }}
+---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaConnect
 metadata:
@@ -15,17 +36,25 @@ spec:
     offset.storage.topic: connect-offsets
     config.storage.topic: connect-configs
     status.storage.topic: connect-status
+
     config.storage.replication.factor: 1
     offset.storage.replication.factor: 1
     status.storage.replication.factor: 1
+
     config.providers: file
     config.providers.file.class: org.apache.kafka.common.config.provider.FileConfigProvider
-    key.converter: org.apache.kafka.connect.storage.StringConverter
+
+    key.converter: org.apache.kafka.connect.json.JsonConverter
     key.converter.schemas.enable: false
     value.converter: io.confluent.connect.avro.AvroConverter
     value.converter.schemas.enable: true
     value.converter.schema.registry.url: http://schema-registry-svc:8081
     plugin.path: /opt/kafka/plugins
+  externalConfiguration:
+    volumes:
+      - name: connector-config
+        secret:
+          secretName: postgres-credentials
   template:
     connectContainer:
       env:

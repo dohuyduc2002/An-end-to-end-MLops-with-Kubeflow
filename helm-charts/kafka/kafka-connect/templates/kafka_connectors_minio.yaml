@@ -2,7 +2,7 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaConnector
 metadata:
-  name: gcs-sink-connector-{{ .name }}
+  name: minio-sink-connector-{{ .name }}
   namespace: {{ $.Values.general.namespace }}
   labels:
     strimzi.io/cluster: connect-cluster
@@ -15,12 +15,12 @@ spec:
     s3.bucket.name: "stream-bucket"
     s3.region: "us-west-1"
     store.url: "http://minio.minio.svc.cluster.local:9000"
-    s3.part.size: 5242880         
-    flush.size: 1000
+    s3.part.size: {{ $.Values.minio.s3PartSize }}
+    flush.size: {{ $.Values.minio.flushSize }}
     storage.class: "io.confluent.connect.s3.storage.S3Storage"
     format.class: "io.confluent.connect.s3.format.avro.AvroFormat"
     schema.compatibility: "NONE"
-    key.converter: "org.apache.kafka.connect.storage.StringConverter"
+    key.converter: "org.apache.kafka.connect.json.JsonConverter"
     key.converter.schemas.enable: false
     value.converter: "io.confluent.connect.avro.AvroConverter"
     value.converter.schemas.enable: true

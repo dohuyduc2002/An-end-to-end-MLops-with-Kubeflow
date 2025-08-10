@@ -1,0 +1,31 @@
+replicaCount: 1
+
+image:
+  repository: dbeaver/cloudbeaver
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 80           
+  targetPort: 8978   
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  hostname: dbeaver.ducdh.com   
+  path: /
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 300m
+    memory: 512Mi
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 5Gi

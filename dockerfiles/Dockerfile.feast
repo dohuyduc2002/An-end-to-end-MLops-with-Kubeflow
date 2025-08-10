@@ -1,0 +1,20 @@
+FROM quay.io/feastdev/feature-server:0.49.0
+
+USER root
+
+# Install Java 17
+RUN dnf install -y java-17-openjdk java-17-openjdk-devel && dnf clean all
+
+RUN mkdir -p /opt/spark/jars \
+ && curl -L -o /opt/spark/jars/hadoop-aws-3.3.4.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar \
+ && curl -L -o /opt/spark/jars/hadoop-common-3.3.4.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-common/3.3.4/hadoop-common-3.3.4.jar \
+ && curl -L -o /opt/spark/jars/aws-java-sdk-bundle-1.12.261.jar https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.261/aws-java-sdk-bundle-1.12.261.jar \
+ && curl -L -o /opt/spark/jars/woodstox-core-6.5.1.jar https://repo1.maven.org/maven2/com/fasterxml/woodstox/woodstox-core/6.5.1/woodstox-core-6.5.1.jar && \
+ curl -L -o /opt/spark/jars/stax2-api-4.2.1.jar https://repo1.maven.org/maven2/org/codehaus/woodstox/stax2-api/4.2.1/stax2-api-4.2.1.jar
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+ENV PATH="$JAVA_HOME/bin:$PATH"
+
+WORKDIR /app
+COPY ./requirements_feast.txt /app/requirements_feast.txt
+RUN pip install -r requirements_feast.txt

@@ -1,7 +1,35 @@
+backendStore:
+  databaseMigration: true
+  postgres:
+    enabled: true
+    host: postgres.database.svc.cluster.local
+    port: 5432
+    database: homecredit
+    user: postgres
+    password: postgres
+
+artifactRoot:
+  s3:
+    enabled: true
+    bucket: mlflow
+    awsAccessKeyId: minio
+    awsSecretAccessKey: minio123
+
+extraEnvVars:
+  AWS_ACCESS_KEY_ID: minio
+  AWS_SECRET_ACCESS_KEY: minio123
+  AWS_REGION: us-east-1
+  MLFLOW_S3_ENDPOINT_URL: http://minio.database.svc.cluster.local:9000
+  MLFLOW_S3_IGNORE_TLS: "true"
+  AWS_S3_ADDRESSING_STYLE: "path"
+
+serviceMonitor:
+  enabled: true
+
 ingress:
   enabled: true
   className: nginx
-  annotations: 
+  annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
   hosts:
     - host: mlflow.ducdh.com
@@ -9,25 +37,3 @@ ingress:
         - path: /
           pathType: Prefix
   tls: []
-
-artifactRoot:
-  gcs:
-    enabled: true
-    bucket: ducdh-bucket
-    path: mlflow  # Optional: GCS bucket folder
-
-extraEnvVars:
-  GOOGLE_APPLICATION_CREDENTIALS: /etc/gcs/key.json
-  MLFLOW_GCS_DEFAULT_TIMEOUT: "120"  # 2 minutes
-  MLFLOW_GCS_UPLOAD_CHUNK_SIZE: "209715200"  # 200MB
-  MLFLOW_GCS_DOWNLOAD_CHUNK_SIZE: "209715200"  # 200MB
-
-extraVolumes:
-  - name: gcs-credentials
-    secret:
-      secretName: gcs-credentials
-
-extraVolumeMounts:
-  - name: gcs-credentials
-    mountPath: /etc/gcs
-    readOnly: true

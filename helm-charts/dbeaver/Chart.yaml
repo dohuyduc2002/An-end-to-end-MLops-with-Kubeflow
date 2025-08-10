@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: 21.3.0
+description: Database client DBeaver for SQL DBs
+name: dbeaver
+type: application
+version: 0.0.1

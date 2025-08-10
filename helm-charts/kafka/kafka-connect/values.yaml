@@ -14,7 +14,6 @@ kafkaTopics:
   - name: installments-payment
     mapping: installments_payment
 
-
 general:
   namespace: kafka
 
@@ -23,3 +22,23 @@ kafkaConnect:
   bootstrapServers: kafka-cluster-0-kafka-bootstrap.kafka.svc.cluster.local:9092
   image: microwave1005/kafka-connect-s3:0.0.1
   version: "3.9.0"
+
+    
+minio:
+  accessKeyId: minio
+  secretAccessKey: minio123
+  s3PartSize: 5242880
+  flushSize: 1000
+
+postgres:
+  user: postgres
+  password: postgres
+
+chi:
+  tasksMax: 1
+  database: default
+  username: ducdh
+  password: test_password
+  flushSize: 1000
+
+  

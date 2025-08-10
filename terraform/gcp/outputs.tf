@@ -13,17 +13,13 @@ output "bucket_url" {
   description = "The GCS bucket URL"
 }
 
-output "bucket_http_url" {
-  value       = "https://storage.googleapis.com/${google_storage_bucket.gcs_bucket.name}/"
-  description = "The GCS bucket HTTP URL"
-}
 
-output "cloud_sql_instance_name" {
-  description = "Name of the Cloud SQL instance"
-  value       = google_sql_database_instance.instance.name
-}
+# output "cloud_sql_instance_name" {
+#   description = "Name of the Cloud SQL instance"
+#   value       = google_sql_database_instance.instance.name
+# }
 
-output "bigquery_dataset_id" {
-  description = "ID of the BigQuery dataset"
-  value       = google_bigquery_dataset.homecredit_dataset.dataset_id
-}
+# output "bigquery_dataset_id" {
+#   description = "ID of the BigQuery dataset"
+#   value       = google_bigquery_dataset.homecredit_dataset.dataset_id
+# }

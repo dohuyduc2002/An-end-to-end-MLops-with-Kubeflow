@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: insert-bureau-job
+  namespace: database
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: insert-bureau
+        image: microwave1005/insert-job:0.0.1
+        imagePullPolicy: IfNotPresent
+        command: ["python3", "/app/insert_data.py"]
+        args:
+          ["--schema","homecredit",
+           "--table","bureau",
+           "--user","postgres",
+           "--password","postgres",          
+           "--dbname","homecredit",
+           "--host","postgres.database.svc.cluster.local",
+           "--port","5432",
+           "--minio-endpoint","minio.minio.svc.cluster.local:9000",
+           "--minio-access-key","minio",
+           "--minio-secret-key","minio123",
+           "--bucket","sample-data",
+           "--file","bureau.csv"]

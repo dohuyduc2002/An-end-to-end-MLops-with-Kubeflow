@@ -1,40 +1,53 @@
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  name: gcs
+  name: homecredit
 spec:
   feastProject: homecredit
-  # feastProjectDir: 
-  #   git:
-  #       url: {{ .Values.feastProjectDir.git.url }}
-  #       ref: {{ .Values.feastProjectDir.git.ref }}
-  services:
+  feastProjectDir: 
+    git:
+      url: {{ .Values.feastProjectDir.git.url }}
+      ref: {{ .Values.feastProjectDir.git.ref }}
+  services:      
+    registry:
+      local:
+        server:
+          image: {{ .Values.image | quote}}
+          imagePullPolicy: IfNotPresent
+          logLevel: debug
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: feast-data-stores
     offlineStore:
+      server:
+        image: {{ .Values.image | quote }}  
+        imagePullPolicy: IfNotPresent
+        logLevel: debug
       persistence:
         store:
+          type: spark
           secretRef:
             name: feast-data-stores
-          type: bigquery
     onlineStore:
+      server:
+        image: {{ .Values.image | quote }}
+        imagePullPolicy: IfNotPresent
+        logLevel: debug
       persistence:
         store:
           type: postgres
           secretRef:
             name: feast-data-stores
-      server:
-        volumeMounts:
-          - mountPath: /opt/app-root/src/.config/gcloud
-            name: gcloud-creds
-            readOnly: true
-        envFrom:
-          - secretRef:
-              name: postgres-secret
-      local:
-        persistence:
-          file:
-            path: 'gs://ducdh-bucket/registry.pb'
-    ui: {}
-    volumes:
-      - name: gcloud-creds
-        secret:
-          secretName: gcloud-creds
+    ui:
+      image: {{ .Values.image | quote }}
+      imagePullPolicy: IfNotPresent
+      logLevel: debug
+  cronJob:
+    containerConfigs:
+      image: {{ .Values.image | quote }}
+      imagePullPolicy: IfNotPresent
+    schedule: "@hourly"
+    timeZone: "Asia/Ho_Chi_Minh"
+    concurrencyPolicy: "Forbid"

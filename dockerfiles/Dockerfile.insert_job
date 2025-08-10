@@ -1,0 +1,9 @@
+FROM python:3.11.11-slim
+WORKDIR /app
+
+COPY ./requirements_job.txt ./requirements.txt 
+COPY ./src/data_prep/ ./src/data_prep/
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+WORKDIR /app/src/data_prep
