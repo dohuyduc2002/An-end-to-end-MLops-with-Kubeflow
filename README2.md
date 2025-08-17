@@ -26,3 +26,8 @@ helm upgrade --install kafka-infra ./helm-charts/kafka/kafka-infra -n kafka
 
 helm upgrade --install kafka-connect ./helm-charts/kafka/kafka-connect -n kafka
 
+k apply -f k8s/postgres/
+
+k apply -f ./k8s/jobs/insert_application.yaml
+
+k apply -f ./k8s/jobs/insert_bureau.yaml

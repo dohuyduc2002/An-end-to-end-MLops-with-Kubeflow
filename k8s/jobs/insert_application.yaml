@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: insert-bureau
+  name: insert-application
   namespace: database
 spec:
   backoffLimit: 0
@@ -24,6 +24,6 @@ spec:
            "--minio-endpoint","minio.minio.svc.cluster.local:9000",
            "--minio-access-key","minio",
            "--minio-secret-key","minio123",
-           "--table","bureau",
+           "--table","application",
            "--bucket","sample-data",
-           "--file","bureau.csv"]
+           "--file","application_test.csv"]

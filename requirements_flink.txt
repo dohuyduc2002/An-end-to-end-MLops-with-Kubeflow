@@ -1,0 +1,5 @@
+pyflink==2.0.0
+fastavro==1.9.7
+confluent-kafka[avro]
+authlib
+cachetools

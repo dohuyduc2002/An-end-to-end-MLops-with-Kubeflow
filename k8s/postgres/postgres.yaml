@@ -8,7 +8,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 5Gi
+      storage: 20Gi
 ---
 apiVersion: v1
 kind: Service
@@ -62,11 +62,11 @@ spec:
             - "wal_keep_size=256MB"
           resources:
             requests:
-              cpu: "20m"
-              memory: "64Mi"
+              cpu: "50m"
+              memory: "2Gi"
             limits:
-              cpu: "80m"
-              memory: "128Mi"
+              cpu: "200m"
+              memory: "4Gi"
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgres-storage

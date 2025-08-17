@@ -322,6 +322,7 @@ mc mb localMinio/mlflow
 mc mb localMinio/sample-data
 mc mb localMinio/stream-bucket
 
+mc cp --recursive ./data/application_test.csv localMinio/sample-data
 mc cp --recursive ./data/ localMinio/sample-data
 mc ls --recursive localMinio/sample-data
 ```

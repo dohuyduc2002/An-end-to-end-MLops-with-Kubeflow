@@ -1,0 +1,47 @@
+FROM apache/flink:2.0.0-scala_2.12-java17
+
+USER root
+
+# ---------- Build deps (pyenv builds CPython) ----------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential curl ca-certificates git \
+        libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
+        llvm libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+        libffi-dev liblzma-dev wget && \
+    rm -rf /var/lib/apt/lists/*
+
+# ---------- pyenv + Python 3.11.11 ----------
+ENV PYENV_ROOT=/opt/pyenv
+ENV PATH=$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH
+RUN git clone https://github.com/pyenv/pyenv.git $PYENV_ROOT && \
+    /bin/bash -lc "pyenv install 3.11.11" && \
+    /bin/bash -lc 'pyenv global 3.11.11 && python --version && pip --version'
+
+ENV PIP_NO_CACHE_DIR=1
+ENV PYTHONUNBUFFERED=1
+
+# ---------- Flink connectors/plugins ----------
+# Kafka connector for Flink 2.0 (must match 2.0 line)
+RUN curl -fSL -o /opt/flink/lib/flink-connector-kafka-4.0.0-2.0.jar \
+        https://repo1.maven.org/maven2/org/apache/flink/flink-connector-kafka/4.0.0-2.0/flink-connector-kafka-4.0.0-2.0.jar
+
+# S3A filesystem plugin (for checkpoints/savepoints to MinIO/S3)
+RUN mkdir -p /opt/flink/plugins/s3-fs-hadoop && \
+    curl -fSL -o /opt/flink/plugins/s3-fs-hadoop/flink-s3-fs-hadoop-2.0.0.jar \
+        https://repo1.maven.org/maven2/org/apache/flink/flink-s3-fs-hadoop/2.0.0/flink-s3-fs-hadoop-2.0.0.jar
+
+# ---------- Python deps (via requirements_flink.txt) ----------
+WORKDIR /opt/flink/usrlib
+COPY requirements_flink.txt ./requirements_flink.txt
+RUN pip install -r requirements_flink.txt
+
+# ---------- Job code + utils + schemas ----------
+COPY job.py utils.py ./
+COPY schemas/ ./schemas/
+
+# ---------- Environment for runtime ----------
+ENV PYTHONPATH=/opt/flink/usrlib:$PYTHONPATH
+# Optional: let utils.py read SR URL from env (and you can override in K8s)
+ENV SCHEMA_REGISTRY_URL="http://schema-registry-svc.infrastructure.svc.cluster.local:8081"
+
+USER flink

@@ -1,18 +1,31 @@
 kafkaTopics:
-  - name: bureau-balance
+  - name: homecredit.record.bureau_balance
     mapping: bureau_balance
-  - name: bureau
+    connector: bureau-balance
+
+  - name: homecredit.record.bureau
     mapping: bureau
-  - name: application
+    connector: bureau
+
+  - name: homecredit.record.application
     mapping: application
-  - name: previous-application
+    connector: application
+
+  - name: homecredit.record.previous_application
     mapping: previous_application
-  - name: credit-card-balance
+    connector: previous-application
+
+  - name: homecredit.record.credit_card_balance
     mapping: credit_card_balance
-  - name: pos-cash-balance
-    mapping: pos_cash_application
-  - name: installments-payment
+    connector: credit-card-balance
+
+  - name: homecredit.record.pos_cash_balance
+    mapping: pos_cash_balance
+    connector: pos-cash-balance
+
+  - name: homecredit.record.installments_payment
     mapping: installments_payment
+    connector: installments-payment
 
 general:
   namespace: kafka
@@ -28,7 +41,7 @@ minio:
   accessKeyId: minio
   secretAccessKey: minio123
   s3PartSize: 5242880
-  flushSize: 1000
+  flushSize: 10000
 
 postgres:
   user: postgres
@@ -39,6 +52,6 @@ chi:
   database: default
   username: ducdh
   password: test_password
-  flushSize: 1000
+  flushSize: 10000
 
   

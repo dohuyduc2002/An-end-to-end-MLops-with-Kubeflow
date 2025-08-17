@@ -1,0 +1,74 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: flink-merge-streams
+  namespace: flink
+spec:
+  image: microwave1005/flink_merge_streams:0.0.1   # <-- thay bằng tag bạn build từ Dockerfile
+  flinkVersion: v2_0
+  serviceAccount: flink
+
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "2"
+
+    # ---------- S3A (MinIO) ----------
+    fs.s3a.endpoint: http://minio-svc.infrastructure.svc.cluster.local:9000
+    fs.s3a.path.style.access: "true"
+    fs.s3a.connection.ssl.enabled: "false"
+    fs.s3a.aws.credentials.provider: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+
+    # ---------- State backend + checkpoint/savepoint ----------
+    state.backend: rocksdb
+    state.backend.incremental: "true"
+    state.checkpoints.dir: s3a://flink-data/checkpoints
+    state.savepoints.dir: s3a://flink-data/savepoints
+
+    # ---------- Checkpointing ----------
+    execution.checkpointing.interval: "60s"
+    execution.checkpointing.mode: "AT_LEAST_ONCE"   # hoặc EXACTLY_ONCE nếu code bật transactional sink
+    execution.checkpointing.timeout: "5m"
+    execution.checkpointing.min-pause: "2s"
+
+  podTemplate:
+    spec:
+      containers:
+      - name: flink-main-container
+        # MinIO credentials via Secret
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: minio-credentials
+                key: access-key
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: minio-credentials
+                key: secret-key
+          # App-specific envs (utils.py can read these)
+          - name: SCHEMA_REGISTRY_URL
+            value: "http://schema-registry-svc.infrastructure.svc.cluster.local:8081"
+          - name: BOOTSTRAP_SERVERS
+            value: "kafka-cluster-0-kafka-bootstrap.kafka.svc.cluster.local:9092"
+
+  jobManager:
+    replicas: 1
+    resource:
+      memory: "1g"
+      cpu: 1
+
+  taskManager:
+    replicas: 1
+    resource:
+      memory: "1g"
+      cpu: 1
+
+  job:
+    jarURI: ""   # Python job
+    entryClass: org.apache.flink.client.python.PythonDriver
+    args:
+      - "-py"
+      - "/opt/flink/usrlib/job.py"
+    parallelism: 2
+    upgradeMode: stateless
+    state: running

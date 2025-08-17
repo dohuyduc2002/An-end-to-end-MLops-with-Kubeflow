@@ -2,7 +2,7 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaConnector
 metadata:
-  name: chi-sink-connector-{{ .name }}
+  name: chi-sink-connector-{{ .connector }}
   namespace: {{ $.Values.general.namespace }}
   labels:
     strimzi.io/cluster: connect-cluster
@@ -17,10 +17,12 @@ spec:
     database: {{ $.Values.chi.database }}
     username: {{ $.Values.chi.username }}
     password: {{ $.Values.chi.password }}
-    key.converter: "org.apache.kafka.connect.json.JsonConverter"
-    value.converter: "io.confluent.connect.avro.AvroConverter"
-    value.converter.schema.registry.url: "http://schema-registry-svc:8081"
-    value.converter.schemas.enable: "true"
+
     flush.size: {{ $.Values.chi.flushSize }}
+
+    transforms: unwrap
+    transforms.unwrap.type: io.debezium.transforms.ExtractNewRecordState
+    transforms.unwrap.drop.tombstones: true
+    transforms.unwrap.delete.handling.mode: rewrite
 ---
 {{- end }}

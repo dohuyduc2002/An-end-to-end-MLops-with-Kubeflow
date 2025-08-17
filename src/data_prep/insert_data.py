@@ -1,5 +1,5 @@
 import argparse
-import io
+import os
 from minio import Minio
 from postgres_client import PostgresSQLClient
 
@@ -38,28 +38,46 @@ def main():
         secure=False,
     )
 
-    conn = postgres_client.create_conn()
-    conn.autocommit = False
+    temp_file_path = "/tmp/tmp.csv"
 
-    table_fq = f"{args.schema}.{args.table}"
-    print(f"Loading {args.file} -> {table_fq}", flush=True)
+    stat = minio_client.stat_object(args.bucket, args.file)
+    print(
+        f"Downloading {args.file} ({stat.size / (1024*1024):.2f} MB) from MinIO in one go...",
+        flush=True,
+    )
 
     resp = minio_client.get_object(args.bucket, args.file)
-    text_stream = io.TextIOWrapper(resp, encoding="utf-8")
-
-    cur = conn.cursor()
-    cur.copy_expert(
-        f"COPY {table_fq} FROM STDIN WITH (FORMAT CSV, HEADER TRUE)",
-        text_stream,
-    )
-    conn.commit()
-
-    cur.close()
-    text_stream.detach()
+    data = resp.read() 
     resp.close()
     resp.release_conn()
+
+    with open(temp_file_path, "wb") as f:
+        f.write(data)
+    print(f"✔ Download completed: {temp_file_path}", flush=True)
+
+    table_fq = f"{args.schema}.{args.table}"
+    conn = postgres_client.create_conn()
+    conn.autocommit = False
+    cur = conn.cursor()
+
+    print(f"Loading {temp_file_path} -> {table_fq}", flush=True)
+    with open(temp_file_path, "r", encoding="utf-8") as f:
+        cur.copy_expert(
+            f"COPY {table_fq} FROM STDIN WITH (FORMAT CSV, HEADER TRUE)",
+            f,
+        )
+
+    conn.commit()
+    cur.close()
     conn.close()
-    print("✔ Done")
+    print("✔ Data loaded into PostgreSQL", flush=True)
+
+    # Xóa file tạm
+    try:
+        os.remove(temp_file_path)
+        print("🗑 Temp file removed", flush=True)
+    except OSError as e:
+        print(f"⚠ Could not delete temp file: {e}", flush=True)
 
 
 if __name__ == "__main__":

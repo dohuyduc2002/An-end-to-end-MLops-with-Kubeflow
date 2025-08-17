@@ -1,0 +1,31 @@
+{
+  "type": "record",
+  "name": "MergedBureau",
+  "namespace": "homecredit.record",
+  "doc": "Merged record of bureau and bureau_balance with ISO-8601 'updated' timestamp.",
+  "fields": [
+    { "name": "sk_id_bureau",               "type": "long" },
+
+    { "name": "sk_id_curr",                 "type": ["null", "long"],   "default": null },
+    { "name": "credit_active",              "type": ["null", "string"], "default": null },
+    { "name": "credit_currency",            "type": ["null", "string"], "default": null },
+    { "name": "days_credit",                "type": ["null", "int"],    "default": null },
+    { "name": "credit_day_overdue",         "type": ["null", "int"],    "default": null },
+    { "name": "days_credit_enddate",        "type": ["null", "int"],    "default": null },
+    { "name": "days_enddate_fact",          "type": ["null", "int"],    "default": null },
+    { "name": "amt_credit_max_overdue",     "type": ["null", "double"], "default": null },
+    { "name": "cnt_credit_prolong",         "type": ["null", "int"],    "default": null },
+    { "name": "amt_credit_sum",             "type": ["null", "double"], "default": null },
+    { "name": "amt_credit_sum_debt",        "type": ["null", "double"], "default": null },
+    { "name": "amt_credit_sum_limit",       "type": ["null", "double"], "default": null },
+    { "name": "amt_credit_sum_overdue",     "type": ["null", "double"], "default": null },
+    { "name": "credit_type",                "type": ["null", "string"], "default": null },
+    { "name": "days_credit_update",         "type": ["null", "int"],    "default": null },
+    { "name": "amt_annuity",                "type": ["null", "double"], "default": null },
+
+    { "name": "months_balance",             "type": ["null", "int"],    "default": null },
+    { "name": "status",                     "type": ["null", "string"], "default": null },
+
+    { "name": "updated",                    "type": ["null", "string"], "default": null }
+  ]
+}
