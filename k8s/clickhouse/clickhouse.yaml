@@ -6,8 +6,7 @@ spec:
   configuration:
     users:
       # password: test_password (hash SHA256)
-      ducdh/password_sha256_hex: 10a6e6cc8311a3e2bcc09bf6c199adecd5dd59408c343e926b129c4914f3cb01
-      ducdh/password: test_password
+      ducdh/password: ducdh
       ducdh/networks/ip:
         - 0.0.0.0/0
       ducdh/profile: default
@@ -41,7 +40,7 @@ spec:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 5Gi
+              storage: 8Gi
       - name: log-storage-vc-template
         spec:
           accessModes:

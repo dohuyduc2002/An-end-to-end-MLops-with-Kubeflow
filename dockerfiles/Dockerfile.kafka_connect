@@ -2,16 +2,20 @@ FROM confluentinc/cp-kafka-connect:7.0.9 AS cp
 
 RUN confluent-hub install --no-prompt confluentinc/kafka-connect-s3:10.5.21
 RUN confluent-hub install --no-prompt confluentinc/kafka-connect-avro-converter:7.0.9
-RUN wget https://github.com/ClickHouse/clickhouse-kafka-connect/releases/download/v1.3.2/clickhouse-kafka-connect-v1.3.2.zip \
-    && unzip clickhouse-kafka-connect-v1.3.2.zip -d /tmp/clickhouse-connector
 
-FROM quay.io/strimzi/kafka:0.46.0-kafka-3.9.0
+
+FROM quay.io/strimzi/kafka:0.46.0-kafka-4.0.0
 USER root:root
+
+RUN microdnf update -y && microdnf install -y unzip wget && microdnf clean all
 
 RUN mkdir -p /opt/kafka/plugins/debezium-postgres-connector/
 RUN mkdir -p /opt/kafka/plugins/kafka-connect-s3/
 RUN mkdir -p /opt/kafka/plugins/kafka-connect-avro-converter/
 RUN mkdir -p /opt/kafka/plugins/clickhouse-kafka-connect/
+
+RUN wget https://github.com/ClickHouse/clickhouse-kafka-connect/releases/download/v1.3.2/clickhouse-kafka-connect-v1.3.2.zip \
+    && unzip clickhouse-kafka-connect-v1.3.2.zip -d /opt/kafka/plugins/clickhouse-kafka-connect/
 
 RUN curl -L https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgres/2.5.0.Final/debezium-connector-postgres-2.5.0.Final-plugin.tar.gz -o /tmp/debezium-connector-postgres.tar.gz && \
     tar -xzf /tmp/debezium-connector-postgres.tar.gz -C /opt/kafka/plugins/debezium-postgres-connector --strip-components=1 && \
@@ -19,6 +23,5 @@ RUN curl -L https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgr
 
 COPY --from=cp /usr/share/confluent-hub-components/confluentinc-kafka-connect-s3/ /opt/kafka/plugins/kafka-connect-s3/
 COPY --from=cp /usr/share/confluent-hub-components/confluentinc-kafka-connect-avro-converter/ /opt/kafka/plugins/kafka-connect-avro-converter/
-COPY --from=cp /tmp/clickhouse-connector /opt/kafka/plugins/clickhouse-kafka-connect/
 
 USER 1001

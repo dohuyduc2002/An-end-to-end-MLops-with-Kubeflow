@@ -33,8 +33,8 @@ general:
 kafkaConnect:
   replicas: 1
   bootstrapServers: kafka-cluster-0-kafka-bootstrap.kafka.svc.cluster.local:9092
-  image: microwave1005/kafka-connect-s3:0.0.1
-  version: "3.9.0"
+  image: microwave1005/kafka-connect-s3:0.0.2
+  version: "4.0.0"
 
     
 minio:
@@ -51,7 +51,7 @@ chi:
   tasksMax: 1
   database: default
   username: ducdh
-  password: test_password
+  password: ducdh
   flushSize: 10000
 
   

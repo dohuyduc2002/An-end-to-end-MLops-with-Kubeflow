@@ -1,27 +1,42 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 DATA_PATH = Path(__file__).parent.parent.parent / "data" / "application_train.csv"
 OUTPUT_PATH = Path(__file__).parent.parent.parent / "data" / "curated_train_data.csv"
 
-def add_created_updated_columns(df, max_days_back=365):
+
+def create_timestamp(
+    df, max_days_back=365, round_to_seconds=True, seed=None
+):
     n = len(df)
+    df = df.copy()
 
-    created_date = datetime.now() - timedelta(days=365)
-    created_iso = created_date.isoformat()
-    df["created"] = [created_iso] * n
+    rng = np.random.default_rng(seed)
 
-    days_offset = np.random.randint(0, max_days_back + 1, size=n)
+    created_date = datetime.now(timezone.utc) - timedelta(days=365)
+    if round_to_seconds:
+        created_date = created_date.replace(microsecond=0)
+
+    df["created"] = [created_date.isoformat()] * n  #'2024-08-20T12:34:56+00:00'
+
+    days_offset = rng.integers(0, max_days_back + 1, size=n)
     updated_list = [
         created_date + timedelta(days=int(offset)) for offset in days_offset
     ]
+    if round_to_seconds:
+        updated_list = [dt.replace(microsecond=0) for dt in updated_list]
+
     df["updated"] = [dt.isoformat() for dt in updated_list]
+
     return df
 
 
 if __name__ == "__main__":
     df = pd.read_csv(DATA_PATH)
-    df_new = add_created_updated_columns(df)
+
+    df.columns = df.columns.str.lower()
+
+    df_new = create_timestamp(df)
     df_new.to_csv(OUTPUT_PATH, index=False)

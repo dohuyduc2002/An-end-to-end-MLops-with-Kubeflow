@@ -321,8 +321,8 @@ mc mb localMinio/feast
 mc mb localMinio/mlflow
 mc mb localMinio/sample-data
 mc mb localMinio/stream-bucket
+mc mb localMinio/flink-data
 
-mc cp --recursive ./data/application_test.csv localMinio/sample-data
 mc cp --recursive ./data/ localMinio/sample-data
 mc ls --recursive localMinio/sample-data
 ```
@@ -410,9 +410,10 @@ In the endpoint API, the application is pulling model from Mlflow artifact stora
 ```bash
 k create namespace api
 
-kubectl create secret generic gcs-credentials \
-  -n mlflow \
-  --from-file=key.json=gcp-key.json
+k create secret generic minio-creds \
+  --from-literal=access_key=minio \
+  --from-literal=secret_key=minio123 \
+  -n api
 ```
 
 Then, you can install the API helm chart with the following command `After model is registered in Mlflow model registry`. Remember to check parent run id in `Mlfow UI` or `Kubeflow downstream artifact` for the API to pull the preprocess joblib and `Evidently External IP` to use GET method. You can check the Evidently External IP by running the following command:

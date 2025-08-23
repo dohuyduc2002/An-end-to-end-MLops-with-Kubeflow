@@ -13,7 +13,6 @@ def main():
     parser.add_argument("--dbname", default="homecredit")
     parser.add_argument("--host", default="postgres.database.svc.cluster.local")
     parser.add_argument("--port", default="5432")
-    # minio
     parser.add_argument(
         "--minio-endpoint", default="minio.minio.svc.cluster.local:9000"
     )
@@ -72,12 +71,7 @@ def main():
     conn.close()
     print("✔ Data loaded into PostgreSQL", flush=True)
 
-    # Xóa file tạm
-    try:
-        os.remove(temp_file_path)
-        print("🗑 Temp file removed", flush=True)
-    except OSError as e:
-        print(f"⚠ Could not delete temp file: {e}", flush=True)
+    os.remove(temp_file_path)
 
 
 if __name__ == "__main__":

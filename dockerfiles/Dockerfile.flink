@@ -1,47 +1,82 @@
-FROM apache/flink:2.0.0-scala_2.12-java17
+FROM apache/flink:2.0.0-scala_2.12-java17 AS deps
 
 USER root
 
-# ---------- Build deps (pyenv builds CPython) ----------
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# System deps
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential curl ca-certificates git \
         libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
-        llvm libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
-        libffi-dev liblzma-dev wget && \
+        libffi-dev liblzma-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+        libncursesw5-dev uuid-dev wget; \
     rm -rf /var/lib/apt/lists/*
 
-# ---------- pyenv + Python 3.11.11 ----------
-ENV PYENV_ROOT=/opt/pyenv
-ENV PATH=$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH
-RUN git clone https://github.com/pyenv/pyenv.git $PYENV_ROOT && \
-    /bin/bash -lc "pyenv install 3.11.11" && \
-    /bin/bash -lc 'pyenv global 3.11.11 && python --version && pip --version'
+# Python 3.11.x (build from source)
+ARG PY_VER=3.11.11
+ENV PYTHONUNBUFFERED=1 \
+    LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH} \
+    PIP_NO_CACHE_DIR=1
 
-ENV PIP_NO_CACHE_DIR=1
-ENV PYTHONUNBUFFERED=1
+RUN set -eux; \
+    cd /tmp; \
+    wget -O Python-${PY_VER}.tgz https://www.python.org/ftp/python/${PY_VER}/Python-${PY_VER}.tgz; \
+    tar -xzf Python-${PY_VER}.tgz; \
+    cd Python-${PY_VER}; \
+    ./configure --enable-optimizations --with-lto --enable-shared; \
+    make -j"$(nproc)"; \
+    make install; \
+    ldconfig /usr/local/lib; \
+    cd /; rm -rf /tmp/Python-${PY_VER}*; \
+    ln -sf /usr/local/bin/python3 /usr/local/bin/python; \
+    curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py; \
+    /usr/local/bin/python3 /tmp/get-pip.py; \
+    rm -f /tmp/get-pip.py; \
+    python3 -V && pip3 --version
 
-# ---------- Flink connectors/plugins ----------
-# Kafka connector for Flink 2.0 (must match 2.0 line)
+# Flink connectors / formats (JARs)
 RUN curl -fSL -o /opt/flink/lib/flink-connector-kafka-4.0.0-2.0.jar \
-        https://repo1.maven.org/maven2/org/apache/flink/flink-connector-kafka/4.0.0-2.0/flink-connector-kafka-4.0.0-2.0.jar
+    https://repo1.maven.org/maven2/org/apache/flink/flink-connector-kafka/4.0.0-2.0/flink-connector-kafka-4.0.0-2.0.jar
 
-# S3A filesystem plugin (for checkpoints/savepoints to MinIO/S3)
-RUN mkdir -p /opt/flink/plugins/s3-fs-hadoop && \
-    curl -fSL -o /opt/flink/plugins/s3-fs-hadoop/flink-s3-fs-hadoop-2.0.0.jar \
-        https://repo1.maven.org/maven2/org/apache/flink/flink-s3-fs-hadoop/2.0.0/flink-s3-fs-hadoop-2.0.0.jar
+# Kafka clients
+RUN curl -fSL -o /opt/flink/lib/kafka-clients-4.0.0.jar \
+    https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/4.0.0/kafka-clients-4.0.0.jar
+# S3A filesystem
+RUN curl -fSL -o /opt/flink/lib/flink-s3-fs-hadoop-2.0.0.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-s3-fs-hadoop/2.0.0/flink-s3-fs-hadoop-2.0.0.jar
 
-# ---------- Python deps (via requirements_flink.txt) ----------
+# Table API & formats
+RUN curl -fSL -o /opt/flink/lib/flink-sql-connector-kafka-4.0.0-2.0.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/4.0.0-2.0/flink-sql-connector-kafka-4.0.0-2.0.jar && \
+    curl -fSL -o /opt/flink/lib/flink-avro-confluent-registry-2.0.0.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-avro-confluent-registry/2.0.0/flink-avro-confluent-registry-2.0.0.jar && \
+    curl -fSL -o /opt/flink/lib/flink-json-2.0.0.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-json/2.0.0/flink-json-2.0.0.jar && \
+    curl -fSL -o /opt/flink/lib/flink-avro-2.0.0.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-avro/2.0.0/flink-avro-2.0.0.jar && \
+    curl -fSL -o /opt/flink/lib/avro-1.11.3.jar \
+    https://repo1.maven.org/maven2/org/apache/avro/avro/1.11.3/avro-1.11.3.jar && \
+    curl -fSL -o /opt/flink/lib/kafka-schema-registry-client-7.7.0.jar \
+    https://packages.confluent.io/maven/io/confluent/kafka-schema-registry-client/7.7.0/kafka-schema-registry-client-7.7.0.jar && \
+    curl -fSL -o /opt/flink/lib/common-config-7.7.0.jar \
+    https://packages.confluent.io/maven/io/confluent/common-config/7.7.0/common-config-7.7.0.jar && \
+    curl -fSL -o /opt/flink/lib/common-utils-7.7.0.jar \
+    https://packages.confluent.io/maven/io/confluent/common-utils/7.7.0/common-utils-7.7.0.jar
+
 WORKDIR /opt/flink/usrlib
-COPY requirements_flink.txt ./requirements_flink.txt
-RUN pip install -r requirements_flink.txt
+COPY requirements_flink.txt .
+RUN pip3 install -r requirements_flink.txt
 
-# ---------- Job code + utils + schemas ----------
-COPY job.py utils.py ./
-COPY schemas/ ./schemas/
+RUN chown -R flink:flink /opt/flink/usrlib /opt/flink/lib && chmod -R 755 /opt/flink
 
-# ---------- Environment for runtime ----------
-ENV PYTHONPATH=/opt/flink/usrlib:$PYTHONPATH
-# Optional: let utils.py read SR URL from env (and you can override in K8s)
-ENV SCHEMA_REGISTRY_URL="http://schema-registry-svc.infrastructure.svc.cluster.local:8081"
+
+FROM deps AS app
+
+ENV PYTHONPATH=/opt/flink/usrlib
+
+WORKDIR /opt/flink/usrlib
+COPY ./src/stream_processing/merge_streams.py ./
+COPY ./src/stream_processing/utils.py ./
+COPY ./src/stream_processing/avro/merged_schema.avsc ./
 
 USER flink

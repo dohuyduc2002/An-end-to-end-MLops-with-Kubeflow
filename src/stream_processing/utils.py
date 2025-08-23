@@ -1,132 +1,150 @@
-from pyflink.common.typeinfo import Types
+from datetime import datetime, timezone
+import os
 
-from confluent_kafka.schema_registry import SchemaRegistryClient, Schema
-from confluent_kafka.schema_registry.avro import AvroDeserializer, AvroSerializer
-from confluent_kafka.serialization import MessageField, SerializationContext
-from pyflink.common.serialization import DeserializationSchema
-
-SCHEMA_REGISTRY_CONF = {
-    "url": "http://schema-registry-svc.infrastructure.svc.cluster.local:8081"
-}
-BOOTSTRAP = "kafka-cluster-0-kafka-bootstrap.kafka.svc.cluster.local:9092"
-GROUP_ID = "flink-bureau-merge"
-INPUT_BUREAU = "bureau"
-INPUT_BAL = "bureau_balance"
-OUTPUT_TOPIC = "merged_bureau"
-
-schema_registry_client = SchemaRegistryClient(SCHEMA_REGISTRY_CONF)
+BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP")
+SCHEMA_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL")
+INPUT_BUREAU_TOPIC = os.getenv("INPUT_BUREAU_TOPIC")
+INPUT_BAL_TOPIC = os.getenv("INPUT_BALANCE_TOPIC")
+OUTPUT_TOPIC = os.getenv("OUTPUT_TOPIC")
 
 
-class AvroSerializerWrapper:
-    def __init__(self, schema_registry_conf, topic):
-        self.schema_registry_conf = schema_registry_conf
-        self.topic = topic
-        self.subject_name = f"{topic}-value"
-        self.schema_registry_client, self._serializer, self.schema_str, self.ctx = (
-            None,
-            None,
-            None,
-            None,
-        )
-
-    def get_schema(self):
-        assert self.schema_registry_client
-        subjects = self.schema_registry_client.get_subjects()
-        assert self.subject_name in subjects
-        self.schema_str = self.schema_registry_client.get_latest_version(
-            self.subject_name
-        ).schema.schema_str
-
-    def get_serializer(self):
-        if self._serializer is None:
-            self.ctx = SerializationContext(self.topic, MessageField.VALUE)
-            self.schema_registry_client = SchemaRegistryClient(
-                self.schema_registry_conf
-            )
-            self.get_schema()
-            self._serializer = AvroSerializer(
-                self.schema_registry_client, self.schema_str
-            )
-        return self._serializer
-
-    def serialize(self, record):
-        try:
-            return self.get_serializer()(record, self.ctx)
-        except:
-            print("[INFO] Invalid record !!!")
-            return None
+def debezium_ms_to_iso_utc(ts_ms):
+    dt_utc = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).replace(tzinfo=None)
+    return dt_utc
 
 
-class AvroDeserializerWrapper:
-    def __init__(self, schema_registry_conf, topic):
-        self.schema_registry_conf = schema_registry_conf
-        self.topic = topic
-        self.subject_name = f"{topic}-value"
-        self.schema_registry_client, self._deserializer, self.schema_str, self.ctx = (
-            None,
-            None,
-            None,
-            None,
-        )
+kafka_bureau_table = f"""
+    CREATE TABLE bureau_raw (
+      `before` ROW<
+        sk_id_curr BIGINT,
+        sk_id_bureau BIGINT,
+        credit_active STRING,
+        credit_currency STRING,
+        days_credit INT,
+        credit_day_overdue INT,
+        days_credit_enddate DOUBLE,
+        days_enddate_fact DOUBLE,
+        amt_credit_max_overdue DOUBLE,
+        cnt_credit_prolong INT,
+        amt_credit_sum DOUBLE,
+        amt_credit_sum_debt DOUBLE,
+        amt_credit_sum_limit DOUBLE,
+        amt_credit_sum_overdue DOUBLE,
+        credit_type STRING,
+        days_credit_update INT,
+        amt_annuity DOUBLE
+      >,
+      `after` ROW<
+        sk_id_curr BIGINT,
+        sk_id_bureau BIGINT,
+        credit_active STRING,
+        credit_currency STRING,
+        days_credit INT,
+        credit_day_overdue INT,
+        days_credit_enddate DOUBLE,
+        days_enddate_fact DOUBLE,
+        amt_credit_max_overdue DOUBLE,
+        cnt_credit_prolong INT,
+        amt_credit_sum DOUBLE,
+        amt_credit_sum_debt DOUBLE,
+        amt_credit_sum_limit DOUBLE,
+        amt_credit_sum_overdue DOUBLE,
+        credit_type STRING,
+        days_credit_update INT,
+        amt_annuity DOUBLE
+      >,
+      op STRING,
+      ts_ms BIGINT,
+      event_time AS TO_TIMESTAMP_LTZ(ts_ms, 3),
+      WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND
+    ) WITH (
+      'connector' = 'kafka',
+      'topic' = '{INPUT_BUREAU_TOPIC}',
+      'properties.bootstrap.servers' = '{BOOTSTRAP}',
+      'properties.group.id' = 'g-bureau',
+      'scan.startup.mode' = 'earliest-offset',
+      'value.format' = 'avro-confluent',
+      'value.avro-confluent.url' = '{SCHEMA_REGISTRY_URL}'
+    )
+    """
 
-    def get_schema(self):
-        assert self.schema_registry_client
-        subjects = self.schema_registry_client.get_subjects()
-        assert self.subject_name in subjects
-        self.schema_str = self.schema_registry_client.get_latest_version(
-            self.subject_name
-        ).schema.schema_str
+kafka_bureau_balance_table = f"""
+    CREATE TABLE bureau_balance_raw (
+      `before` ROW<
+        sk_id_bureau BIGINT,
+        months_balance INT,
+        status STRING
+      >,
+      `after` ROW<
+        sk_id_bureau BIGINT,
+        months_balance INT,
+        status STRING
+      >,
+      op STRING,
+      ts_ms BIGINT,
+      event_time AS TO_TIMESTAMP_LTZ(ts_ms, 3),
+      WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND
+    ) WITH (
+      'connector' = 'kafka',
+      'topic' = '{INPUT_BAL_TOPIC}',
+      'properties.bootstrap.servers' = '{BOOTSTRAP}',
+      'properties.group.id' = 'g-bureau-bal',
+      'scan.startup.mode' = 'earliest-offset',
+      'value.format' = 'avro-confluent',
+      'value.avro-confluent.url' = '{SCHEMA_REGISTRY_URL}'
+    )
+    """
 
-    def get_deserializer(self):
-        if self._deserializer is None:
-            self.ctx = SerializationContext(self.topic, MessageField.VALUE)
-            self.schema_registry_client = SchemaRegistryClient(
-                self.schema_registry_conf
-            )
-            self.get_schema()
-            self._deserializer = AvroDeserializer(
-                self.schema_registry_client, self.schema_str
-            )
-        return self._deserializer
+flink_flatten_bureau_table = """
+      SELECT
+        (after).sk_id_bureau AS sk_id_bureau,
+        (after).sk_id_curr AS sk_id_curr,
+        (after).credit_active AS credit_active,
+        (after).credit_currency AS credit_currency,
+        (after).days_credit AS days_credit,
+        (after).credit_day_overdue AS credit_day_overdue,
+        (after).days_credit_enddate AS days_credit_enddate,
+        (after).days_enddate_fact AS days_enddate_fact,
+        (after).amt_credit_max_overdue AS amt_credit_max_overdue,
+        (after).cnt_credit_prolong AS cnt_credit_prolong,
+        (after).amt_credit_sum AS amt_credit_sum,
+        (after).amt_credit_sum_debt AS amt_credit_sum_debt,
+        (after).amt_credit_sum_limit AS amt_credit_sum_limit,
+        (after).amt_credit_sum_overdue AS amt_credit_sum_overdue,
+        (after).credit_type AS credit_type,
+        (after).days_credit_update AS days_credit_update,
+        (after).amt_annuity AS amt_annuity,
+        ts_ms,
+        event_time
+      FROM bureau_raw
+      WHERE op IN ('c','u')
+    """
 
-    def deserialize(self, record):
-        try:
-            return self.get_deserializer()(record, self.ctx)
-        except:
-            print("[INFO] Invalid record !!!")
-            return None
+flink_flatten_bureau_balance_table = """
+      SELECT
+        (after).sk_id_bureau AS sk_id_bureau,
+        (after).months_balance AS months_balance,
+        (after).status AS status,
+        ts_ms,
+        event_time
+      FROM bureau_balance_raw
+      WHERE op IN ('c','u')
+    """
 
-
-class AvroDeserializationSchema(DeserializationSchema):
-    def __init__(self, topic):
-        self.deserializer = AvroDeserializerWrapper(SCHEMA_REGISTRY_CONF, topic)
-
-    def deserialize(self, message: bytes):
-        return self.deserializer.deserialize(message)  # dict
-
-    def is_end_of_stream(self, next_element):
-        return False
-
-    def get_produced_type(self):
-        return Types.PICKLED_BYTE_ARRAY()
-
-
-def register_schema(subject_name, schema_path):
-    subjects = schema_registry_client.get_subjects()
-    if subject_name in subjects:
-        print(f"[INFO] Schema {subject_name} already existed !!!")
-    else:
-        with open(schema_path, "r") as f:
-            schema_str = f.read()
-        schema = Schema(schema_str, schema_type="AVRO")
-        schema_id = schema_registry_client.register_schema(subject_name, schema)
-        print(f"[INFO] Register Schema {subject_name} successfully !!!")
-
-
-def get_schema(subject_name):
-    subjects = schema_registry_client.get_subjects()
-    assert subject_name in subjects
-    schema_str = schema_registry_client.get_latest_version(
-        subject_name
-    ).schema.schema_str
-    return schema_str
+output_table = f"""
+    CREATE TABLE merged_out (
+      sk_id_bureau BIGINT,
+      sk_id_curr BIGINT,
+      months_balance INT,
+      status STRING,
+      updated STRING,
+      PRIMARY KEY (sk_id_curr) NOT ENFORCED
+    ) WITH (
+      'connector' = 'kafka',
+      'topic' = '{OUTPUT_TOPIC}',
+      'properties.bootstrap.servers' = '{BOOTSTRAP}',
+      'key.format' = 'json',                  
+      'value.format' = 'json',               
+      'json.ignore-parse-errors' = 'true',
+    )
+    """

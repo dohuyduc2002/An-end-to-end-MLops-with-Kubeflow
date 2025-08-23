@@ -3,63 +3,12 @@ general:
 
 kafkaClusterName: kafka-cluster-0
 
-kafkaTopics:
-  - name: bureau-balance
-    partitions: 4
-    replicas: 1
-    config:
-      cleanupPolicy: delete
-      retention: 604800000
-      segmentBytes: 1048576
-  - name: bureau
-    partitions: 4
-    replicas: 1
-    config:
-      cleanupPolicy: delete
-      retention: 604800000
-      segmentBytes: 1048576
-  - name: application
-    partitions: 4
-    replicas: 1
-    config:
-      cleanupPolicy: delete
-      retention: 604800000
-      segmentBytes: 1048576
-  - name: previous-application
-    partitions: 4
-    replicas: 1
-    config:
-      cleanupPolicy: delete
-      retention: 604800000
-      segmentBytes: 1048576
-  - name: credit-card-balance
-    partitions: 4
-    replicas: 1
-    config:
-      cleanupPolicy: delete
-      retention: 604800000
-      segmentBytes: 1048576
-  - name: pos-cash-balance
-    partitions: 4
-    replicas: 1
-    config:
-      cleanupPolicy: delete
-      retention: 604800000
-      segmentBytes: 1048576
-  - name: installments-payment
-    partitions: 4
-    replicas: 1
-    config:
-      cleanupPolicy: delete
-      retention: 604800000
-      segmentBytes: 1048576
-
 controller:
   name: controller
   replicas: 1
   storage:
     type: jbod
-    size: 5Gi
+    size: 10Gi
     deleteClaim: false
 
 broker:
@@ -67,12 +16,12 @@ broker:
   replicas: 1
   storage:
     type: jbod
-    size: 5Gi
+    size: 10Gi
     deleteClaim: false
 
 kafka:
-  version: 3.9.0
-  metadataVersion: 3.9-IV0
+  version: 4.0.0
+  metadataVersion: 4.0-IV3
   listeners:
     plain:
       port: 9092
@@ -111,7 +60,7 @@ schemaRegistry:
   imagePullPolicy: IfNotPresent
   port: 8081
   listeners: http://0.0.0.0:8081
-  svcType: LoadBalancer
+  svcType: ClusterIP
   svcName: schema-registry-svc
   ingressName: schema-registry-ingress
   ingressClass: nginx

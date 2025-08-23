@@ -1,0 +1,2 @@
+pyspark==4.0.0
+confluent-kafka[avro]==2.11.1

@@ -130,21 +130,21 @@ CREATE TABLE bureau
 (
     sk_id_curr Int64,
     sk_id_bureau Int64,
-    credit_active String,
-    credit_currency String,
-    days_credit Int32,
-    credit_day_overdue Int32,
-    days_credit_enddate Float64,
-    days_enddate_fact Float64,
-    amt_credit_max_overdue Float64,
-    cnt_credit_prolong Int32,
-    amt_credit_sum Float64,
-    amt_credit_sum_debt Float64,
-    amt_credit_sum_limit Float64,
-    amt_credit_sum_overdue Float64,
-    credit_type String,
-    days_credit_update Int32,
-    amt_annuity Float64
+    credit_active Nullable(String),
+    credit_currency Nullable(String),
+    days_credit Nullable(Int32),
+    credit_day_overdue Nullable(Int32),
+    days_credit_enddate Nullable(Float64),
+    days_enddate_fact Nullable(Float64),
+    amt_credit_max_overdue Nullable(Float64),
+    cnt_credit_prolong Nullable(Int32),
+    amt_credit_sum Nullable(Float64),
+    amt_credit_sum_debt Nullable(Float64),
+    amt_credit_sum_limit Nullable(Float64),
+    amt_credit_sum_overdue Nullable(Float64),
+    credit_type Nullable(String),
+    days_credit_update Nullable(Int32),
+    amt_annuity Nullable(Float64)
 )
 ENGINE = MergeTree
 PRIMARY KEY (sk_id_bureau)
@@ -154,7 +154,7 @@ CREATE TABLE bureau_balance
 (
     sk_id_bureau   Int64,
     months_balance Int32,
-    status         String
+    status         Nullable(String),
 )
 ENGINE = MergeTree
 PRIMARY KEY (sk_id_bureau, months_balance)

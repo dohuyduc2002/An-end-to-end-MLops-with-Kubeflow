@@ -4,71 +4,98 @@ metadata:
   name: flink-merge-streams
   namespace: flink
 spec:
-  image: microwave1005/flink_merge_streams:0.0.1   # <-- thay bằng tag bạn build từ Dockerfile
+  image: microwave1005/flink-merge-streams:0.0.3
   flinkVersion: v2_0
   serviceAccount: flink
 
   flinkConfiguration:
-    taskmanager.numberOfTaskSlots: "2"
+    python.client.executable: /usr/local/bin/python
+    python.executable: /usr/local/bin/python
 
-    # ---------- S3A (MinIO) ----------
-    fs.s3a.endpoint: http://minio-svc.infrastructure.svc.cluster.local:9000
-    fs.s3a.path.style.access: "true"
-    fs.s3a.connection.ssl.enabled: "false"
-    fs.s3a.aws.credentials.provider: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+    pipeline.jars: >
+      local:///opt/flink/lib/flink-sql-connector-kafka-4.0.0-2.0.jar,
+      local:///opt/flink/lib/flink-avro-confluent-registry-2.0.0.jar,
+      local:///opt/flink/lib/flink-json-2.0.0.jar,
+      local:///opt/flink/lib/kafka-clients-3.9.0.jar,
+      local:///opt/flink/lib/flink-s3-fs-hadoop-2.0.0.jar,
+      local:///opt/flink/lib/kafka-schema-registry-client-7.7.0.jar
+
+    taskmanager.numberOfTaskSlots: 4
+
+    # ---------- S3 (MinIO) ----------
+    s3.endpoint: http://minio.minio.svc.cluster.local:9000
+    s3.path.style.access: "true"
+    s3.connection.ssl.enabled: "false"
+    s3.aws.credentials.provider: com.amazonaws.auth.EnvironmentVariableCredentialsProvider
 
     # ---------- State backend + checkpoint/savepoint ----------
-    state.backend: rocksdb
-    state.backend.incremental: "true"
-    state.checkpoints.dir: s3a://flink-data/checkpoints
-    state.savepoints.dir: s3a://flink-data/savepoints
-
-    # ---------- Checkpointing ----------
+    state.backend.type: rocksdb
+    execution.checkpointing.dir: s3://flink-data/checkpoints
+    execution.checkpointing.savepoint-dir: s3://flink-data/savepoints
     execution.checkpointing.interval: "60s"
-    execution.checkpointing.mode: "AT_LEAST_ONCE"   # hoặc EXACTLY_ONCE nếu code bật transactional sink
+    execution.checkpointing.mode: "AT_LEAST_ONCE"
     execution.checkpointing.timeout: "5m"
     execution.checkpointing.min-pause: "2s"
-
-  podTemplate:
-    spec:
-      containers:
-      - name: flink-main-container
-        # MinIO credentials via Secret
-        env:
-          - name: AWS_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: minio-credentials
-                key: access-key
-          - name: AWS_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: minio-credentials
-                key: secret-key
-          # App-specific envs (utils.py can read these)
-          - name: SCHEMA_REGISTRY_URL
-            value: "http://schema-registry-svc.infrastructure.svc.cluster.local:8081"
-          - name: BOOTSTRAP_SERVERS
-            value: "kafka-cluster-0-kafka-bootstrap.kafka.svc.cluster.local:9092"
 
   jobManager:
     replicas: 1
     resource:
-      memory: "1g"
-      cpu: 1
+      memory: 1024m
+      cpu: 0.2
+    podTemplate:
+      spec:
+        containers:
+        - name: flink-main-container
+          image: microwave1005/flink-merge-streams:0.0.3
+          imagePullPolicy: IfNotPresent
+          readinessProbe:
+            httpGet:
+              path: /overview
+              port: 8081
+            initialDelaySeconds: 45
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom: 
+              secretKeyRef:
+                name: minio-creds
+                key: access_key
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom: 
+              secretKeyRef:
+                name: minio-creds
+                key: secret_key
 
   taskManager:
     replicas: 1
     resource:
-      memory: "1g"
-      cpu: 1
+      memory: 1024m
+      cpu: 0.2
+    podTemplate:
+      spec:
+        containers:
+        - name: flink-main-container
+          image: microwave1005/flink-merge-streams:0.0.3
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: minio-creds
+                key: access_key
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: minio-creds
+                key: secret_key
 
   job:
-    jarURI: ""   # Python job
+    jarURI: local:///opt/flink/opt/flink-python-2.0.0.jar
     entryClass: org.apache.flink.client.python.PythonDriver
-    args:
-      - "-py"
-      - "/opt/flink/usrlib/job.py"
+    args: ["-pyclientexec", "/usr/local/bin/python",
+           "-py", "/opt/flink/usrlib/merge_streams.py"]
     parallelism: 2
     upgradeMode: stateless
     state: running

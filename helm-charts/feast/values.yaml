@@ -1,7 +1,7 @@
 feastProjectDir:
   git:
     url: https://github.com/dohuyduc2002/homecredit-feature-store.git
-    ref: 52d05d8
+    ref: 5c6f4f8
 
 postgres:
   db: homecredit

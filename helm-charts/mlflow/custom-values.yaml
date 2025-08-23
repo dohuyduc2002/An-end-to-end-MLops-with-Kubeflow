@@ -19,7 +19,7 @@ extraEnvVars:
   AWS_ACCESS_KEY_ID: minio
   AWS_SECRET_ACCESS_KEY: minio123
   AWS_REGION: us-east-1
-  MLFLOW_S3_ENDPOINT_URL: http://minio.database.svc.cluster.local:9000
+  MLFLOW_S3_ENDPOINT_URL: http://minio.minio.svc.cluster.local:9000
   MLFLOW_S3_IGNORE_TLS: "true"
   AWS_S3_ADDRESSING_STYLE: "path"
 
