@@ -1,0 +1,67 @@
+# PIPELINE DEFINITION
+# Name: slack-notification
+# Inputs:
+#    message: str
+#    slack_bot_token: str
+#    slack_channel: str
+components:
+  comp-slack-notification:
+    executorLabel: exec-slack-notification
+    inputDefinitions:
+      parameters:
+        message:
+          parameterType: STRING
+        slack_bot_token:
+          parameterType: STRING
+        slack_channel:
+          parameterType: STRING
+deploymentSpec:
+  executors:
+    exec-slack-notification:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - slack_notification
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'slack_sdk' &&\
+          \ \"$0\" \"$@\"\n"
+        - python3
+        - -m
+        - kfp.dsl.executor_main
+        image: docker.io/microwave1005/kfp-etl:0.0.1
+pipelineInfo:
+  name: slack-notification
+root:
+  dag:
+    tasks:
+      slack-notification:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-slack-notification
+        inputs:
+          parameters:
+            message:
+              componentInputParameter: message
+            slack_bot_token:
+              componentInputParameter: slack_bot_token
+            slack_channel:
+              componentInputParameter: slack_channel
+        taskInfo:
+          name: slack-notification
+  inputDefinitions:
+    parameters:
+      message:
+        parameterType: STRING
+      slack_bot_token:
+        parameterType: STRING
+      slack_channel:
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1

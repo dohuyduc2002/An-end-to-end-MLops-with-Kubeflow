@@ -22,7 +22,12 @@ while ! kustomize build example | kubectl apply --server-side --force-conflicts 
 k create secret generic minio-creds \
   --from-literal=access_key=minio \
   --from-literal=secret_key=minio123 \
-  -n kubeflow
+  -n kubeflow-user-example-com
+
+k create secret generic clickhouse-creds \
+  --from-literal=chi_user=ducdh \
+  --from-literal=chi_password=ducdh \
+  -n kubeflow-user-example-com
 ------------
 helm install minio minio/minio \
   --namespace minio \
@@ -40,17 +45,22 @@ helm install minio minio/minio \
   --set consoleIngress.ingressClassName=nginx \
   --set consoleIngress.hosts[0]=console.minio.ducdh.com 
 ------------
-mc alias set localMinio http://minio.ducdh.com minio minio123
+mc alias set localMinio http://localhost:5000 minio minio123
 mc mb localMinio/feast
 mc mb localMinio/mlflow
 mc mb localMinio/sample-data
-mc mb localMinio/stream-bucket
 mc mb localMinio/flink-data
-mc mb localMinio/gold
+mc mb localMinio/bronze
 mc mb localMinio/silver
+mc mb localMinio/manifests
+mc mb localMinio/checkpoints
+mc mb localMinio/data-mart
+mc mb localMinio/stream-bucket
 
 mc cp --recursive ./data/ localMinio/sample-data
 mc ls --recursive localMinio/sample-data
+
+mc cp --recursive ./k8s/spark/ localMinio/manifests
 
 ------------
 
@@ -77,7 +87,7 @@ helm upgrade --install dbeaver ./helm-charts/dbeaver -n database
 ```
 ------------
 helm install strimzi strimzi/strimzi-kafka-operator \
-  --version 0.46.0 \
+  --version 0.47.0 \
   --create-namespace \
   --namespace kafka
 
@@ -95,7 +105,7 @@ k apply -f ./k8s/jobs/insert_bureau_balance.yaml
 ----------------
 helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator \
   -n flink \
-  --create-namespace
+  --create-namespace 
 
 k create secret generic minio-creds \
   --from-literal=access_key=minio \
@@ -104,10 +114,51 @@ k create secret generic minio-creds \
 
 k apply -f ./k8s/flink/flink_deployment.yaml -n flink
 
-----------------
 
+------
 kubectl create namespace feast-operator-system
 kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v0.49.0/infra/feast-operator/dist/install.yaml --namespace=feast-operator-system
 
 helm upgrade --install feast ./helm-charts/feast/ \
   --namespace feast-operator-system
+
+
+----
+helm upgrade --install redis oci://registry-1.docker.io/bitnamicharts/redis \
+  --namespace database \
+  -f helm-charts/redis/custom-values.yaml
+
+----
+helm repo add superset http://apache.github.io/superset/
+helm upgrade --install superset superset/superset \
+  --namespace superset \
+  --create-namespace \
+  -f helm-charts/superset/custom-values.yaml
+
+---
+helm upgrade --install olap ./helm-charts/olap \
+  --namespace database
+
+---
+k create namespace unitycatalog
+
+kubectl create secret generic gcs-secret-0 \
+  --from-file=jsonKey=gcp-key.json \
+  -n unitycatalog
+
+kubectl create secret generic postgres \
+  --from-literal=postgres=postgres \
+  -n unitycatalog
+
+
+helm upgrade --install unitycatalog ./unitycatalog/helm/ \
+  --namespace unitycatalog \
+  --create-namespace \
+  -f unitycatalog/helm/values.yaml
+
+
+ALTER SYSTEM SET password_encryption = 'md5';
+ALTER USER postgres WITH PASSWORD 'postgres';
+SELECT pg_reload_conf();
+
+kubectl logs hive-metastore-67845b9567-zg7sn -c hive-metastore -n database --previous

@@ -56,13 +56,13 @@ spec:
         type: internal 
         tls: false
         configuration:
-          useServiceDnsDomain: true
+          useServiceDnsDomain: false
       - name: clusterip
         port: {{ .Values.kafka.listeners.clusterip.port }}
         type: cluster-ip
         tls: false
         configuration:
-          useServiceDnsDomain: true
+          useServiceDnsDomain: false
     config:
       offsets.topic.replication.factor: {{ .Values.kafka.config.offsetsReplicationFactor }}
       transaction.state.log.replication.factor: {{ .Values.kafka.config.txnReplicationFactor }}

@@ -439,7 +439,7 @@ docker build \
   -t microwave1005/kfp_run_image:0.1 \
   -f dockerfiles/Dockerfile.kfp_run_image \
   .
-docker push microwave1005/kfp_run_image:latest
+# docker push microwave1005/kfp_run_image:latest
 docker push microwave1005/kfp_run_image:0.1
 ```
 
@@ -452,13 +452,13 @@ kfp component build \
   --build-image \
   --platform linux/amd64 \
   --push-image \
-  src/model_pipeline/scripts/ 
+  src/pipeline/model_pipeline/scripts/ 
 ```
 Next, compile the pipeline into yaml file
 ```bash
 kfp dsl compile \
-  --py src/model_pipeline/pipeline.py \
-  --output src/model_pipeline/pipeline.yaml
+  --py src/pipeline/model_pipeline/pipeline.py \
+  --output src/pipeline/model_pipeline/pipeline.yaml
 ```
 Then, navigate to [Jenkins](#jenkins) to run the Kubeflow pipeline in CICD. 
 ### Katib

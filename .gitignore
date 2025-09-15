@@ -4,6 +4,8 @@
 __pycache__/
 **/__pycache__/
 
+src/pipeline/etl_pipeline/kfp/run.sh
+.history
 .DS_Store
 a.py
 a.ipynb
@@ -14,7 +16,7 @@ newmd.md
 v2.md
 *.gitattributes
 gcp-key.json
-datas
+
 mlruns
 deprecated
 b.py

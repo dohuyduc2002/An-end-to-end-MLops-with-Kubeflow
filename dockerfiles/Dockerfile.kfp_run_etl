@@ -1,0 +1,10 @@
+FROM python:3.11.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y libgomp1
+
+COPY ./requirements_spark.txt ./requirements.txt
+COPY ./k8s/spark ./manifests_etl
+
+RUN pip install --no-cache-dir -r requirements.txt

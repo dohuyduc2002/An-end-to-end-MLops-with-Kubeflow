@@ -41,7 +41,7 @@ def main():
 
     stat = minio_client.stat_object(args.bucket, args.file)
     print(
-        f"Downloading {args.file} ({stat.size / (1024*1024):.2f} MB) from MinIO in one go...",
+        f"Downloading {args.file} ({stat.size / (1024*1024):.2f} MB) from MinIO",
         flush=True,
     )
 
@@ -52,14 +52,13 @@ def main():
 
     with open(temp_file_path, "wb") as f:
         f.write(data)
-    print(f"✔ Download completed: {temp_file_path}", flush=True)
+    print(f" Download completed: {temp_file_path}", flush=True)
 
     table_fq = f"{args.schema}.{args.table}"
     conn = postgres_client.create_conn()
     conn.autocommit = False
     cur = conn.cursor()
 
-    print(f"Loading {temp_file_path} -> {table_fq}", flush=True)
     with open(temp_file_path, "r", encoding="utf-8") as f:
         cur.copy_expert(
             f"COPY {table_fq} FROM STDIN WITH (FORMAT CSV, HEADER TRUE)",
@@ -69,7 +68,7 @@ def main():
     conn.commit()
     cur.close()
     conn.close()
-    print("✔ Data loaded into PostgreSQL", flush=True)
+    print(" Data loaded into PostgreSQL", flush=True)
 
     os.remove(temp_file_path)
 

@@ -7,11 +7,17 @@ data:
   init-homecredit-db.sh: |
     #!/bin/bash
     set -e
+
+    echo "ALTER SYSTEM SET password_encryption = 'md5';" | psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER"
+
+    echo "ALTER USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD';" | psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER"
+
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
       CREATE DATABASE homecredit;
+      CREATE DATABASE superset;
+      CREATE DATABASE hive;
     EOSQL
 
-    # Connect to homecredit and create schemas
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "homecredit" <<-EOSQL
       CREATE SCHEMA feast;
       CREATE SCHEMA record;

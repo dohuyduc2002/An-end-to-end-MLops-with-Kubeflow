@@ -1,0 +1,27 @@
+architecture: standalone
+
+auth:
+  enabled: true
+  sentinel: false
+  password: "huyduc2002"
+  
+master:
+  resourcesPreset: "none"
+  resources:
+    requests:
+      cpu: 1
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+replica:
+  replicaCount: 2
+  resourcesPreset: "none"
+  resources:
+    requests:
+      cpu: 1
+      memory: 512Mi
+    limits:
+      cpu: 2
+      memory: 4Gi

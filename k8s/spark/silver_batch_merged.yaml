@@ -1,0 +1,110 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: silver-merged
+  namespace: kubeflow-user-example-com
+spec:
+  type: Python
+  mode: cluster
+  image: microwave1005/spark-etl:0.0.36
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/app/silver_layer/merged_silver_layer.py
+  sparkVersion: 4.0.0
+  restartPolicy:
+    type: Never
+  driver:
+    serviceAccount: spark
+    cores: 2
+    memory: 2g
+    annotations:
+      sidecar.istio.io/inject: "false"
+    envVars:
+      GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/gcp/gcp-key.json
+      MINIO_ENDPOINT: "minio.minio.svc.cluster.local:9000"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-0-kafka-bootstrap.kafka.svc.cluster.local:9092"
+      APPLICATION_TOPIC: "homecredit.record.application"
+      MERGED_TOPIC: "flink-merged-bureau"
+      SCHEMA_REGISTRY_URL: "http://schema-registry-svc.kafka.svc.cluster.local:8081"
+      BRONZE_PATH_APPLICATION: "s3a://bronze/application"
+      CHECKPOINT_PATH_APPLICATION: "s3a://checkpoints/application"
+      BRONZE_PATH_MERGED: "s3a://bronze/merged"
+      CHECKPOINT_PATH_MERGED: "s3a://checkpoints/merged"
+    envSecretKeyRefs:
+      MINIO_ACCESS_KEY:
+        name: minio-creds
+        key: access_key
+      MINIO_SECRET_KEY:
+        name: minio-creds
+        key: secret_key
+    volumeMounts:
+      - name: gcp-sa
+        mountPath: /var/secrets/gcp/gcp-key.json   
+        subPath: gcp-key.json
+        readOnly: true
+  executor:
+    instances: 1
+    cores: 1
+    memory: 1g
+    annotations:
+      sidecar.istio.io/inject: "false"
+    envVars:
+      GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/gcp/gcp-key.json
+      MINIO_ENDPOINT: "minio.minio.svc.cluster.local:9000"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-0-kafka-bootstrap.kafka.svc.cluster.local:9092"
+      APPLICATION_TOPIC: "homecredit.record.application"
+      MERGED_TOPIC: "flink-merged-bureau"
+      SCHEMA_REGISTRY_URL: "http://schema-registry-svc.kafka.svc.cluster.local:8081"
+      BRONZE_PATH_APPLICATION: "s3a://bronze/application"
+      CHECKPOINT_PATH_APPLICATION: "s3a://checkpoints/application"
+      BRONZE_PATH_MERGED: "s3a://bronze/merged"
+      CHECKPOINT_PATH_MERGED: "s3a://checkpoints/merged"
+    envSecretKeyRefs:
+      MINIO_ACCESS_KEY:
+        name: minio-creds
+        key: access_key
+      MINIO_SECRET_KEY:
+        name: minio-creds
+        key: secret_key
+    volumeMounts:
+      - name: gcp-sa
+        mountPath: /var/secrets/gcp/gcp-key.json   
+        subPath: gcp-key.json
+        readOnly: true
+    labels:
+      version: 4.0.0
+  volumes:
+    - name: gcp-sa
+      secret:
+        secretName: gcp-sa-key
+  sparkConf:
+    spark.default.parallelism: "2"
+    spark.sql.shuffle.partitions: "2"
+    spark.sql.session.timeZone: "UTC"
+    spark.ui.enabled: "true"
+
+    spark.hadoop.fs.s3a.connection.timeout: "60000"
+    spark.hadoop.fs.s3a.connection.establish.timeout: "60000"
+    spark.hadoop.fs.s3a.attempts.maximum: "10" 
+    spark.hadoop.fs.s3a.connection.maximum: "200"
+    spark.hadoop.fs.s3a.paging.maximum: "5000"
+    spark.hadoop.fs.s3a.threads.keepalivetime: "60000"
+    spark.hadoop.fs.s3a.multipart.purge.age: "60000"
+    spark.hadoop.fs.s3a.readahead.range: "65536"
+
+    spark.hadoop.fs.s3a.path.style.access: "true"
+    spark.hadoop.fs.s3a.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    spark.hadoop.fs.s3a.aws.credentials.provider: "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+    spark.hadoop.fs.s3a.connection.ssl.enabled: "false"
+
+    spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
+    spark.sql.catalog.spark_catalog: io.unitycatalog.spark.UCSingleCatalog
+    spark.sql.catalog.homecredit: io.unitycatalog.spark.UCSingleCatalog
+    spark.sql.catalog.homecredit.uri: http://unitycatalog-server.unitycatalog.svc.cluster.local:8080
+    spark.sql.catalog.homecredit.token: ""
+    spark.sql.defaultCatalog: homecredit
+    spark.databricks.delta.schema.autoMerge.enabled: "true"
+
+    spark.hadoop.fs.gs.impl: com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem
+    spark.hadoop.fs.AbstractFileSystem.gs.impl: com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS
+    spark.hadoop.google.cloud.auth.service.account.enable: "true"
+    spark.hadoop.google.cloud.auth.service.account.json.keyfile: /var/secrets/gcp/gcp-key.json

@@ -1,47 +1,84 @@
-FROM apache/spark:4.0.0-scala2.13-java17-ubuntu
+FROM spark:4.0.0-scala2.13-java17-python3-r-ubuntu AS builder
 
 USER root
 
-RUN apt-get update && apt-get install -y \
-    python3 python3-pip curl ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y \
+#     python3 python3-pip curl ca-certificates \
+#  && rm -rf /var/lib/apt/lists/*
 
-RUN ln -sf /usr/bin/python3 /usr/bin/python \
- && python3 --version && pip --version
+# RUN ln -sf /usr/bin/python3 /usr/bin/python \
+#  && python3 --version && pip --version
 
-COPY requirements_spark.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
-
-COPY src/batch_processing/spark_etl /opt/app
-
-# Thêm JARs cần thiết vào classpath của Spark
 WORKDIR /opt/spark/jars
 
 # 1) Hadoop AWS (S3A)
 RUN curl -fSL -o hadoop-aws-3.3.4.jar \
   https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar
 
-# 2) AWS SDK v1 bundle (PHÙ HỢP với hadoop-aws 3.3.4)
+# 2) AWS SDK v1 bundle 
 RUN curl -fSL -o aws-java-sdk-bundle-1.12.772.jar \
   https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.772/aws-java-sdk-bundle-1.12.772.jar
 
-# 3) Delta Lake for Spark 4 (đã gồm delta-storage)
+# 3) Delta Lake for Spark 4
 RUN curl -fSL -o delta-spark_2.13-4.0.0.jar \
   https://repo1.maven.org/maven2/io/delta/delta-spark_2.13/4.0.0/delta-spark_2.13-4.0.0.jar
+RUN curl -fSL -o delta-storage-4.0.0.jar \
+  https://repo1.maven.org/maven2/io/delta/delta-storage/4.0.0/delta-storage-4.0.0.jar
 
 # 4) Avro
 RUN curl -fSL -o spark-avro_2.13-4.0.0.jar \
   https://repo1.maven.org/maven2/org/apache/spark/spark-avro_2.13/4.0.0/spark-avro_2.13-4.0.0.jar
 
-# 5) Kafka Source/Sink cho Structured Streaming
+# 5) Kafka Source/Sink 
 RUN curl -fSL -o spark-sql-kafka-0-10_2.13-4.0.0.jar \
   https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.13/4.0.0/spark-sql-kafka-0-10_2.13-4.0.0.jar
 RUN curl -fSL -o spark-token-provider-kafka-0-10_2.13-4.0.0.jar \
   https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.13/4.0.0/spark-token-provider-kafka-0-10_2.13-4.0.0.jar
+RUN curl -fSL -o kafka-clients-3.9.0.jar \
+  https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.9.0/kafka-clients-3.9.0.jar
+
+RUN curl -fSL -o httpclient5-5.5.jar \
+  https://repo1.maven.org/maven2/org/apache/httpcomponents/client5/httpclient5/5.5/httpclient5-5.5.jar
+
+RUN curl -fSL -o commons-pool2-2.12.1.jar \
+  https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.12.1/commons-pool2-2.12.1.jar
+# RUN curl -fSL -o postgresql-42.7.3.jar \
+#   https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar
+
+# RUN curl -fSL -o spark-hive_2.13-4.0.0.jar \
+#   https://repo1.maven.org/maven2/org/apache/spark/spark-hive_2.13/4.0.0/spark-hive_2.13-4.0.0.jar
+
+RUN curl -fSL -o unitycatalog-client-0.3.0.jar \
+  https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-client/0.3.0/unitycatalog-client-0.3.0.jar
+
+RUN curl -fSL -o unitycatalog-server-0.3.0.jar \
+  https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-server/0.3.0/unitycatalog-server-0.3.0.jar
+
+RUN curl -fSL -o unitycatalog-spark_2.13-0.3.0.jar \
+  https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-spark_2.13/0.3.0/unitycatalog-spark_2.13-0.3.0.jar
+
+# GCS
+# RUN curl -fSL -o gcs-connector-3.0.2-shaded.jar \
+#   https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/3.0.2/gcs-connector-3.0.2-shaded.jar
+
+# RUN curl -fSL -o util-3.0.2.jar \
+#   https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/util/3.0.2/util-3.0.2.jar
+  
+RUN curl -fSL -o gcs-connector-hadoop3-2.2.5-shaded.jar \
+  https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop3-2.2.5/gcs-connector-hadoop3-2.2.5-shaded.jar
 
 
-RUN curl -fSL -o /opt/flink/lib/kafka-clients-4.0.0.jar \
-  https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/4.0.0/kafka-clients-4.0.0.jar
+FROM builder AS app
+
+USER root
+COPY requirements_spark.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+WORKDIR /opt/app
+COPY ./src/pipeline/etl_pipeline/data_pipeline /opt/app
+
+RUN mkdir -p /opt/app/artifacts && chown -R spark:spark /opt/app/artifacts
+RUN mkdir -p /home/spark/.ivy2/cache /home/spark/.ivy2/jars \
+ && chown -R spark:spark /home/spark/.ivy2
 
 USER spark
-

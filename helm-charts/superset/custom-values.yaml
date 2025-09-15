@@ -1,0 +1,71 @@
+extraEnv:
+  - name: CELERY_WORKER_CONCURRENCY
+    value: "4"
+
+image:
+  repository: microwave1005/superset
+  tag: 0.0.4
+  pullPolicy: IfNotPresent
+
+initImage:
+  repository: microwave1005/superset
+  tag: 0.0.4
+  pullPolicy: IfNotPresent
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+  path: /
+  pathType: ImplementationSpecific
+  hosts:
+    - superset.ducdh.com
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 4Gi
+
+supersetNode:
+  connections:
+    redis_host: redis-headless.database.svc.cluster.local
+    redis_port: 6379
+    redis_user: ""
+    redis_cache_db: "1"
+    redis_celery_db: "0"
+    redis_password: huyduc2002
+    redis_ssl:
+      enabled: false
+      ssl_cert_reqs: CERT_NONE
+    db_host: postgres.database.svc.cluster.local
+    db_port: 5432
+    db_user: postgres
+    db_pass: postgres
+    db_name: superset
+
+supersetWorker:
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+  command:
+    - "/bin/sh"
+    - "-c"
+    - ". {{ .Values.configMountPath }}/superset_bootstrap.sh; celery --app=superset.tasks.celery_app:app worker --concurrency=4"
+redis:
+  enabled: false
+
+postgresql:
+  enabled: false
+
+configOverrides:
+  secret: |
+    SECRET_KEY = "3bdWDUyYzXefrJ7QWUswGJ+eCAc/wzHAfb4dDiRSdn2pJgrFw6XGWVtU"

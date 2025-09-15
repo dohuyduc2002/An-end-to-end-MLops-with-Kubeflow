@@ -1,0 +1,177 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.hiveMetastore.name }}
+  namespace: {{ .Values.hiveMetastore.namespace }}
+spec:
+  replicas: {{ .Values.hiveMetastore.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.hiveMetastore.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.hiveMetastore.name }}
+    spec:
+      containers:
+      - name: {{ .Values.hiveMetastore.name }}
+        image: {{ .Values.hiveMetastore.image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: {{ .Values.hiveMetastore.port }}
+        env:
+          - name: HIVE_METASTORE_DRIVER
+            value: org.postgresql.Driver
+          - name: HIVE_METASTORE_JDBC_URL
+            value: jdbc:postgresql://{{ .Values.hiveMetastore.jdbcURL.hostname }}.{{ .Values.hiveMetastore.jdbcURL.namespace }}.svc.cluster.local:{{ .Values.hiveMetastore.jdbcURL.port }}/{{ .Values.hiveMetastore.jdbcURL.dbName }}
+          - name: HIVE_METASTORE_USER
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.hiveMetastore.jdbcURL.credentials }}
+                key: postgres_username
+          - name: HIVE_METASTORE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.hiveMetastore.jdbcURL.credentials }}
+                key: postgres_password
+          - name: S3_ENDPOINT
+            value: http://{{ .Values.hiveMetastore.s3URL.hostname }}.{{ .Values.hiveMetastore.s3URL.namespace }}.svc.cluster.local:{{ .Values.hiveMetastore.s3URL.port }}
+          - name: S3_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.hiveMetastore.s3URL.credentials }}
+                key: access-key
+          - name: S3_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.hiveMetastore.s3URL.credentials }}
+                key: secret-key
+          - name: S3_PATH_STYLE_ACCESS
+            value: "true"
+          - name: REGION
+            value: us-east-1
+          - name: GOOGLE_CLOUD_KEY_FILE_PATH
+            value: ""
+          - name: AZURE_ADL_CLIENT_ID
+            value: ""
+          - name: AZURE_ADL_CREDENTIAL
+            value: ""
+          - name: AZURE_ADL_REFRESH_URL
+            value: ""
+          - name: AZURE_ABFS_STORAGE_ACCOUNT
+            value: ""
+          - name: AZURE_ABFS_ACCESS_KEY
+            value: ""
+          - name: AZURE_WASB_STORAGE_ACCOUNT
+            value: ""
+          - name: AZURE_ABFS_OAUTH
+            value: ""
+          - name: AZURE_ABFS_OAUTH_TOKEN_PROVIDER
+            value: ""
+          - name: AZURE_ABFS_OAUTH_CLIENT_ID
+            value: ""
+          - name: AZURE_ABFS_OAUTH_SECRET
+            value: ""
+          - name: AZURE_ABFS_OAUTH_ENDPOINT
+            value: ""
+          - name: AZURE_WASB_ACCESS_KEY
+            value: ""
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command: ['sh', '-c', 'until nc -z {{ .Values.hiveMetastore.jdbcURL.hostname }}.{{ .Values.hiveMetastore.jdbcURL.namespace }}.svc.cluster.local {{ .Values.hiveMetastore.jdbcURL.port }}; do echo waiting for postgres; sleep 2; done;']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.hiveMetastore.name }}
+  namespace: {{ .Values.hiveMetastore.namespace }}
+spec:
+  selector:
+    app: {{ .Values.hiveMetastore.name }}
+  ports:
+  - port: {{ .Values.hiveMetastore.port }}
+    targetPort: {{ .Values.hiveMetastore.port }}
+  type: {{ .Values.hiveMetastore.svcType }} 
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ .Values.trino.name }}-catalog-config"
+  namespace: {{ .Values.trino.namespace }}
+data:
+  lakehouse.properties: |
+    connector.name=delta_lake
+    hive.metastore.uri=thrift://{{ .Values.hiveMetastore.name }}.{{ .Values.hiveMetastore.namespace }}.svc.cluster.local:{{ .Values.hiveMetastore.port }}
+    hive.s3.endpoint=http://{{ .Values.hiveMetastore.s3URL.hostname }}.{{ .Values.hiveMetastore.s3URL.namespace }}.svc.cluster.local:9000
+    hive.s3.aws-access-key=minio
+    hive.s3.aws-secret-key=minio123
+    hive.s3.path-style-access=true
+    hive.s3.ssl.enabled=false
+    delta.legacy-create-table-with-existing-location.enabled=true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ .Values.trino.name }}-etc-config"
+  namespace: {{ .Values.trino.namespace }}
+data:
+  config.properties: |
+    coordinator=false
+    node-scheduler.include-coordinator=true
+    http-server.http.port={{ .Values.trino.port }}
+    discovery.uri=http://{{ .Values.trino.name }}-svc.{{ .Values.trino.namespace }}.svc.cluster.local:{{ .Values.trino.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.trino.name }}
+  namespace: {{ .Values.trino.namespace }}
+  labels:
+    app: {{ .Values.trino.name }}
+spec:
+  replicas: {{ .Values.trino.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.trino.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.trino.name }}
+    spec:
+      containers:
+      - name: {{ .Values.trino.name }}
+        image: {{ .Values.trino.image }}
+        ports:
+          - containerPort: {{ .Values.trino.port }}
+        volumeMounts:
+          - name: "{{ .Values.trino.name }}-etc-config"
+            mountPath: {{ .Values.trino.etcMountPath }}
+          - name: "{{ .Values.trino.name }}-catalog-config"
+            mountPath: {{ .Values.trino.catalogMountPath }}
+      volumes:
+      - name: "{{ .Values.trino.name }}-etc-config"
+        configMap:
+          name: "{{ .Values.trino.name }}-etc-config"
+      - name: "{{ .Values.trino.name }}-catalog-config"
+        configMap:
+          name: "{{ .Values.trino.name }}-catalog-config"
+      initContainers:
+      - name: wait-for-hive-metastore
+        image: busybox
+        command: ['sh', '-c', 'until nc -z {{ .Values.hiveMetastore.name }}.{{ .Values.hiveMetastore.namespace }}.svc.cluster.local {{ .Values.hiveMetastore.port }}; do echo waiting for hive-metastore; sleep 2; done;']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Values.trino.name }}-svc"
+  namespace: {{ .Values.trino.namespace }}
+spec:
+  selector:
+    app: {{ .Values.trino.name }}
+  ports:
+  - protocol: {{ .Values.trino.protocol }}
+    port: {{ .Values.trino.port }}
+    targetPort: {{ .Values.trino.port }}
+  type: {{ .Values.trino.svcType }}

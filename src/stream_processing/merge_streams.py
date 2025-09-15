@@ -1,6 +1,4 @@
-from typing import Any, Dict, Optional
-from datetime import datetime, timezone
-
+from typing import Any, Dict
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.functions import CoProcessFunction, RuntimeContext
 from pyflink.datastream.state import ValueStateDescriptor, ListStateDescriptor
@@ -18,13 +16,6 @@ from pyflink.table import (
 from utils import (debezium_ms_to_iso_utc, kafka_bureau_balance_table, 
                    kafka_bureau_table, flink_flatten_bureau_balance_table, 
                    flink_flatten_bureau_table, output_table)
-import os
-
-BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP")
-SCHEMA_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL")
-INPUT_BUREAU_TOPIC = os.getenv("INPUT_BUREAU_TOPIC")
-INPUT_BAL_TOPIC = os.getenv("INPUT_BALANCE_TOPIC")
-OUTPUT_TOPIC = os.getenv("OUTPUT_TOPIC")
 
 # Convert Row from Table API to dict for easier processing in DataStream API
 def map_bureau_row(row) -> Dict[str, Any]:

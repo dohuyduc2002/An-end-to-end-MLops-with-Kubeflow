@@ -1,2 +1,7 @@
 pyspark==4.0.0
 confluent-kafka[avro]==2.11.1
+numpy            
+mlflow
+kubernetes==30.1.0
+pyyaml==6.0.2
+minio==7.2.15

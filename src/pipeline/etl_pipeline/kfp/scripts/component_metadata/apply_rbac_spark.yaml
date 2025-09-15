@@ -1,0 +1,82 @@
+# PIPELINE DEFINITION
+# Name: apply-rbac-spark
+# Inputs:
+#    minio_access_key: str
+#    minio_bucket: str
+#    minio_endpoint: str
+#    minio_secret_key: str
+#    namespace: str
+#    yaml_object: str
+components:
+  comp-apply-rbac-spark:
+    executorLabel: exec-apply-rbac-spark
+    inputDefinitions:
+      parameters:
+        minio_access_key:
+          parameterType: STRING
+        minio_bucket:
+          parameterType: STRING
+        minio_endpoint:
+          parameterType: STRING
+        minio_secret_key:
+          parameterType: STRING
+        namespace:
+          parameterType: STRING
+        yaml_object:
+          parameterType: STRING
+deploymentSpec:
+  executors:
+    exec-apply-rbac-spark:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - apply_rbac_spark
+        command:
+        - python3
+        - -m
+        - kfp.dsl.executor_main
+        image: docker.io/microwave1005/kfp-etl:0.0.1
+pipelineInfo:
+  name: apply-rbac-spark
+root:
+  dag:
+    tasks:
+      apply-rbac-spark:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-apply-rbac-spark
+        inputs:
+          parameters:
+            minio_access_key:
+              componentInputParameter: minio_access_key
+            minio_bucket:
+              componentInputParameter: minio_bucket
+            minio_endpoint:
+              componentInputParameter: minio_endpoint
+            minio_secret_key:
+              componentInputParameter: minio_secret_key
+            namespace:
+              componentInputParameter: namespace
+            yaml_object:
+              componentInputParameter: yaml_object
+        taskInfo:
+          name: apply-rbac-spark
+  inputDefinitions:
+    parameters:
+      minio_access_key:
+        parameterType: STRING
+      minio_bucket:
+        parameterType: STRING
+      minio_endpoint:
+        parameterType: STRING
+      minio_secret_key:
+        parameterType: STRING
+      namespace:
+        parameterType: STRING
+      yaml_object:
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.12.1

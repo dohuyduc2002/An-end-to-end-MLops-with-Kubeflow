@@ -1,0 +1,8 @@
+psycopg2
+redis
+trino
+openpyxl
+pymssql
+Authlib
+Pillow
+playwright
