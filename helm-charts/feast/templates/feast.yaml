@@ -8,6 +8,7 @@ spec:
     git:
       url: {{ .Values.feastProjectDir.git.url }}
       ref: {{ .Values.feastProjectDir.git.ref }}
+      featureRepoPath: {{ .Values.feastProjectDir.git.featureRepoPath }}
   services:      
     registry:
       local:
@@ -37,7 +38,7 @@ spec:
         logLevel: debug
       persistence:
         store:
-          type: postgres
+          type: redis
           secretRef:
             name: feast-data-stores
     ui:

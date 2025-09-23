@@ -26,17 +26,6 @@ gold_fact_loan_schema = StructType(
     ]
 )
 
-gold_fact_bureau_balance = StructType(
-    [
-        StructField("sk_id_bureau", LongType(), True),
-        StructField("sk_id_curr", LongType(), True),
-        StructField("months_balance", IntegerType(), True),
-        StructField("status", StringType(), True),
-        StructField("updated", StringType(), True),
-        StructField("event_ts", TimestampType())
-    ]
-)
-
 gold_dim_user_demographic_schema = StructType(
     [
         StructField("sk_id_curr", LongType()),
@@ -48,7 +37,7 @@ gold_dim_user_demographic_schema = StructType(
         StructField("days_employed", IntegerType()),
         StructField("age_years", LongType()),
         StructField("years_employed", DoubleType()),
-        StructField("effective_date", TimestampType())
+        StructField("effective_date", TimestampType()),
     ]
 )
 
@@ -137,12 +126,10 @@ gold_dim_external_source_schema = StructType(
 gold_dim_application_time_schema = StructType(
     [
         StructField("sk_id_curr", LongType()),
-        StructField("days_registration", DoubleType()),
-        StructField("days_id_publish", IntegerType()),
+        StructField("days_registration", DateType()),
+        StructField("days_id_publish", DateType()),
         StructField("hour_appr_process_start", IntegerType()),
         StructField("weekday_appr_process_start", StringType()),
-        StructField("days_id_publish", StringType()),
-        StructField("is_weekend", IntegerType()),
         StructField("is_weekend", IntegerType()),
         StructField("is_working_hour", IntegerType()),
         StructField("effective_date", TimestampType())

@@ -52,7 +52,6 @@ def main():
 
     with open(temp_file_path, "wb") as f:
         f.write(data)
-    print(f" Download completed: {temp_file_path}", flush=True)
 
     table_fq = f"{args.schema}.{args.table}"
     conn = postgres_client.create_conn()

@@ -14,36 +14,35 @@ from config import (
     MINIO_ACCESS_KEY,
     MINIO_SECRET_KEY,
     SILVER_PATH_MERGED,
-    BRONZE_PATH_MERGED,
-    write_with_uc_sql,
+    write_with_delta_sql,
     add_scd_type2_cols
 )
-
-
-
 
 def main():
     spark = (
         SparkSession.builder
-        .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
-        .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS")
-        .config("spark.hadoop.google.cloud.auth.service.account.enable", "true")
-        .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", "/var/secrets/gcp/gcp-key.json")
+        .appName("Silver bureau batching")
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .config("hive.metastore.uris", "thrift://hive-metastore.database.svc.cluster.local:9083")
+        .enableHiveSupport()
         .config("spark.hadoop.fs.s3a.endpoint", f"http://{MINIO_ENDPOINT}")
         .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY)
         .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY)
-        .appName("Gold merge batching")
+        .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .getOrCreate()
     )
 
-    bronze_bureau_balance_table = spark.read.format("delta").load(BRONZE_PATH_MERGED)
+    bronze_bureau_balance_table = spark.read.table("homecredit_bronze.merged_bureau")
+
     silver_bureau_balance_table = bronze_bureau_balance_table.select(
         "sk_id_bureau",
         "sk_id_curr",
         "months_balance",
         "status",
         "updated",
-        "event_ts")
+        "event_ts"
+    )
 
     bureau_table = (
         spark.read.format("csv")
@@ -54,35 +53,31 @@ def main():
     for col in bureau_table.columns:
         bureau_table = bureau_table.withColumnRenamed(col, col.lower())
     
-    silver_bureau_table_scd_type2 = add_scd_type2_cols(bureau_table, ts_col=None)
-    silver_bureau_table_scd2 = silver_bureau_table_scd_type2.withColumn("event_ts", F.current_timestamp())
+    silver_bureau_table_scd2 = add_scd_type2_cols(bureau_table, ts_col=None) \
+        .withColumn("event_ts", F.current_timestamp())
         
-    spark.sql("""
-    CREATE SCHEMA IF NOT EXISTS silver
-    LOCATION 'gs://unity-catalog-dhduc/silver'
-    """)
+    spark.sql("CREATE SCHEMA IF NOT EXISTS homecredit_silver")
 
-    # Ghi dim_bureau
-    write_with_uc_sql(
+    write_with_delta_sql(
         spark,
         silver_bureau_table_scd2,
-        layer="silver",
         table_name="dim_bureau",
-        schema=silver_dim_bureau_schema,      # vẫn truyền để giữ interface, nhưng thực tế df quyết định
+        schema="homecredit_silver",      
         base_path=SILVER_PATH_MERGED,
+        table_ddl=silver_dim_bureau_schema,
         mode="append"
     )
 
-    # Ghi fact_bureau_balance
-    write_with_uc_sql(
+    write_with_delta_sql(
         spark,
         silver_bureau_balance_table,
-        layer="silver",
         table_name="fact_bureau_balance",
-        schema=silver_fact_bureau_balance_schema,
+        schema="homecredit_silver",
         base_path=SILVER_PATH_MERGED,
+        table_ddl=silver_fact_bureau_balance_schema,
         mode="append"
     )
+
 
     
 if __name__ == "__main__":

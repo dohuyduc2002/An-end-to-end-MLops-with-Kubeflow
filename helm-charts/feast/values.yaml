@@ -1,7 +1,8 @@
 feastProjectDir:
   git:
-    url: https://github.com/dohuyduc2002/homecredit-feature-store.git
+    url: https://github.com/dohuyduc2002/Credit-scoring-system-with-Kubeflow.git
     ref: 5c6f4f8
+    featureRepoPath: src/feast/feature_repo
 
 postgres:
   db: homecredit

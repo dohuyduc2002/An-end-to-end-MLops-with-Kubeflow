@@ -125,12 +125,10 @@ silver_dim_external_source_schema = StructType(
 silver_dim_application_time_schema = StructType(
     [
         StructField("sk_id_curr", LongType()),
-        StructField("days_registration", DoubleType()),
-        StructField("days_id_publish", IntegerType()),
+        StructField("days_registration", DateType()),
+        StructField("days_id_publish", DateType()),
         StructField("hour_appr_process_start", IntegerType()),
         StructField("weekday_appr_process_start", StringType()),
-        StructField("days_id_publish", StringType()),
-        StructField("is_weekend", IntegerType()),
         StructField("is_weekend", IntegerType()),
         StructField("is_working_hour", IntegerType()),
         StructField("event_ts", TimestampType()),

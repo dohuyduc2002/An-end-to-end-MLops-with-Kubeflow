@@ -1,5 +1,10 @@
 architecture: standalone
 
+image:
+  registry: docker.io
+  repository: redis
+  tag: 8.2.1-bookworm
+  
 auth:
   enabled: true
   sentinel: false
@@ -16,7 +21,7 @@ master:
       memory: 2Gi
 
 replica:
-  replicaCount: 2
+  replicaCount: 1
   resourcesPreset: "none"
   resources:
     requests:

@@ -9,7 +9,11 @@ registry:
 offline_store:
     type: spark
     spark_conf:
-        spark.master: "local[*]"
+        spark.master: "k8s://https://kubernetes.default.svc"
+        spark.kubernetes.namespace: "feast"
+        spark.kubernetes.container.image: "microwave1005/spark-etl:0.0.1"
+        spark.kubernetes.authenticate.driver.serviceAccountName: "spark"
+
         spark.ui.enabled: "false"
         spark.eventLog.enabled: "false"
         spark.sql.catalogImplementation: "hive"
@@ -18,7 +22,6 @@ offline_store:
         spark.sql.execution.arrow.fallback.enabled: "true"
         spark.sql.execution.arrow.pyspark.enabled: "true"
 
-        # MinIO specific configurations
         spark.hadoop.fs.s3a.endpoint: "minio.minio.svc.cluster.local:9000"
         spark.hadoop.fs.s3a.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
         spark.hadoop.fs.s3a.path.style.access: "true" 
@@ -35,20 +38,14 @@ offline_store:
         spark.hadoop.fs.s3a.keep.alive: "true"
 
         spark.hadoop.fs.s3a.aws.credentials.provider: "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
-
-        # Add required JARs for MinIO (s3a and AWS SDK)
         spark.jars.packages: "org.apache.hadoop:hadoop-aws:3.3.4,org.apache.hadoop:hadoop-common:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.261"
 
-
 online_store:
-    type: postgres
-    host: postgres.database.svc.cluster.local
-    port: 5432
-    database: homecredit
-    db_schema: public
-    user: postgres
-    password: postgres
-    vector_enabled: false
+    type: redis
+    redis_type: redis
+    connection_string: "redis-master.database.svc.cluster.local:6379,password=huyduc2002"
+    key_ttl_seconds: 86400 
+
 
 entity_key_serialization_version: 3
 

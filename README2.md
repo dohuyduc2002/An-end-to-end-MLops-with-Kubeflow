@@ -45,7 +45,7 @@ helm install minio minio/minio \
   --set consoleIngress.ingressClassName=nginx \
   --set consoleIngress.hosts[0]=console.minio.ducdh.com 
 ------------
-mc alias set localMinio http://localhost:5000 minio minio123
+mc alias set localMinio http://localhost:9000 minio minio123
 mc mb localMinio/feast
 mc mb localMinio/mlflow
 mc mb localMinio/sample-data
@@ -99,7 +99,6 @@ helm upgrade --install kafka-connect ./helm-charts/kafka/kafka-connect -n kafka
 k apply -f k8s/postgres/
 
 k apply -f ./k8s/jobs/insert_application.yaml
-
 k apply -f ./k8s/jobs/insert_bureau.yaml
 k apply -f ./k8s/jobs/insert_bureau_balance.yaml
 ----------------
@@ -138,23 +137,7 @@ helm upgrade --install superset superset/superset \
 ---
 helm upgrade --install olap ./helm-charts/olap \
   --namespace database
-
 ---
-k create namespace unitycatalog
-
-kubectl create secret generic gcs-secret-0 \
-  --from-file=jsonKey=gcp-key.json \
-  -n unitycatalog
-
-kubectl create secret generic postgres \
-  --from-literal=postgres=postgres \
-  -n unitycatalog
-
-
-helm upgrade --install unitycatalog ./unitycatalog/helm/ \
-  --namespace unitycatalog \
-  --create-namespace \
-  -f unitycatalog/helm/values.yaml
 
 
 ALTER SYSTEM SET password_encryption = 'md5';

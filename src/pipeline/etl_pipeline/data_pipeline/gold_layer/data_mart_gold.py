@@ -23,96 +23,98 @@ from config import (
     MINIO_ENDPOINT,
     MINIO_ACCESS_KEY,
     MINIO_SECRET_KEY,
-    SILVER_PATH_APPLICATION,
     DATA_MART_GOLD_PATH,
-    SILVER_PATH_MERGED,
-    write_with_uc_sql,
+    write_with_delta_sql,
 )
 
 def main():
     spark = (
         SparkSession.builder
-        .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
-        .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS")
-        .config("spark.hadoop.google.cloud.auth.service.account.enable", "true")
-        .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", "/var/secrets/gcp/gcp-key.json")
-        .appName("Gold application batching")
+        .appName("Data Mart Gold Layer")
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .config("hive.metastore.uris", "thrift://hive-metastore.database.svc.cluster.local:9083")
+        .enableHiveSupport()
+        .config("spark.hadoop.fs.s3a.endpoint", f"http://{MINIO_ENDPOINT}")
+        .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY)
+        .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY)
+        .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .getOrCreate()
     )
-    
+
+    silver_layer_schema = "homecredit_silver"
     silver_tables = {
-        "fact_loan": f"{SILVER_PATH_APPLICATION}/fact_loan",
-        "fact_bureau_balance": f"{SILVER_PATH_MERGED}/fact_bureau_balance",
-        "dim_bureau": f"{SILVER_PATH_MERGED}/dim_bureau",
-        "dim_user_demographic": f"{SILVER_PATH_APPLICATION}/dim_user_demographic",
-        "dim_user_contact": f"{SILVER_PATH_APPLICATION}/dim_user_contact",
-        "dim_user_region": f"{SILVER_PATH_APPLICATION}/dim_user_region",
-        "dim_asset": f"{SILVER_PATH_APPLICATION}/dim_asset",
-        "dim_user_income": f"{SILVER_PATH_APPLICATION}/dim_user_income",
-        "dim_external_source": f"{SILVER_PATH_APPLICATION}/dim_external_source",
-        "dim_application_time": f"{SILVER_PATH_APPLICATION}/dim_application_time",
-        "dim_provided_docs": f"{SILVER_PATH_APPLICATION}/dim_provided_docs",
-        "dim_aggregated": f"{SILVER_PATH_APPLICATION}/dim_aggregated",
+        "fact_loan": f"{silver_layer_schema}.fact_loan",
+        "fact_bureau_balance": f"{silver_layer_schema}.fact_bureau_balance",
+        "dim_bureau": f"{silver_layer_schema}.dim_bureau",
+        "dim_user_demographic": f"{silver_layer_schema}.dim_user_demographic",
+        "dim_user_contact": f"{silver_layer_schema}.dim_user_contact",
+        "dim_user_region": f"{silver_layer_schema}.dim_user_region",
+        "dim_asset": f"{silver_layer_schema}.dim_asset",
+        "dim_user_income": f"{silver_layer_schema}.dim_user_income",
+        "dim_external_source": f"{silver_layer_schema}.dim_external_source",
+        "dim_application_time": f"{silver_layer_schema}.dim_application_time",
+        "dim_provided_docs": f"{silver_layer_schema}.dim_provided_docs",
+        "dim_aggregated": f"{silver_layer_schema}.dim_aggregated",
     }
     
     silver_dfs = {
-        name: spark.read.format("delta").load(path)
-        for name, path in silver_tables.items()
+        name: spark.read.table(path) for name, path in silver_tables.items()
     }
     
     gold_dim_user_demographic = (
         silver_dfs["dim_user_demographic"]
         .filter(F.col("is_current") == True)
         .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .drop("is_current", "end_date","event_ts")
     )
     
     gold_dim_user_contact = (
         silver_dfs["dim_user_contact"]
         .filter(F.col("is_current") == True)
         .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .drop("is_current", "end_date","event_ts")
     )
     
     gold_dim_user_region = (
         silver_dfs["dim_user_region"]
         .filter(F.col("is_current") == True)
         .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .drop("is_current", "end_date","event_ts")
     )
     
     gold_dim_external_source = (
         silver_dfs["dim_external_source"]
         .filter(F.col("is_current") == True)
         .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .drop("is_current", "end_date","event_ts")
     )
     
     gold_dim_user_income = (
         silver_dfs["dim_user_income"]
         .filter(F.col("is_current") == True)
         .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .drop("is_current", "end_date","event_ts")
     )
     
     gold_dim_aggregated = (
         silver_dfs["dim_aggregated"]
         .filter(F.col("is_current") == True)
         .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .drop("is_current", "end_date","event_ts")
     )
     gold_dim_provided_docs = (
         silver_dfs["dim_provided_docs"]
         .filter(F.col("is_current") == True)
         .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .drop("is_current", "end_date","event_ts")
     )
     
     gold_dim_application_time = (
         silver_dfs["dim_application_time"]
         .filter(F.col("is_current") == True)
         .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .drop("is_current", "end_date","event_ts")
     )
     
     gold_dim_asset_and_bureau = (
@@ -122,6 +124,7 @@ def main():
     .withColumnRenamed("is_current", "asset_is_current")
     # .withColumnRenamed("effective_date", "asset_effective_date")
     .withColumnRenamed("end_date", "asset_end_date")
+    .withColumnRenamed("event_ts", "event_ts_asset")
     .join(
         silver_dfs["dim_bureau"]
         .filter(F.col("is_current") == True)
@@ -132,24 +135,20 @@ def main():
         on="sk_id_curr",
         how="left"
     )
-    .drop("bureau_is_current", "bureau_effective_date", "bureau_end_date", "asset_is_current", "asset_end_date")
+    .drop("bureau_is_current", "bureau_effective_date", "bureau_end_date", "asset_is_current", "asset_end_date"," event_ts","event_ts_asset")
     )
     
     gold_fact_loan = (
         silver_dfs["fact_loan"]
-        .filter(F.col("is_current") == True)
-        .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .filter(F.col("event_ts") == F.current_timestamp())
     )
     
     gold_fact_bureau_balance = (
         silver_dfs["fact_bureau_balance"]
-        .filter(F.col("is_current") == True)
-        .filter(F.col("end_date") > F.current_timestamp())
-        .drop("is_current", "end_date")
+        .filter(F.col("event_ts") == F.current_timestamp())
     )
     
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS gold LOCATION 'gs://unity-catalog-dhduc/data-mart'")
+    spark.sql("CREATE SCHEMA IF NOT EXISTS homecredit_gold")
 
     gold_tables = {
         "dim_user_demographic": gold_dim_user_demographic,
@@ -179,18 +178,18 @@ def main():
         "fact_bureau_balance": gold_fact_bureau_balance_schema
     }
     
-    # --- Gold tables ---
+    #  Gold tables 
     for name, df in gold_tables.items():
         schema = gold_tables_schemas[name]
 
-        write_with_uc_sql(
+        write_with_delta_sql(
             spark,
             df,
-            layer="gold",
             table_name=name,
-            schema=schema,
+            schema="homecredit_gold",
             base_path=DATA_MART_GOLD_PATH,
-            mode="overwrite"   # gold layer thường build lại từ đầu => overwrite
+            table_ddl=schema,
+            mode="overwrite"
         )
 
 

@@ -26,4 +26,4 @@ spec:
            "--minio-secret-key","minio123",
            "--table","application",
            "--bucket","sample-data",
-           "--file","application_test.csv"]
+           "--file","curated_features.csv"]

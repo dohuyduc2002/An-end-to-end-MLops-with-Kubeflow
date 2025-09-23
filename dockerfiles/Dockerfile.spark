@@ -2,13 +2,6 @@ FROM spark:4.0.0-scala2.13-java17-python3-r-ubuntu AS builder
 
 USER root
 
-# RUN apt-get update && apt-get install -y \
-#     python3 python3-pip curl ca-certificates \
-#  && rm -rf /var/lib/apt/lists/*
-
-# RUN ln -sf /usr/bin/python3 /usr/bin/python \
-#  && python3 --version && pip --version
-
 WORKDIR /opt/spark/jars
 
 # 1) Hadoop AWS (S3A)
@@ -45,17 +38,17 @@ RUN curl -fSL -o commons-pool2-2.12.1.jar \
 # RUN curl -fSL -o postgresql-42.7.3.jar \
 #   https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar
 
-# RUN curl -fSL -o spark-hive_2.13-4.0.0.jar \
-#   https://repo1.maven.org/maven2/org/apache/spark/spark-hive_2.13/4.0.0/spark-hive_2.13-4.0.0.jar
+RUN curl -fSL -o spark-hive_2.13-4.0.0.jar \
+  https://repo1.maven.org/maven2/org/apache/spark/spark-hive_2.13/4.0.0/spark-hive_2.13-4.0.0.jar
 
-RUN curl -fSL -o unitycatalog-client-0.3.0.jar \
-  https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-client/0.3.0/unitycatalog-client-0.3.0.jar
+# RUN curl -fSL -o unitycatalog-client-0.3.0.jar \
+#   https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-client/0.3.0/unitycatalog-client-0.3.0.jar
 
-RUN curl -fSL -o unitycatalog-server-0.3.0.jar \
-  https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-server/0.3.0/unitycatalog-server-0.3.0.jar
+# RUN curl -fSL -o unitycatalog-server-0.3.0.jar \
+#   https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-server/0.3.0/unitycatalog-server-0.3.0.jar
 
-RUN curl -fSL -o unitycatalog-spark_2.13-0.3.0.jar \
-  https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-spark_2.13/0.3.0/unitycatalog-spark_2.13-0.3.0.jar
+# RUN curl -fSL -o unitycatalog-spark_2.13-0.3.0.jar \
+#   https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-spark_2.13/0.3.0/unitycatalog-spark_2.13-0.3.0.jar
 
 # GCS
 # RUN curl -fSL -o gcs-connector-3.0.2-shaded.jar \
@@ -64,8 +57,8 @@ RUN curl -fSL -o unitycatalog-spark_2.13-0.3.0.jar \
 # RUN curl -fSL -o util-3.0.2.jar \
 #   https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/util/3.0.2/util-3.0.2.jar
   
-RUN curl -fSL -o gcs-connector-hadoop3-2.2.5-shaded.jar \
-  https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop3-2.2.5/gcs-connector-hadoop3-2.2.5-shaded.jar
+# RUN curl -fSL -o gcs-connector-hadoop3-2.2.5-shaded.jar \
+#   https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop3-2.2.5/gcs-connector-hadoop3-2.2.5-shaded.jar
 
 
 FROM builder AS app

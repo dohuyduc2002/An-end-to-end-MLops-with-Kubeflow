@@ -9,9 +9,8 @@ from config import (
     MINIO_ENDPOINT,
     MINIO_ACCESS_KEY,
     MINIO_SECRET_KEY,
-    BRONZE_PATH_APPLICATION,
     SILVER_PATH_APPLICATION,
-    write_with_uc_sql,
+    write_with_delta_sql,
     add_scd_type2_cols
 )
 
@@ -31,16 +30,21 @@ from silver_etl_schema import (
 def main():
     spark = (
         SparkSession.builder
-        .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
-        .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS")
-        .config("spark.hadoop.google.cloud.auth.service.account.enable", "true")
-        .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", "/var/secrets/gcp/gcp-key.json")
         .appName("Silver application batching")
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .config("hive.metastore.uris", "thrift://hive-metastore.database.svc.cluster.local:9083")
+        .enableHiveSupport()
+        .config("spark.hadoop.fs.s3a.endpoint", f"http://{MINIO_ENDPOINT}")
+        .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY)
+        .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY)
+        .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .getOrCreate()
     )
-    
-    bronze_table = spark.read.format("delta").load(BRONZE_PATH_APPLICATION)
 
+    
+    bronze_table = spark.read.table("homecredit_bronze.application")
+    
     silver_fact = bronze_table.select(
         "sk_id_curr",
         "amt_income_total",
@@ -139,7 +143,6 @@ def main():
         "event_ts"
     )
     
-
     silver_dim_application_time = bronze_table.select(
         "sk_id_curr",
         "days_registration",
@@ -148,20 +151,18 @@ def main():
         "weekday_appr_process_start",
         "hour_appr_process_start"
     ).withColumn(
+        "days_registration",
+        F.to_date(F.date_add(F.current_date(), F.col("days_registration").cast("int")))
+    ).withColumn(
         "days_id_publish",
-        F.to_date(
-            F.date_add(F.current_date(), F.col("days_id_publish").cast("int"))
-        )
+        F.to_date(F.date_add(F.current_date(), F.col("days_id_publish").cast("int")))
     ).withColumn(
         "is_weekend",
         F.when(F.col("weekday_appr_process_start").isin("SATURDAY", "SUNDAY"), F.lit(1)).otherwise(F.lit(0))
     ).withColumn(
         "is_working_hour",
-        F.when(
-            F.col("hour_appr_process_start").between(9, 18), F.lit(1)
-        ).otherwise(F.lit(0))
+        F.when(F.col("hour_appr_process_start").between(9, 18), F.lit(1)).otherwise(F.lit(0))
     )
-    
 
     docs_cols = [f"flag_document_{i}" for i in range(2,22)]
 
@@ -210,32 +211,32 @@ def main():
         "dim_aggregated": silver_dim_aggregated_schema,
     }
     
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS silver LOCATION 'gs://unity-catalog-dhduc/silver'")
+    spark.sql("CREATE SCHEMA IF NOT EXISTS homecredit_silver")
 
-    # --- Fact table ---
-    write_with_uc_sql(
+    #  Fact table 
+    write_with_delta_sql(
         spark,
         silver_fact,
-        layer="silver",
         table_name="fact_loan",
-        schema=silver_fact_schema,
+        schema="homecredit_silver",
         base_path=SILVER_PATH_APPLICATION,
+        table_ddl=silver_fact_schema,
         mode="append"
     )
 
-    # --- Dim tables (SCD Type 2) ---
+    #  Dim tables 
     for name, df in dim_tables.items():
         schema = dim_tables_schemas[name]
 
         df_scd2 = add_scd_type2_cols(df, ts_col="event_ts")
 
-        write_with_uc_sql(
+        write_with_delta_sql(
             spark,
             df_scd2,
-            layer="silver",
             table_name=name,
-            schema=schema,
+            schema="homecredit_silver",
             base_path=SILVER_PATH_APPLICATION,
+            table_ddl=schema,
             mode="append"
         )
 

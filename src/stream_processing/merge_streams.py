@@ -50,9 +50,7 @@ def map_bal_row(row) -> Dict[str, Any]:
         "event_time": row[4],
     }
 
-# =============================
 # MERGE (DataStream)
-# =============================
 class MergeBureauWithBalance(CoProcessFunction):
     def open(self, ctx: RuntimeContext):
         self.bureau = ctx.get_state(
@@ -96,25 +94,22 @@ class MergeBureauWithBalance(CoProcessFunction):
         return out
 
 
-# =============================
-# MAIN
-# =============================
+
 def main():
-    # ---- Envs ----
     env = StreamExecutionEnvironment.get_execution_environment()
     settings = EnvironmentSettings.in_streaming_mode()
     t_env = StreamTableEnvironment.create(env, environment_settings=settings)
 
-    # ---- DDL from kafka topic ----
+    #  DDL from kafka topic 
     # Bureau
     t_env.execute_sql(kafka_bureau_table)
     t_env.execute_sql(kafka_bureau_balance_table)
     
-    # ---- Create view
+    #  Create view
     bureau_after = t_env.sql_query(flink_flatten_bureau_table)
     balance_after = t_env.sql_query(flink_flatten_bureau_balance_table)
 
-    # ---- Table -> DataStream (Row -> dict) ----
+    #  Table -> DataStream (Row -> dict) 
     ds_bureau = t_env.to_data_stream(bureau_after).map(map_bureau_row)
     ds_balance = t_env.to_data_stream(balance_after).map(map_bal_row)
 
@@ -124,7 +119,7 @@ def main():
         .process(MergeBureauWithBalance(), output_type=Types.PICKLED_BYTE_ARRAY())
     )
 
-    # ---- DataStream -> Table ----
+    #  DataStream -> Table 
     out_schema = (
         Schema.new_builder()
         .column("sk_id_bureau", DataTypes.BIGINT())
@@ -155,7 +150,7 @@ def main():
     # Convert DataStream to Table
     out_table = t_env.from_data_stream(merged_rows, out_schema)
 
-    #Sink to kafka in json format
+    # Sink to kafka in json format
     t_env.execute_sql(output_table)
 
     t_env.create_temporary_view("merged_stream", out_table)

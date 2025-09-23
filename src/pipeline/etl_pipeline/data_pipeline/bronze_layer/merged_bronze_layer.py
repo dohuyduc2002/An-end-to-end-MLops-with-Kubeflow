@@ -11,34 +11,38 @@ from config import (
     MERGED_TOPIC,
     BRONZE_PATH_MERGED,
     CHECKPOINT_PATH_MERGED,
+    MINIO_ENDPOINT,
+    MINIO_ACCESS_KEY,
+    MINIO_SECRET_KEY,
 )
 
 
 def main():
     spark = (
         SparkSession.builder
-        .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
-        .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS")
-        .config("spark.hadoop.google.cloud.auth.service.account.enable", "true")
-        .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", "/var/secrets/gcp/gcp-key.json")
-        .appName("Flink batching")
+        .appName("Bronze Flink bureau batching")
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .config("hive.metastore.uris", "thrift://hive-metastore.database.svc.cluster.local:9083")
+        .enableHiveSupport()
+        .config("spark.hadoop.fs.s3a.endpoint", f"http://{MINIO_ENDPOINT}")
+        .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY)
+        .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY)
+        .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .getOrCreate()
     )
+
     spark.conf.set("spark.sql.session.timeZone", "UTC")
 
-    # Ensure schema + UC table
-    spark.sql("DROP TABLE IF EXISTS bronze.merged_bureau")
+    spark.sql("CREATE SCHEMA IF NOT EXISTS homecredit_bronze")
     spark.sql(f"""
-        CREATE SCHEMA IF NOT EXISTS bronze
-        LOCATION 'gs://unity-catalog-dhduc/bronze'
-    """)
-    spark.sql(f"""
-        CREATE TABLE bronze.merged_bureau (
+        CREATE TABLE IF NOT EXISTS homecredit_bronze.merged_bureau (
             {bronze_merged_schema.toDDL()}
         )
         USING delta
         LOCATION '{BRONZE_PATH_MERGED}'
     """)
+
 
     # Kafka source
     kafka_df = (
@@ -65,13 +69,10 @@ def main():
     def process(batch_df, batch_id):
         (
             batch_df.withColumn("batch_id", F.lit(batch_id))
-            .write
-            .format("delta")
+            .write.format("delta")
             .mode("append")
-            .option("path", BRONZE_PATH_MERGED)  # hoặc biến BRONZE_PATH_MERGED_BUREAU
-            .saveAsTable("bronze.merged_bureau")
+            .save(BRONZE_PATH_MERGED)
         )
-
 
     kafka_df_standardized.writeStream \
         .option("checkpointLocation", CHECKPOINT_PATH_MERGED) \
